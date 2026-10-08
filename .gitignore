@@ -1,0 +1,6 @@
+.godot/
+*.import.tmp
+/export/
+/build/
+__pycache__/
+tools/icon_src/
