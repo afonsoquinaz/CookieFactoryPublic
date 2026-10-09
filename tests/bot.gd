@@ -1,4 +1,4 @@
-class_name Bot
+
 extends Node
 ## Autopilot that plays the real game: drives the player with the joystick
 ## input, builds pads, hires and assigns workers, buys upgrades. Used for

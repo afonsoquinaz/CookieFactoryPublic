@@ -33,8 +33,9 @@ func _ready() -> void:
 	if a.has("zoom"):
 		world.cam.zoom = float(a["zoom"])
 	if a.has("bot"):
-		var bot := Bot.new()
-		bot.world = world
+		# loaded by path so exports can leave tests/ out
+		var bot: Node = load("res://tests/bot.gd").new()
+		bot.set("world", world)
 		add_child(bot)
 	if a.has("tscale"):
 		Engine.time_scale = float(a["tscale"])
