@@ -43,8 +43,8 @@ func _ready() -> void:
 					m2.position = Vector3(x, Items.height(t) * j, 0.6)
 				x += 0.5 if x < 0.4 else 0.5
 		"chars":
-			cam.position = Vector3(0, 1.9, 5.2)
-			cam.look_at(Vector3(0, 0.55, 0))
+			cam.position = Vector3(0, 2.4, 6.2)
+			cam.look_at(Vector3(0, 0.8, 0))
 			var looks := ["player", "farmer", "gatherer", "feeder", "collector", "loader", "idle"]
 			var works := ["", "", "", "", "", "", ""]
 			if a.has("work"):

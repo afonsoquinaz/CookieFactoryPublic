@@ -14,7 +14,7 @@ var _cards := {}       # role -> {count, plus, minus, chips}
 
 
 func _init() -> void:
-	title = "Workers"
+	title = "Staff"
 	title_icon = "hire"
 	height_frac = 0.66
 
@@ -22,11 +22,11 @@ func _init() -> void:
 func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(12)
 	v.add_child(h)
-	_staff_label = Kit.label("", 26, Kit.CHOCO, 0)
+	_staff_label = Kit.label("", 19, Kit.MUTED, 0, false)
 	_staff_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(_staff_label)
-	_hire_btn = Kit.juicy("Hire", Kit.GREEN, Kit.GREEN_EDGE, 28, Vector2(250, 78))
-	_hire_btn.set_icon("hire", 50)
+	_hire_btn = Kit.juicy("Hire", Kit.GREEN, Kit.GREEN_EDGE, 21, Vector2(220, 64))
+	_hire_btn.set_glyph("hire", 28)
 	_hire_btn.sound = ""
 	_hire_btn.pressed.connect(_hire)
 	h.add_child(_hire_btn)
@@ -47,7 +47,7 @@ func _build() -> void:
 func _card(role: String) -> Control:
 	var d: Dictionary = Defs.ROLES[role]
 	var col: Color = d["color"]
-	var box := Sheet.row_box(Color(1, 1, 1, 0.85), col.darkened(0.15) if role != "collector" else Color(0.8, 0.78, 0.75))
+	var box := Sheet.row_box(Color(1, 1, 1, 0.75), Kit.LINE)
 	box.gui_input.connect(func(e):
 		if (e is InputEventMouseButton or e is InputEventScreenTouch) and e.pressed:
 			preview_role.emit(role))
@@ -55,37 +55,44 @@ func _card(role: String) -> Control:
 	box.add_child(v)
 	var h := Kit.hbox(12)
 	v.add_child(h)
-	h.add_child(Kit.icon(d["icon"], 96))
+	var swatch := Panel.new()
+	swatch.custom_minimum_size = Vector2(6, 84)
+	swatch.add_theme_stylebox_override("panel", Kit.box(col.darkened(0.1) if role != "collector" else Kit.LINE, 3))
+	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(swatch)
+	h.add_child(Kit.icon(d["icon"], 80))
 	var mid := Kit.vbox(4)
 	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(mid)
 	var name_row := Kit.hbox(8)
 	mid.add_child(name_row)
-	var nl := Kit.label(d["name"], 30, col if role != "collector" else Color(0.55, 0.5, 0.48), 0)
+	var nl := Kit.label(d["name"], 24, Kit.INK, 0)
 	name_row.add_child(nl)
-	var cnt := Kit.label("×0", 26, Kit.WHITE, 7)
+	var cnt := Kit.label("×0", 19, Kit.MUTED, 0, false)
 	name_row.add_child(cnt)
 	# FROM → TO
 	var flow := Kit.hbox(6)
 	mid.add_child(flow)
-	flow.add_child(Kit.icon(_place_icon(d["from"]), 40))
-	flow.add_child(Kit.label(_place_name(d["from"]), 20, Kit.CHOCO, 0))
-	flow.add_child(Kit.label("  →  ", 24, col.darkened(0.2) if role != "collector" else Kit.CHOCO, 0))
-	flow.add_child(Kit.icon(_place_icon(d["to"]), 40))
-	flow.add_child(Kit.label(_place_name(d["to"]), 20, Kit.CHOCO, 0))
-	var desc := Kit.label(d["desc"], 19, Color(0.5, 0.36, 0.28), 0, false)
+	flow.add_child(Kit.icon(_place_icon(d["from"]), 32))
+	flow.add_child(Kit.label(_place_name(d["from"]), 17, Kit.INK, 0))
+	flow.add_child(Kit.glyph("arrow", 22, Kit.MUTED))
+	flow.add_child(Kit.icon(_place_icon(d["to"]), 32))
+	flow.add_child(Kit.label(_place_name(d["to"]), 17, Kit.INK, 0))
+	var desc := Kit.label(d["desc"], 16, Kit.MUTED, 0, false)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 330
 	mid.add_child(desc)
 	var btns := Kit.vbox(6)
 	h.add_child(btns)
-	var plus := Kit.juicy("+", Kit.GREEN, Kit.GREEN_EDGE, 36, Vector2(78, 62))
+	var plus := Kit.juicy("", Kit.GREEN, Kit.GREEN_EDGE, 26, Vector2(64, 54))
+	plus.set_glyph("add", 30)
 	plus.pressed.connect(func(): _add(role, ""))
 	btns.add_child(plus)
-	var minus := Kit.juicy("−", Kit.CORAL, Kit.CORAL_EDGE, 36, Vector2(78, 56))
+	var minus := Kit.juicy("", Kit.PAPER_DARK, Kit.LINE, 26, Vector2(64, 48))
+	minus.set_glyph("remove", 28)
 	minus.pressed.connect(func(): _remove(role, ""))
 	btns.add_child(minus)
-	var lock := Kit.label("", 22, Kit.CORAL_EDGE, 0)
+	var lock := Kit.label("", 17, Kit.TERRACOTTA_EDGE, 0)
 	v.add_child(lock)
 	var chips := {}
 	if role == "farmer":
@@ -95,19 +102,16 @@ func _card(role: String) -> Control:
 		var row := Kit.hbox(6)
 		v.add_child(row)
 		for ing in Defs.INGREDIENTS:
-			var chip := Kit.juicy("", Kit.CREAM, Kit.CREAM_DARK, 22, Vector2(0, 66))
+			var chip := Kit.juicy("", Kit.PAPER, Kit.LINE, 19, Vector2(0, 58))
 			chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			chip.set_icon(ing, 40)
-			chip.text_label.label_settings = chip.text_label.label_settings.duplicate()
-			chip.text_label.label_settings.font_color = Kit.CHOCO
-			chip.text_label.label_settings.outline_size = 0
+			chip.set_icon(ing, 34)
 			chip.pressed.connect(func(): _add("farmer", ing))
 			row.add_child(chip)
 			chips[ing] = chip
-		var hint := Kit.label("Tap a farm to add a farmer · long-press the farmer count to remove", 16, Color(0.55, 0.42, 0.34), 0, false)
+		var hint := Kit.label("", 14, Kit.MUTED, 0, false)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(hint)
-		var rm := Kit.juicy("− remove a farmer", Kit.CORAL, Kit.CORAL_EDGE, 20, Vector2(0, 50))
+		var rm := Kit.juicy("Remove a farmer", Kit.PAPER_DARK, Kit.LINE, 17, Vector2(0, 46))
 		rm.pressed.connect(func(): _remove("farmer", ""))
 		v.add_child(rm)
 		hint.visible = false
@@ -141,7 +145,7 @@ func _refresh() -> void:
 	if not is_instance_valid(_staff_label):
 		return
 	var idle := Game.idle_workers()
-	_staff_label.text = "Staff %d/%d  ·  %d resting" % [Game.workers.size(), Game.cabin_capacity(), idle]
+	_staff_label.text = "%d of %d hired  ·  %d waiting" % [Game.workers.size(), Game.cabin_capacity(), idle]
 	var can := Game.can_hire()
 	if not Game.has_building("cabin"):
 		_hire_btn.set_text_value("Build Cabin")
@@ -162,12 +166,13 @@ func _refresh() -> void:
 		lock.text = "Needs the %s" % Defs.BUILDINGS[Defs.ROLES[role]["needs"]]["name"]
 		(c["box"] as Control).modulate = Color(1, 1, 1, 1.0 if unlocked else 0.55)
 		(c["plus"] as JuicyButton).set_colors(Kit.GREEN if unlocked and idle > 0 else Kit.GREY, Kit.GREEN_EDGE if unlocked and idle > 0 else Kit.GREY_EDGE)
-		(c["minus"] as JuicyButton).set_colors(Kit.CORAL if Game.workers_with(role) > 0 else Kit.GREY, Kit.CORAL_EDGE if Game.workers_with(role) > 0 else Kit.GREY_EDGE)
+		(c["minus"] as JuicyButton).modulate.a = 1.0 if Game.workers_with(role) > 0 else 0.4
 		for ing in c["chips"]:
 			var chip: JuicyButton = c["chips"][ing]
+			chip.visible = Game.ingredient_unlocked(ing)
 			var n := Game.workers_with("farmer", ing)
 			chip.set_text_value("%d" % (n + 1))
-			chip.set_colors(Kit.CREAM if n < Bal.MAX_FARMERS_PER_FARM else Kit.CREAM_DARK, Kit.CREAM_DARK)
+			chip.set_colors(Kit.PAPER if n < Bal.MAX_FARMERS_PER_FARM else Kit.PAPER_DARK, Kit.LINE)
 
 
 func _hire() -> void:

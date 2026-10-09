@@ -136,9 +136,31 @@ func add_xp(amount: int) -> void:
 	xp_changed.emit(xp, Bal.xp_needed(level), level)
 
 
+## Ingredients in the recipe: wheat, plus every farm you've unlocked.
+func ingredient_unlocked(ing: String) -> bool:
+	return ing == "wheat" or has_building("plot_" + ing)
+
+
+func recipe() -> Array[String]:
+	var out: Array[String] = []
+	for ing in Defs.INGREDIENTS:
+		if ingredient_unlocked(ing):
+			out.append(ing)
+	return out
+
+
+## 0 = plain shortbread .. 4 = the full premium recipe.
+func cookie_grade() -> int:
+	return recipe().size() - 1
+
+
+func cookie_price() -> int:
+	return Bal.cookie_price(lvl("recipe"), cookie_grade())
+
+
 ## A truck sold cookies.
 func sell_cookies(count: int) -> int:
-	var price := Bal.cookie_price(lvl("recipe"))
+	var price := cookie_price()
 	var total := count * price
 	stats["cookies"] = int(stats["cookies"]) + count
 	add_money(total)

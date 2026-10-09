@@ -35,15 +35,15 @@ func setup(p_index: int) -> void:
 	add_child(truck)
 	_truck_body = Node3D.new()
 	truck.add_child(_truck_body)
-	_truck_mesh = Mats.inst(MeshKit.cached("truck_0", func(): return Dock.truck_mesh(0)), _truck_body)
+	_truck_mesh = Mats.inst(MeshKit.cached("van_0", func(): return Dock.truck_mesh(0)), _truck_body)
 	for p in [Vector3(-1.05, 0.32, 0.72), Vector3(-1.05, 0.32, -0.72), Vector3(1.0, 0.32, 0.72), Vector3(1.0, 0.32, -0.72)]:
 		var w := Node3D.new()
 		w.position = p
 		truck.add_child(w)
 		Mats.inst(MeshKit.cached("wheel", func():
 			var k := MeshKit.new()
-			k.cyl(0.32, 0.26, Pal.RUBBER, MeshKit.xf(Vector3(0, 0, -0.13), Vector3(90, 0, 0)), 16, 0.08)
-			k.cyl(0.15, 0.28, Color(0.95, 0.95, 0.98), MeshKit.xf(Vector3(0, 0, -0.14), Vector3(90, 0, 0)), 12, 0.04)
+			k.cyl(0.3, 0.24, Pal.RUBBER, MeshKit.xf(Vector3(0, 0, -0.12), Vector3(90, 0, 0)), 16, 0.05)
+			k.cyl(0.14, 0.26, Pal.STEEL, MeshKit.xf(Vector3(0, 0, -0.13), Vector3(90, 0, 0)), 10, 0.02)
 			return k.commit()), w)
 		_wheels.append(w)
 	cargo = Holder.new().setup(10, ["cookie"], Holder.Layout.GRID)
@@ -53,10 +53,10 @@ func setup(p_index: int) -> void:
 	cargo.position = Vector3(-0.55, 0.92, 0)
 	_truck_body.add_child(cargo)
 	cargo.landed.connect(_on_load)
-	zone = Zone.make(Zone.Kind.GIVE, [cargo], Vector2(1.7, 1.7), "truck", Color(1.0, 0.6, 0.55))
+	zone = Zone.make(Zone.Kind.GIVE, [cargo], Vector2(1.7, 1.7), "truck", Pal.TERRACOTTA)
 	zone.position = Vector3(Lay.DOCK_ZONE_X, 0, 0)
 	add_child(zone)
-	_label = UI3D.label("0/10", 44)
+	_label = UI3D.label("0/10", 32)
 	_label.position = Vector3(_park_x - 0.4, 3.1, 0)
 	add_child(_label)
 	var body := StaticBody3D.new()
@@ -76,7 +76,7 @@ func refresh(animate := true) -> void:
 	var tier := 2 if l >= 10 else (1 if l >= 5 else 0)
 	if tier != _tier:
 		_tier = tier
-		_truck_mesh.mesh = MeshKit.cached("truck_%d" % tier, func(): return Dock.truck_mesh(tier))
+		_truck_mesh.mesh = MeshKit.cached("van_%d" % tier, func(): return Dock.truck_mesh(tier))
 		if animate:
 			Fx.burst(get_tree().current_scene, truck.global_position + Vector3(0, 1.5, 0), Pal.GOLD, 20)
 	_update_label()
@@ -171,38 +171,38 @@ func _depart() -> void:
 	_idle = 0.0
 
 
-## Tier 0: little red van, 1: blue delivery truck, 2: golden cookie express.
+## Tier 0: cream delivery truck, 1: sage, 2: charcoal with brass trim.
+## Open slatted bed so the load of cookies stays visible.
 static func truck_mesh(tier := 0) -> Mesh:
 	var k := MeshKit.new()
-	var red: Color = [Color(0.96, 0.38, 0.38), Color(0.32, 0.58, 0.96), Color(1.0, 0.76, 0.22)][tier]
-	var cream := Color(1.0, 0.95, 0.85) if tier < 2 else Color(1.0, 0.98, 0.94)
-	var dark := Color(0.4, 0.3, 0.4)
-	# chassis
-	k.rbox(Vector3(3.3, 0.3, 1.5), 0.1, dark, MeshKit.at(0, 0.45, 0))
-	# cab (front = +x, driving east)
-	k.rbox(Vector3(1.1, 1.15, 1.55), 0.32, red, MeshKit.at(1.05, 1.15, 0))
-	k.rbox(Vector3(0.12, 0.5, 1.25), 0.1, Color(0.65, 0.88, 1.0, 0.7), MeshKit.at(1.56, 1.38, 0))
+	var cab: Color = [Color(0.92, 0.89, 0.81), Color(0.52, 0.6, 0.46), Color(0.24, 0.24, 0.25)][tier]
+	var trim: Color = [Pal.TERRACOTTA, Pal.CREAM, Pal.BRASS][tier]
+	var dark := Pal.STEEL_DARK
+	k.rbox(Vector3(3.3, 0.24, 1.4), 0.04, dark, MeshKit.at(0, 0.45, 0))
+	# cab (front = +x)
+	k.rbox(Vector3(1.05, 1.0, 1.5), 0.12, cab, MeshKit.at(1.1, 1.05, 0))
+	k.rbox(Vector3(0.7, 0.3, 1.52), 0.1, cab, MeshKit.at(1.38, 0.68, 0))
+	k.rbox(Vector3(0.06, 0.42, 1.26), 0.03, Color(0.55, 0.66, 0.72, 0.85), MeshKit.at(1.63, 1.3, 0))
 	for sz in [-1.0, 1.0]:
-		k.rbox(Vector3(0.6, 0.42, 0.06), 0.1, Color(0.65, 0.88, 1.0, 0.7), MeshKit.at(1.05, 1.38, sz * 0.77))
-		k.sphere(0.1, Color(1.0, 0.95, 0.6, 0.4), MeshKit.at(1.6, 0.85, sz * 0.5), 8, 6)
-	k.rbox(Vector3(0.2, 0.18, 1.6), 0.08, Pal.METAL, MeshKit.at(1.62, 0.6, 0))
-	# open cargo bed with cream walls + cookie logo
-	k.rbox(Vector3(2.1, 0.12, 1.55), 0.05, cream.darkened(0.08), MeshKit.at(-0.55, 0.66, 0))
+		k.rbox(Vector3(0.58, 0.38, 0.04), 0.03, Color(0.55, 0.66, 0.72, 0.85), MeshKit.at(1.08, 1.3, sz * 0.76))
+		k.rbox(Vector3(1.06, 0.06, 0.03), 0.01, trim, MeshKit.at(1.1, 0.86, sz * 0.765))
+		k.sphere(0.07, Color(1.0, 0.95, 0.8, 0.5), MeshKit.at(1.73, 0.74, sz * 0.52), 8, 5)
+	k.rbox(Vector3(0.05, 0.22, 0.9), 0.02, dark, MeshKit.at(1.75, 0.68, 0))
+	k.rbox(Vector3(0.1, 0.12, 1.56), 0.03, dark, MeshKit.at(1.76, 0.48, 0))
+	# slatted wooden bed
+	k.rbox(Vector3(2.1, 0.08, 1.5), 0.02, Pal.WOOD_DARK, MeshKit.at(-0.55, 0.62, 0))
 	for sz in [-1.0, 1.0]:
-		k.rbox(Vector3(2.1, 0.55, 0.1), 0.05, cream, MeshKit.at(-0.55, 0.95, sz * 0.73))
-		Items.cookie_into(k, 0.26, 0.05, MeshKit.xf(Vector3(-0.55, 0.95, sz * 0.79), Vector3(sz * 90, 0, 0)))
-	k.rbox(Vector3(0.1, 0.55, 1.55), 0.05, cream, MeshKit.at(0.45, 0.95, 0))
-	k.rbox(Vector3(0.1, 0.35, 1.55), 0.05, red, MeshKit.at(-1.6, 0.85, 0))
-	for sz in [-1.0, 1.0]:
-		k.rbox(Vector3(2.12, 0.1, 0.12), 0.04, red, MeshKit.at(-0.55, 1.24, sz * 0.73))
+		for yy in [0.78, 0.96, 1.14]:
+			k.rbox(Vector3(2.1, 0.11, 0.05), 0.015, Pal.WOOD, MeshKit.at(-0.55, yy, sz * 0.72))
+		for xx in [-1.55, -0.55, 0.45]:
+			k.rbox(Vector3(0.07, 0.6, 0.07), 0.015, dark, MeshKit.at(xx, 0.93, sz * 0.72))
+	for yy in [0.78, 0.96, 1.14]:
+		k.rbox(Vector3(0.05, 0.11, 1.44), 0.015, Pal.WOOD, MeshKit.at(-1.6, yy, 0))
+	# a small emblem on the cab door
+	Items.cookie_into(k, 0.13, 0.03, MeshKit.xf(Vector3(1.05, 1.0, 0.77), Vector3(90, 0, 0)))
 	if tier >= 1:
-		# roof light bar + side stripe
-		k.rbox(Vector3(0.5, 0.12, 0.9), 0.05, Color(1.0, 0.9, 0.5, 0.5), MeshKit.at(1.0, 1.78, 0))
-		for sz in [-1.0, 1.0]:
-			k.rbox(Vector3(1.0, 0.1, 0.04), 0.03, cream, MeshKit.at(1.05, 0.95, sz * 0.79))
+		k.rbox(Vector3(0.6, 0.08, 1.2), 0.03, dark, MeshKit.at(1.1, 1.59, 0))
 	if tier >= 2:
-		# chrome exhaust stacks + a big cookie on the cab roof
 		for sz in [-1.0, 1.0]:
-			k.cyl(0.07, 1.0, Pal.METAL, MeshKit.at(0.42, 0.9, sz * 0.62), 10, 0.02)
-		Items.cookie_into(k, 0.3, 0.08, MeshKit.xf(Vector3(1.0, 1.95, 0), Vector3(0, 0, 0)))
+			k.cyl(0.05, 0.9, Pal.BRASS, MeshKit.at(0.58, 0.9, sz * 0.62), 8, 0.01)
 	return k.commit()

@@ -20,11 +20,11 @@ func _ready() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup("farmer", hash(farm.ing) + index * 31)
-	ch.scale = Vector3.ONE * 1.25
+	ch.scale = Vector3.ONE * 0.92
 	carry = Holder.new().setup(6, [], Holder.Layout.COLUMN)
 	ch.carry_mount.add_child(carry)
 	_bubble = UI3D.label("...", 40, Color(1, 1, 1))
-	_bubble.position = Vector3(0, 1.75, 0)
+	_bubble.position = Vector3(0, 1.95, 0)
 	_bubble.visible = false
 	add_child(_bubble)
 

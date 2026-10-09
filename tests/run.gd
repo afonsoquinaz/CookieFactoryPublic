@@ -81,7 +81,14 @@ func _test_game_state() -> void:
 	ok(Game.level == lvl + 1, "level up from xp")
 	var before := Game.money
 	var sold := Game.sell_cookies(10)
-	ok(sold == 10 * Bal.cookie_price(Game.lvl("recipe")) and Game.money >= before + sold, "selling pays")
+	ok(sold == 10 * Game.cookie_price() and Game.money >= before + sold, "selling pays")
+	# recipe grows with every farm unlocked
+	var p0 := Game.cookie_price()
+	ok(Game.recipe().size() == 1 and Game.recipe()[0] == "wheat", "start recipe is just wheat")
+	ok(not Game.upgrade_available("farm_sugar"), "sugar farm upgrade locked before the field exists")
+	Game.build("plot_sugar")
+	ok(Game.cookie_grade() == 1 and Game.cookie_price() > p0, "sugar raises the cookie price")
+	ok(Game.upgrade_available("farm_sugar"), "sugar farm upgrade unlocked")
 	# rush
 	ok(Game.start_rush() and Game.speed_mult() == 2.0, "rush doubles speed")
 	ok(not Game.start_rush(), "rush has a cooldown")
@@ -128,7 +135,25 @@ func _test_holders() -> void:
 
 
 func _test_line() -> void:
+	# just wheat: the first loop must be quick
 	Game.reset_state()
+	var l0 := Line.new()
+	add_child(l0)
+	l0.setup(0)
+	for i in 2:
+		l0.hoppers["wheat"].add("wheat", false)
+	Engine.time_scale = 4.0
+	var t0 := 0.0
+	while l0.tray.count() < Bal.batch_size(0) and t0 < 30.0:
+		await get_tree().process_frame
+		t0 += get_process_delta_time()
+	Engine.time_scale = 1.0
+	ok(l0.tray.count() >= Bal.batch_size(0) and t0 < 9.0, "wheat-only line bakes fast (%.1fs)" % t0)
+	ok(not l0.hopper_nodes["milk"].visible, "locked hoppers stay hidden")
+	l0.queue_free()
+	# the full recipe
+	for ing in ["sugar", "cocoa", "egg", "milk"]:
+		Game.buildings["plot_" + ing] = true
 	var l := Line.new()
 	add_child(l)
 	l.setup(0)

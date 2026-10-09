@@ -1,8 +1,10 @@
-# Cookie Factory
+# Cookie Empire
 
-A cute, minimalist 3D idle factory game made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
+A calm, premium 3D idle factory game made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
 
-Start with a tiny workshop and five little farms. Carry wheat, sugar cane, cocoa, eggs and milk to the hoppers on a glass assembly tube. Watch the dough ball roll through it, pick up each ingredient and bake into chocolate-chip cookies. Load the cookies into a delivery truck and get paid. Then hire workers, automate every step, upgrade everything and grow a cookie empire.
+Start at the kitchen table: one wheat field right next to a brick oven and a delivery truck. Your first cookies sell within seconds. Unlock the sugar cane field, cocoa orchard, hen house and dairy one at a time: each adds a hopper to the glass production line, upgrades the recipe (plain shortbread → sugar cookie → chocolate chip → butter → premium) and raises the price of every cookie. Hire staff, automate every step, upgrade everything and grow a cookie empire.
+
+**Look:** muted, grown-up production site (steel silo hoppers, dark-steel tube frame, brick dome oven, dry-stone farm walls, cypress and olive trees, deep teal sea) with cute toy-figure staff in the style of DEADGRID's characters. UI: Manrope + DM Serif Display, Material Icons, dark glass pills and paper sheets.
 
 All 3D art is procedural low-poly (`world/mesh_kit.gd`). The 2D icons, app icon and logo were generated for this game with the OpenAI Images API (`tools/gen_icons.py`), and all sound and music is synthesized in code (`tools/gen_audio.py`). No third-party art or audio.
 
@@ -37,7 +39,7 @@ Resting workers sit on the cabin bench with a "z z" until you give them a job.
 
 **Progression**
 - Cookies sold give XP. Each **empire level** pays a cash reward and unlocks new build pads. The levels go from Tiny Workshop to Galactic Cookies.
-- **Buildings**: Staff Cabin, Pantry, Packing Shelf, Second and Third Dock, Assembly Lines 2 and 3.
+- **Buildings**: the four farms (each adds an ingredient and a hopper), Staff Cabin, Pantry, Packing Shelf, Second and Third Dock, Production Lines 2 and 3. A build pad only appears once you reach its level.
 - **Upgrades**:
   - **Farms**: speed, crate size and harvest yield. The plots visibly grow at levels 5, 10, 15 and 20, with more crops and animals and nicer fences.
   - **Factory**: belt speed, oven speed, batch size, hopper size and the Secret Recipe (cookie price).
@@ -104,18 +106,17 @@ Dev flags (after `--`):
 - `--tscale=2` changes the time scale.
 - `--perf` and `--tris` print render stats.
 
-From a headless run of the bot (one hour, fresh save), the pacing is:
+From a headless run of the bot (fresh save), the pacing is:
 
 | Milestone | Time |
 |---|---|
-| First cookie | ~45 s |
-| First sale | ~1 min |
-| Cabin | ~2 min |
-| First worker | ~4 min |
-| Pantry | ~6 min |
-| Level 5 | ~12 min |
-| All five roles working | ~25 min |
-| Level 10 | ~57 min |
+| First cookie | ~8 s |
+| First sale | ~17 s |
+| Sugar Cane Field | ~40 s |
+| Staff Cabin + first worker | ~1 min |
+| Cocoa Orchard | ~2.5 min |
+| Level 5 | ~7 min |
+| All five farms | ~15 min |
 
 Export presets:
 - **Android**: arm64 APK.

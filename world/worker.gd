@@ -24,7 +24,7 @@ var _give_zone: Zone
 var _filter := ""
 var _want := 0
 var _timer := 0.0
-var _badge: Sprite3D
+var _badge: Node3D
 var _ring: MeshInstance3D
 var _bubble: Label3D
 var _stuck := 0.0
@@ -41,7 +41,7 @@ func setup(p_world: World, p_data: Dictionary) -> void:
 
 func _ready() -> void:
 	_bubble = UI3D.label("", 44)
-	_bubble.position = Vector3(0, 2.35, 0)
+	_bubble.position = Vector3(0, 2.0, 0)
 	add_child(_bubble)
 	apply_role()
 
@@ -58,10 +58,10 @@ func apply_role() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup(role if role != "" else "idle", int(data["id"]) * 13 + 5)
-	ch.scale = Vector3.ONE * 1.35
+	ch.scale = Vector3.ONE * 0.95
 	if role == "loader":
 		# loaders stack cookies on their hand truck's nose plate
-		ch.carry_mount.position = Vector3(0, 0.08, 0.52)
+		ch.carry_mount.position = Vector3(0, 0.06, 0.6)
 	carry = Holder.new().setup(Bal.worker_carry(Game.lvl("wcarry")), [], Holder.Layout.COLUMN)
 	carry.sway = 0.05
 	ch.carry_mount.add_child(carry)
@@ -69,8 +69,8 @@ func apply_role() -> void:
 	var col := Color(0.8, 0.8, 0.85)
 	if role != "":
 		col = Defs.ROLES[role]["color"]
-		_badge = UI3D.icon(Defs.ROLES[role]["icon"], 0.0026)
-		_badge.position = Vector3(0, 2.3, 0)
+		_badge = UI3D.badge(Defs.ROLES[role]["icon"], col.darkened(0.2), 0.5)
+		_badge.position = Vector3(0, 2.05, 0)
 		add_child(_badge)
 	_ring = MeshInstance3D.new()
 	var k := MeshKit.new()
@@ -113,7 +113,7 @@ func _process(dt: float) -> void:
 			ch.work = ""
 		return
 	if _badge:
-		_badge.position.y = 2.3 + carry.count() * 0.05 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
+		_badge.position.y = 2.05 + carry.count() * 0.04 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
 	_bubble.visible = state == S.WAIT or state == S.REST
 	match state:
 		S.DECIDE:

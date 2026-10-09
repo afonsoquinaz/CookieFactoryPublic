@@ -67,7 +67,7 @@ func _demo_state() -> void:
 	Game.level = 7
 	Game.xp = 140
 	Game.tutorial_step = 99
-	for b in ["cabin", "pantry", "shelf", "dock2", "line2"]:
+	for b in ["plot_sugar", "plot_cocoa", "plot_egg", "plot_milk", "cabin", "pantry", "shelf", "dock2", "line2"]:
 		Game.buildings[b] = true
 	for ing in Defs.INGREDIENTS:
 		Game.upgrades["farm_" + ing] = 11

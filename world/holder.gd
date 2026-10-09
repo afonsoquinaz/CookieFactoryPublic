@@ -125,7 +125,16 @@ func refresh_visuals() -> void:
 	for t in _mm:
 		_mm[t].queue_free()
 	_mm.clear()
-	_dirty = true
+	_dirty = layout == Layout.GRID
+	if layout == Layout.COLUMN:
+		for k in _nodes.size():
+			_nodes[k].queue_free()
+		_nodes.clear()
+		for k in mini(items.size(), max_visible):
+			var n := Items.node(items[k])
+			add_child(n)
+			_nodes.append(n)
+			n.transform = slot_transform(k)
 
 
 func clear_all() -> void:

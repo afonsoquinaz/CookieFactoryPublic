@@ -6,6 +6,18 @@ static var _glass: ShaderMaterial
 static var _ground: ShaderMaterial
 static var _glow: ShaderMaterial
 static var _flat := {}
+static var _ink: ShaderMaterial
+
+
+## Toon material with an inverted-hull ink outline (characters only).
+static func inked() -> ShaderMaterial:
+	if _ink == null:
+		_ink = toon().duplicate() as ShaderMaterial
+		var o := ShaderMaterial.new()
+		o.shader = preload("res://render/outline.gdshader")
+		o.set_shader_parameter("width", 0.016)
+		_ink.next_pass = o
+	return _ink
 
 
 static func toon() -> ShaderMaterial:

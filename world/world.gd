@@ -50,17 +50,15 @@ func _ready() -> void:
 	add_child(actors)
 	Island.build(self, region)
 	for ing in Defs.INGREDIENTS:
-		var f := Farm.new()
-		region.add_child(f)
-		f.setup(ing)
-		farms[ing] = f
-		_farm_colliders(f)
+		if Game.ingredient_unlocked(ing):
+			_spawn_farm(ing)
 	_spawn_line(0)
 	_spawn_dock(0)
 	for id in Defs.BUILD_ORDER:
 		if Game.has_building(id):
-			_spawn_building(id, false)
-		else:
+			if not id.begins_with("plot_"):
+				_spawn_building(id, false)
+		elif Game.level >= int(Defs.BUILDINGS[id]["lvl"]):
 			_spawn_pad(id)
 	player = Player.new()
 	actors.add_child(player)
@@ -75,6 +73,10 @@ func _ready() -> void:
 	Game.upgraded.connect(_on_upgraded)
 	Game.workers_changed.connect(_sync_workers)
 	Game.level_up.connect(func(_l, _r): _refresh_pads())
+	# a brand-new game: a few sheaves are already waiting in the wheat crate
+	if Game.world_state.is_empty() and int(Game.stats["cookies"]) == 0:
+		for i in 4:
+			farms["wheat"].crate.add("wheat", false)
 	_request_bake()
 
 
@@ -124,12 +126,36 @@ func _spawn_pad(id: String) -> void:
 	pads[id] = p
 
 
+## New level: pads that just became available rise out of the ground.
 func _refresh_pads() -> void:
-	pass
+	for id in Defs.BUILD_ORDER:
+		if Game.has_building(id) or pads.has(id) or Game.level < int(Defs.BUILDINGS[id]["lvl"]):
+			continue
+		_spawn_pad(id)
+		var p: BuildPad = pads[id]
+		p.scale = Vector3(0.1, 0.1, 0.1)
+		var tw := p.create_tween()
+		tw.tween_property(p, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		Fx.ring(self, p.global_position, Pal.BRASS, 2.0)
+
+
+func _spawn_farm(ing: String) -> Farm:
+	var f := Farm.new()
+	region.add_child(f)
+	f.setup(ing)
+	farms[ing] = f
+	_farm_colliders(f)
+	return f
 
 
 func _spawn_building(id: String, animate: bool) -> void:
 	var node: Node3D = null
+	if id.begins_with("plot_"):
+		var ing := id.substr(5)
+		node = _spawn_farm(ing)
+		for l in lines:
+			l.unlock(ing)
+		_refresh_cookie_visuals()
 	match id:
 		"cabin":
 			cabin = Cabin.new()
@@ -166,6 +192,7 @@ func _spawn_building(id: String, animate: bool) -> void:
 func _on_built(id: String) -> void:
 	pads.erase(id)
 	_spawn_building(id, true)
+	_unstick_player.call_deferred()
 	_request_bake()
 	for w in workers.values():
 		w.state = Worker.S.DECIDE
@@ -182,13 +209,7 @@ func _on_upgraded(id: String, _lvl: int) -> void:
 			for d in docks:
 				d.refresh()
 		"recipe":
-			# new cookies look fancier; restack the visible ones
-			for l in lines:
-				l.tray.refresh_visuals()
-			for d in docks:
-				d.cargo.refresh_visuals()
-			if shelf:
-				shelf.bins["cookie"].refresh_visuals()
+			pass
 		"pantry":
 			if pantry:
 				pantry.refresh()
@@ -248,7 +269,7 @@ func idle_seat_index(w: Worker) -> int:
 func pick_farm_for_gatherer(target: String) -> Farm:
 	if pantry == null:
 		return null
-	if target != "":
+	if target != "" and farms.has(target):
 		var f: Farm = farms[target]
 		return f if f.crate.count() > 0 and pantry.bins[target].space() > 0 else null
 	var best: Farm = null
@@ -365,6 +386,41 @@ func _restore_state() -> void:
 	for t in s.get("carry", []):
 		if player.carry.space() > 0:
 			player.carry.add(str(t), false)
+
+
+## The recipe changed: every visible cookie takes the new look.
+func _refresh_cookie_visuals() -> void:
+	for l in lines:
+		l.tray.refresh_visuals()
+	for d in docks:
+		d.cargo.refresh_visuals()
+	if shelf:
+		shelf.bins["cookie"].refresh_visuals()
+	player.carry.refresh_visuals()
+
+
+## After something is built where you stand, step out of its walls.
+func _unstick_player() -> void:
+	await get_tree().physics_frame
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsShapeQueryParameters3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.4
+	cap.height = 1.2
+	q.shape = cap
+	q.collision_mask = 1
+	var start := player.global_position
+	for r in [0.0, 0.8, 1.4, 2.0, 2.8, 3.6]:
+		for a in 12:
+			var p: Vector3 = start + Vector3(sin(a * TAU / 12.0), 0, cos(a * TAU / 12.0)) * r
+			q.transform = Transform3D(Basis.IDENTITY, p + Vector3(0, 0.62, 0))
+			if space.intersect_shape(q, 1).is_empty():
+				if r > 0.0:
+					var tw := player.create_tween()
+					tw.tween_property(player, "global_position", p, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				return
+			if r == 0.0:
+				break
 
 
 func _farm_colliders(f: Farm) -> void:

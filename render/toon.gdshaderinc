@@ -1,15 +1,15 @@
 // Soft "painted toy" lighting shared by every lit surface: wrapped-lambert soft
 // terminator, warm-to-cool shadow tint, rim light, gentle plastic sheen and a
 // sky/ground bounce fill. Colours come in as sRGB (vertex colour x tint).
-uniform float rim_strength = 0.32;
-uniform float sky_rim = 0.10;
-uniform float sheen = 0.16;
-uniform float sheen_pow = 18.0;
-uniform vec3 shade_tint = vec3(0.72, 0.70, 0.94);
-uniform float top_light = 0.10;
-uniform float fill = 0.26;
-uniform vec3 fill_sky = vec3(0.90, 0.95, 1.0);
-uniform vec3 fill_ground = vec3(0.95, 0.80, 0.62);
+uniform float rim_strength = 0.12;
+uniform float sky_rim = 0.04;
+uniform float sheen = 0.06;
+uniform float sheen_pow = 24.0;
+uniform vec3 shade_tint = vec3(0.62, 0.66, 0.76);
+uniform float top_light = 0.06;
+uniform float fill = 0.16;
+uniform vec3 fill_sky = vec3(0.86, 0.9, 0.96);
+uniform vec3 fill_ground = vec3(0.9, 0.82, 0.7);
 
 vec3 toon_to_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
@@ -36,8 +36,8 @@ float vnoise(vec2 p) {
 
 void toon_light(vec3 n, vec3 l, vec3 v, vec3 lc, float att, float sheen_amt, inout vec3 diffuse, inout vec3 spec) {
 	float ndl = dot(n, l);
-	float w = clamp((ndl + 0.35) / 1.35, 0.0, 1.0);
-	float ramp = smoothstep(0.05, 0.95, w);
+	float w = clamp((ndl + 0.2) / 1.2, 0.0, 1.0);
+	float ramp = w * w * (3.0 - 2.0 * w);
 	float sh = ramp * att;
 	vec3 tinted = mix(shade_tint, vec3(1.0), sh);
 	diffuse += lc * tinted * sh / PI + lc * shade_tint * 0.14 * (1.0 - sh) / PI;
