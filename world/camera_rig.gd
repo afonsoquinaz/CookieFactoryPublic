@@ -24,6 +24,15 @@ func _ready() -> void:
 	cam.current = true
 
 
+## Launch swoop: start high over the island and glide down to the player.
+func intro() -> void:
+	zoom = 2.3
+	pitch = 70.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "zoom", 1.0, 2.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT).set_delay(0.3)
+	tw.tween_property(self, "pitch", 62.0, 2.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT).set_delay(0.3)
+
+
 func snap() -> void:
 	if target:
 		global_position = _focus()

@@ -360,8 +360,7 @@ func _popup(head: String, sub: String, text: String, icon: String, btn_text: Str
 	root.add_child(dim)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", Kit.card(36))
-	card.set_anchors_preset(Control.PRESET_CENTER)
-	card.custom_minimum_size = Vector2(560, 0)
+	card.custom_minimum_size = Vector2(minf(560, get_viewport_rect().size.x - 40), 0)
 	root.add_child(card)
 	var v := Kit.vbox(10)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -388,6 +387,10 @@ func _popup(head: String, sub: String, text: String, icon: String, btn_text: Str
 		tw.tween_property(root, "modulate:a", 0.0, 0.2)
 		tw.tween_callback(root.queue_free))
 	v.add_child(b)
-	card.resized.connect(func():
-		card.position = (root.size - card.size) * 0.5)
+	var center := func():
+		card.size = card.get_combined_minimum_size()
+		card.position = (get_viewport_rect().size - card.size) * 0.5
+		card.pivot_offset = card.size * 0.5
+	center.call_deferred()
+	card.minimum_size_changed.connect(center)
 	Kit.pop_in.call_deferred(card)

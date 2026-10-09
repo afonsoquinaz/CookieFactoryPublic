@@ -22,6 +22,9 @@ void fragment() {
 	c = mix(c, grass_c.rgb, smoothstep(0.62, 0.8, n2) * 0.55);
 	float speck = step(0.985, hash12(floor(p * 7.0)));
 	c = mix(c, c * 1.12 + vec3(0.03, 0.04, 0.0), speck * 0.6);
+	// slow drifting cloud shadows
+	float cl = vnoise(p * 0.045 + vec2(TIME * 0.035, TIME * 0.012)) * 0.65 + vnoise(p * 0.11 - vec2(TIME * 0.05, 0.0)) * 0.35;
+	c *= 1.0 - smoothstep(0.55, 0.75, cl) * 0.16;
 	vec3 lin = c * COLOR.rgb * 0.82;  // source_color uniforms arrive linear
 	ALBEDO = lin;
 	EMISSION = lin * 0.08;

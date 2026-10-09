@@ -30,6 +30,8 @@ func _ready() -> void:
 		var p: PackedStringArray = a["cam"].split(",")
 		world.player.global_position = Vector3(float(p[0]), 0, float(p[1]))
 		world.cam.snap()
+	if not a.has("shot") and not a.has("bot"):
+		world.cam.intro()
 	if a.has("zoom"):
 		world.cam.zoom = float(a["zoom"])
 	if a.has("bot"):
@@ -37,6 +39,8 @@ func _ready() -> void:
 		var bot: Node = load("res://tests/bot.gd").new()
 		bot.set("world", world)
 		add_child(bot)
+	if a.has("route"):
+		world.show_route(a["route"])
 	if a.has("tscale"):
 		Engine.time_scale = float(a["tscale"])
 	if a.has("panel"):
@@ -44,6 +48,8 @@ func _ready() -> void:
 			"upgrades": ui.call("open_sheet", UpgradePanel.new())
 			"workers": ui.call("_open_workers")
 			"settings": ui.call("open_sheet", SettingsPanel.new())
+	if a.has("startup"):
+		add_child(load("res://dev/startup.gd").new())
 	if a.has("tris"):
 		add_child(load("res://dev/tris.gd").new())
 	if a.has("perf"):
