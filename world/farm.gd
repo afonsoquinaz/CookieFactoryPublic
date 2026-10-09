@@ -95,7 +95,7 @@ func _process(dt: float) -> void:
 		if s["ripe"] < 1.0 and not s["busy"]:
 			s["ripe"] = minf(1.0, s["ripe"] + grow)
 		var n: Node3D = s["node"]
-		var target: float = 0.25 + 0.75 * s["ripe"]
+		var target: float = (0.25 + 0.75 * s["ripe"]) * float(n.get_meta("base_scale", 1.0))
 		var sc := lerpf(n.scale.y, target, clampf(dt * 8.0, 0.0, 1.0))
 		n.scale = Vector3(sc, sc, sc)
 		if ing == "wheat" or ing == "sugar":
@@ -197,7 +197,9 @@ func _build_plot() -> void:
 	var count: int = [4, 6, 8, 10, 12][tier]
 	var cols := 2 if count <= 4 else (3 if count <= 9 else 4)
 	if ing == "wheat" or ing == "sugar":
-		cols = 3 if count <= 6 else 4
+		# fields are rows of crops: dense from the start
+		count = [9, 12, 12, 16, 16][tier]
+		cols = 3 if count <= 9 else 4
 	var rows := int(ceil(float(count) / cols))
 	var area := Vector2(w - 1.0, d - 1.3)
 	for i in count:
@@ -220,6 +222,8 @@ func _build_plot() -> void:
 			"milk":
 				Mats.inst(MeshKit.cached("milk_can", Crops.milk_can), node)
 		node.rotation.y = _rng.randf_range(-0.5, 0.5) if ing != "cocoa" else _rng.randf() * TAU
+		var sc: float = {"wheat": 1.3, "sugar": 1.1, "cocoa": 1.25}.get(ing, 1.0)
+		node.set_meta("base_scale", sc)
 		spots.append({"pos": p, "node": node, "ripe": 1.0, "busy": false})
 	# animals and buildings
 	if ing == "egg":
