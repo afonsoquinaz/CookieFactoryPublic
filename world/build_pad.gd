@@ -21,19 +21,22 @@ func setup(p_id: String) -> void:
 	name = "Pad_" + id
 	var d: Dictionary = Defs.BUILDINGS[id]
 	position = Lay.pad_pos(id)
-	var sz := Vector2(2.4, 2.4) if not id.begins_with("line") else Vector2(3.0, 2.4)
-	zone = Zone.make(Zone.Kind.PAY, [], sz, d["icon"], Color(1.0, 0.85, 0.3))
+	var sz := Vector2(2.2, 2.2) if not id.begins_with("line") else Vector2(3.0, 2.2)
+	zone = Zone.make(Zone.Kind.PAY, [], sz, d["icon"], Pal.BRASS)
+	var badge := UI3D.badge(d["icon"], Pal.BRASS.darkened(0.2), 0.7)
+	badge.position = Vector3(0, 1.95, 0)
+	add_child(badge)
 	zone.price = int(d["cost"])
 	zone.paid = int(Game.pad_paid.get(id, 0))
 	zone.required_level = int(d["lvl"])
 	zone.pad_id = id
 	add_child(zone)
 	zone.paid_off.connect(_done)
-	_title = UI3D.label(d["name"], 40, Color(1, 1, 1))
-	_title.position = Vector3(0, 2.3, -0.3)
+	_title = UI3D.label(d["name"], 30, Color(1, 1, 1))
+	_title.position = Vector3(0, 1.35, 0)
 	add_child(_title)
-	_price = UI3D.label("", 52, Color(1.0, 0.88, 0.3))
-	_price.position = Vector3(0, 1.0, 0)
+	_price = UI3D.label("", 44, Color(0.95, 0.84, 0.6))
+	_price.position = Vector3(0, 0.85, 0)
 	add_child(_price)
 	_lock = UI3D.label("", 40, Color(0.75, 0.85, 1.0))
 	_lock.position = Vector3(0, 0.3, 0.5)
@@ -58,13 +61,13 @@ func _refresh() -> void:
 	_lock.visible = locked
 	_lock.text = "Reach Level %d" % zone.required_level
 	zone.enabled = not locked
-	_price.modulate = Color(0.7, 0.7, 0.75) if locked else (Color(1.0, 0.88, 0.3) if Game.money > 0 else Color(1.0, 0.6, 0.5))
+	_price.modulate = Color(0.75, 0.74, 0.72) if locked else (Color(0.95, 0.84, 0.6) if Game.money >= zone.price - zone.paid else Color(0.92, 0.9, 0.86))
 
 
 func _process(dt: float) -> void:
 	_t += dt
 	_refresh()
-	_price.position.y = 1.2 + sin(_t * 2.5) * 0.05
+	_price.position.y = 0.85 + sin(_t * 2.0) * 0.03
 	if zone.occupied > 0.9 and zone.enabled and Game.money > 0:
 		_coin_cd -= dt
 		if _coin_cd <= 0.0:

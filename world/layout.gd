@@ -3,7 +3,11 @@ class_name Lay
 ## camera). Farms in a row along the top, assembly lines below them running
 ## left to right into their ovens, delivery docks on the east pier.
 
-const FARM_X := {"wheat": -8.0, "sugar": -4.0, "cocoa": 0.0, "egg": 4.0, "milk": 8.0}
+## Wheat (the starting farm) sits right beside the oven and the van, so the
+## very first loop is a few steps; each new farm opens further west.
+const FARM_X := {"wheat": 8.0, "sugar": 4.0, "cocoa": 0.0, "egg": -4.0, "milk": -8.0}
+## Order in which a dough ball passes the hoppers (west to east).
+const STATIONS: Array[String] = ["milk", "egg", "cocoa", "sugar", "wheat"]
 const FARM_Z := -12.6
 const FARM_SIZE := Vector2(3.6, 4.4)
 const CRATE_Z := -9.75          # crate just outside the farm gate
@@ -26,7 +30,7 @@ const TRUCK_X := 18.2
 const PANTRY_POS := Vector3(-13.6, 0, -4.6)
 const SHELF_POS := Vector3(12.9, 0, 0.6)
 const CABIN_POS := Vector3(-13.4, 0, 6.0)
-const PLAYER_START := Vector3(0.5, 0, -7.2)
+const PLAYER_START := Vector3(9.5, 0, -7.6)
 
 const ISLAND_MIN := Vector2(-17.5, -17.0)
 const ISLAND_MAX := Vector2(17.0, 18.5)
@@ -50,6 +54,9 @@ static func dock_zone(d: int) -> Vector3:
 
 ## Where a build pad for building id sits.
 static func pad_pos(id: String) -> Vector3:
+	if id.begins_with("plot_"):
+		# in front of the gate, where the crate's pad will be
+		return Vector3(FARM_X[id.substr(5)], 0, CRATE_ZONE_Z)
 	match id:
 		"cabin": return CABIN_POS + Vector3(1.6, 0, 0.6)
 		"pantry": return PANTRY_POS + Vector3(1.6, 0, 0.0)

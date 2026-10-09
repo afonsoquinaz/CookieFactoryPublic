@@ -62,6 +62,10 @@ func _milestones() -> void:
 	var checks := {
 		"first_cookie": int(Game.stats["batches"]) > 0,
 		"first_sale": int(Game.stats["cookies"]) > 0,
+		"sugar": Game.has_building("plot_sugar"),
+		"cocoa": Game.has_building("plot_cocoa"),
+		"egg": Game.has_building("plot_egg"),
+		"milk": Game.has_building("plot_milk"),
 		"cabin": Game.has_building("cabin"),
 		"first_worker": Game.workers.size() > 0,
 		"pantry": Game.has_building("pantry"),
@@ -159,7 +163,7 @@ func _decide() -> void:
 	if c.space() > 0:
 		var best := ""
 		var best_need := -1.0
-		for ing in Defs.INGREDIENTS:
+		for ing in world.farms:
 			var f: Farm = world.farms[ing]
 			if f.crate.count() == 0:
 				continue
@@ -188,7 +192,7 @@ func _decide() -> void:
 
 
 func _no_more_to_collect() -> bool:
-	for ing in Defs.INGREDIENTS:
+	for ing in world.farms:
 		if world.farms[ing].crate.count() > 0 and world.player.carry.count_of(ing) < 2:
 			return false
 	return true
@@ -247,7 +251,7 @@ func _next_role() -> String:
 func _farm_target() -> String:
 	var best := "wheat"
 	var n := 999
-	for ing in Defs.INGREDIENTS:
+	for ing in Game.recipe():
 		var c := Game.workers_with("farmer", ing)
 		if c < n:
 			n = c

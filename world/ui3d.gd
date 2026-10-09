@@ -1,18 +1,15 @@
 class_name UI3D
 ## In-world labels, billboard icons and bubbles.
 
-const FONT := preload("res://assets/fonts/Fredoka-Bold.ttf")
-
-
-static func label(text: String, size := 48, color := Color.WHITE, outline := 14) -> Label3D:
+static func label(text: String, size := 48, color := Color.WHITE, outline := 10) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
-	l.font = FONT
+	l.font = Kit.font(800)
 	l.font_size = size
 	l.pixel_size = 0.006
 	l.modulate = color
-	l.outline_size = outline
-	l.outline_modulate = Color(0.24, 0.14, 0.1)
+	l.outline_size = mini(outline, 10)
+	l.outline_modulate = Color(0.08, 0.07, 0.06, 0.75)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = false
 	l.render_priority = 2
@@ -36,14 +33,15 @@ static func badge_texture(rim: Color) -> Texture2D:
 	for y in n:
 		for x in n:
 			var d := Vector2(x + 0.5, y + 0.5).distance_to(c + Vector2(0, -3))
-			var ds := Vector2(x + 0.5, y + 0.5).distance_to(c + Vector2(0, 4))
+			var ds := Vector2(x + 0.5, y + 0.5).distance_to(c + Vector2(0, 3))
 			var col := Color(0, 0, 0, 0)
 			# soft drop shadow
-			col = Color(0.2, 0.1, 0.1, clampf((76.0 - ds) / 3.0, 0.0, 1.0) * 0.35)
+			col = Color(0.08, 0.06, 0.05, clampf((76.0 - ds) / 4.0, 0.0, 1.0) * 0.28)
 			var a := clampf((74.0 - d) / 1.5, 0.0, 1.0)
 			if a > 0.0:
-				var inner := clampf((63.0 - d) / 1.5, 0.0, 1.0)
-				var face := Color(1.0, 0.99, 0.95).lerp(Color(0.93, 0.9, 0.86), clampf((y - 20.0) / 140.0, 0.0, 1.0))
+				# a hairline rim: paper disc, thin coloured ring
+				var inner := clampf((70.0 - d) / 1.5, 0.0, 1.0)
+				var face := Color(0.98, 0.97, 0.94).lerp(Color(0.92, 0.9, 0.86), clampf((y - 20.0) / 140.0, 0.0, 1.0))
 				var cc := rim.lerp(face, inner)
 				col = col.blend(Color(cc.r, cc.g, cc.b, a))
 			img.set_pixel(x, y, col)

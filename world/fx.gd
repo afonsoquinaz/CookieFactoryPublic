@@ -11,7 +11,7 @@ static func _meshes() -> void:
 	if _puff_mesh:
 		return
 	var k := MeshKit.new()
-	k.sphere(0.12, Color(1, 1, 1), Transform3D.IDENTITY, 8, 6)
+	k.sphere(0.07, Color(1, 1, 1), Transform3D.IDENTITY, 8, 6)
 	_puff_mesh = k.commit()
 	k = MeshKit.new()
 	k.rbox(Vector3(0.12, 0.12, 0.12), 0.04, Color(1, 1, 1))
@@ -44,7 +44,7 @@ static func puff(parent: Node, pos: Vector3, col := Color(1, 1, 1), n := 6) -> v
 		var p := _piece(parent, _puff_mesh, col.lerp(Color.WHITE, 0.4))
 		p.global_position = pos
 		var dir := Vector3(randf_range(-1, 1), randf_range(0.3, 1.0), randf_range(-1, 1)).normalized()
-		var s := randf_range(0.5, 1.1)
+		var s := randf_range(0.5, 0.9)
 		p.scale = Vector3.ONE * s * 0.3
 		var tw := p.create_tween().set_parallel(true)
 		tw.tween_property(p, "global_position", pos + dir * randf_range(0.4, 0.8), 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)

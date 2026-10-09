@@ -21,10 +21,10 @@ var _t := 0.0
 
 const TIPS := [
 	"Stand on a pad to pick up or drop off",
-	"Every hopper needs its ingredient before the dough moves on",
-	"Hire workers to automate every step",
-	"Trucks leave when full — or a few seconds after loading",
-	"A red ! on a hopper means the line is waiting for it",
+	"Every new farm adds an ingredient — and raises the price of each cookie",
+	"Hire staff to automate every step",
+	"Vans leave when full, or a moment after loading",
+	"A ! over a hopper means the line is waiting for it",
 ]
 
 
@@ -37,7 +37,7 @@ func _ready() -> void:
 	_cover.mouse_filter = Control.MOUSE_FILTER_STOP
 	_layer.add_child(_cover)
 	var bg := ColorRect.new()
-	bg.color = Color(0.99, 0.86, 0.68)
+	bg.color = Color(0.15, 0.1, 0.08)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_cover.add_child(bg)
 	_logo = TextureRect.new()
@@ -47,12 +47,12 @@ func _ready() -> void:
 	_logo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_cover.add_child(_logo)
 	_track = Panel.new()
-	_track.add_theme_stylebox_override("panel", Kit.box(Color(0.42, 0.24, 0.12, 0.85), 18))
+	_track.add_theme_stylebox_override("panel", Kit.box(Color(1, 1, 1, 0.08), 4))
 	_cover.add_child(_track)
 	_fill = Panel.new()
-	_fill.add_theme_stylebox_override("panel", Kit.box(Color(1.0, 0.62, 0.72), 14))
+	_fill.add_theme_stylebox_override("panel", Kit.box(Kit.BRASS, 3))
 	_track.add_child(_fill)
-	_tip = Kit.label(TIPS.pick_random(), 26, Kit.WHITE, 8)
+	_tip = Kit.label(TIPS.pick_random(), 19, Color(0.82, 0.76, 0.66), 0, false)
 	_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_cover.add_child(_tip)
@@ -66,10 +66,10 @@ func _ready() -> void:
 func _layout() -> void:
 	var vs := get_viewport().get_visible_rect().size
 	var w := minf(vs.x * 0.7, 520.0)
-	_track.size = Vector2(w, 34)
-	_track.position = Vector2((vs.x - w) * 0.5, vs.y * 0.74)
+	_track.size = Vector2(w * 0.7, 8)
+	_track.position = Vector2((vs.x - w * 0.7) * 0.5, vs.y * 0.8)
 	_tip.size = Vector2(vs.x - 80, 80)
-	_tip.position = Vector2(40, vs.y * 0.74 + 56)
+	_tip.position = Vector2(40, vs.y * 0.8 + 30)
 
 
 func _process(dt: float) -> void:
@@ -106,6 +106,5 @@ func _process(dt: float) -> void:
 				tw.tween_property(_cover, "modulate:a", 0.0, 0.5).set_trans(Tween.TRANS_SINE)
 				tw.tween_callback(queue_free)
 	_shown = move_toward(_shown, _target, dt * (2.5 if _phase >= 3 else 1.3))
-	_fill.position = Vector2(4, 4)
-	_fill.size = Vector2(maxf(24.0, (_track.size.x - 8.0) * _shown), _track.size.y - 8.0)
-	_logo.scale = Vector2.ONE * (1.0 + sin(_t * 2.0) * 0.006)
+	_fill.position = Vector2(0, 0)
+	_fill.size = Vector2(maxf(8.0, _track.size.x * _shown), _track.size.y)

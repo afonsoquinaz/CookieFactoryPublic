@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://baloa7t2ajn86"
-path="res://.godot/imported/Fredoka-Bold.ttf-017e563dac8763748f52aa6bec51fda7.fontdata"
+uid="uid://dd818lqjrh44t"
+path="res://.godot/imported/DMSerifDisplay.ttf-f18abef628180fd31d3b3af13605c715.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/Fredoka-Bold.ttf"
-dest_files=["res://.godot/imported/Fredoka-Bold.ttf-017e563dac8763748f52aa6bec51fda7.fontdata"]
+source_file="res://assets/fonts/DMSerifDisplay.ttf"
+dest_files=["res://.godot/imported/DMSerifDisplay.ttf-f18abef628180fd31d3b3af13605c715.fontdata"]
 
 [params]
 

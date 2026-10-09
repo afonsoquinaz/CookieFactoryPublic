@@ -28,13 +28,13 @@ func _ready() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup("player")
-	ch.scale = Vector3.ONE * 1.5
+	ch.scale = Vector3.ONE * 1.0
 	carry = Holder.new().setup(Bal.carry(Game.lvl("carry")), [], Holder.Layout.COLUMN)
 	carry.sway = 0.06
 	carry.max_visible = 80
 	ch.carry_mount.add_child(carry)
 	carry.changed.connect(_on_carry_changed)
-	_max_label = UI3D.label("MAX", 50, Color(1.0, 0.5, 0.45))
+	_max_label = UI3D.label("FULL", 34, Color(1.0, 0.8, 0.62))
 	_max_label.position = Vector3(0, 2.0, 0)
 	_max_label.visible = false
 	add_child(_max_label)
@@ -43,7 +43,7 @@ func _ready() -> void:
 	var k := MeshKit.new()
 	k.torus(0.42, 0.035, Color(1, 1, 1), Transform3D.IDENTITY, 28, 4)
 	ring.mesh = k.commit()
-	ring.material_override = Mats.flat(Color(1.0, 0.55, 0.68, 0.9))
+	ring.material_override = Mats.flat(Color(0.86, 0.72, 0.46, 0.9))
 	ring.position.y = 0.05
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
@@ -58,7 +58,10 @@ func refresh() -> void:
 func _on_carry_changed() -> void:
 	var full := carry.space() <= 0
 	_max_label.visible = full
-	_max_label.position.y = 1.7 + carry.count() * 0.12 + 0.5 if carry.count() < 12 else 2.0 + minf(carry.count(), 40) * 0.09
+	var h := 0.0
+	for t in carry.items:
+		h += Items.height(t)
+	_max_label.position.y = 1.35 + h
 	ch.carrying = carry.count() > 0 or carry.incoming > 0
 	if full and not _was_full:
 		Sfx.play("deny", -8.0, 1.3)

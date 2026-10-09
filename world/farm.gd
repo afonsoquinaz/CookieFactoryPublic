@@ -42,11 +42,11 @@ func setup(p_ing: String) -> void:
 	zone = Zone.make(Zone.Kind.TAKE, [crate], Vector2(1.9, 1.3), ing, Defs.ITEMS[ing]["color"].lightened(0.3))
 	zone.position = Vector3(0, 0, Lay.CRATE_ZONE_Z - Lay.FARM_Z)
 	add_child(zone)
-	_count_label = UI3D.label("0/10", 40)
-	_count_label.position = Vector3(0.55, 1.1, Lay.CRATE_Z - Lay.FARM_Z + 0.2)
+	_count_label = UI3D.label("0/10", 30)
+	_count_label.position = Vector3(1.1, 0.45, Lay.CRATE_Z - Lay.FARM_Z + 0.1)
 	add_child(_count_label)
-	_full_icon = UI3D.label("FULL!", 46, Color(1.0, 0.45, 0.4))
-	_full_icon.position = Vector3(0, 2.1, Lay.CRATE_Z - Lay.FARM_Z)
+	_full_icon = UI3D.label("FULL", 34, Color(1.0, 0.72, 0.6))
+	_full_icon.position = Vector3(0, 1.75, Lay.CRATE_Z - Lay.FARM_Z)
 	_full_icon.visible = false
 	add_child(_full_icon)
 	crate.changed.connect(_update_label)
@@ -84,7 +84,7 @@ func _update_label() -> void:
 	_count_label.text = "%d/%d" % [crate.count(), crate.capacity]
 	var full := crate.space() <= 0
 	_full_icon.visible = full
-	_count_label.modulate = Color(1.0, 0.55, 0.5) if full else Color.WHITE
+	_count_label.modulate = Color(1.0, 0.72, 0.6) if full else Color.WHITE
 
 
 func _process(dt: float) -> void:
@@ -103,7 +103,7 @@ func _process(dt: float) -> void:
 	for a in _animals:
 		a.call("animate", dt)
 	if _full_icon.visible:
-		_full_icon.position.y = 2.1 + absf(sin(_t * 4.0)) * 0.15
+		_full_icon.position.y = 1.75 + sin(_t * 3.0) * 0.05
 
 
 ## A ripe spot nobody is working on (or null).
@@ -158,8 +158,8 @@ func _crate_mesh() -> Mesh:
 
 ## Things that never change with level: the badge over the crate.
 func _build_static() -> void:
-	var b := UI3D.badge(ing, Defs.ITEMS[ing]["color"].darkened(0.15), 0.95)
-	b.position = Vector3(-0.15, 1.45, Lay.CRATE_Z - Lay.FARM_Z)
+	var b := UI3D.badge(ing, Pal.STEEL_DARK, 0.6)
+	b.position = Vector3(0, 1.25, Lay.CRATE_Z - Lay.FARM_Z)
 	add_child(b)
 
 
@@ -180,11 +180,11 @@ func _build_plot() -> void:
 	# ground bed + fence (fence gets nicer with tiers)
 	var bed_col := Pal.SOIL
 	if ing == "egg":
-		bed_col = Color(0.93, 0.8, 0.55)
+		bed_col = Color(0.78, 0.7, 0.55)
 	elif ing == "milk":
-		bed_col = Color(0.55, 0.82, 0.38)
+		bed_col = Color(0.5, 0.6, 0.38)
 	elif ing == "cocoa":
-		bed_col = Color(0.48, 0.74, 0.34)
+		bed_col = Color(0.42, 0.52, 0.32)
 	Mats.inst(MeshKit.cached("bed_%s" % ing, func():
 		var k := MeshKit.new()
 		k.rbox(Vector3(w, 0.14, d), 0.07, bed_col, MeshKit.at(0, 0.0, 0))
@@ -192,7 +192,7 @@ func _build_plot() -> void:
 			for r in 4:
 				k.rbox(Vector3(w - 0.5, 0.08, 0.5), 0.04, bed_col.darkened(0.1), MeshKit.at(0, 0.07, -d * 0.5 + 0.7 + r * (d - 1.2) / 3.0))
 		return k.commit()), _plot)
-	Mats.inst(MeshKit.cached("fence_%d" % tier, func(): return Farm.fence_mesh(w + 0.3, d + 0.3, tier)), _plot)
+	Mats.inst(MeshKit.cached("wall_%d" % tier, func(): return Farm.fence_mesh(w + 0.3, d + 0.3, tier)), _plot)
 	# crops / animals
 	var count: int = [4, 6, 8, 10, 12][tier]
 	var cols := 2 if count <= 4 else (3 if count <= 9 else 4)
@@ -252,30 +252,46 @@ func _build_plot() -> void:
 		Mats.inst(MeshKit.cached("trough", Crops.trough), trough)
 
 
+## A low dry-stone wall with a gap for the gate. Higher tiers add a timber
+## rail on top and lanterns at the gate.
 static func fence_mesh(w: float, d: float, tier: int) -> Mesh:
 	var k := MeshKit.new()
-	var post := Pal.WOOD_DARK if tier < 2 else (Color(0.97, 0.97, 0.95) if tier < 4 else Color(0.96, 0.5, 0.45))
-	var rail := Pal.WOOD if tier < 2 else (Color(1, 1, 1) if tier < 4 else Color(1.0, 0.95, 0.9))
-	var h := 0.5 + tier * 0.03
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99 + tier
 	var gate := 1.3
+	var h := 0.32 + tier * 0.02
 	var edges := [[Vector2(-w * 0.5, -d * 0.5), Vector2(w * 0.5, -d * 0.5)],
 		[Vector2(w * 0.5, -d * 0.5), Vector2(w * 0.5, d * 0.5)],
-		[Vector2(-w * 0.5, d * 0.5), Vector2(-w * 0.5, -d * 0.5)]]
-	# front edge with a gate gap in the middle
-	edges.append([Vector2(w * 0.5, d * 0.5), Vector2(gate * 0.5, d * 0.5)])
-	edges.append([Vector2(-gate * 0.5, d * 0.5), Vector2(-w * 0.5, d * 0.5)])
+		[Vector2(-w * 0.5, d * 0.5), Vector2(-w * 0.5, -d * 0.5)],
+		[Vector2(w * 0.5, d * 0.5), Vector2(gate * 0.5, d * 0.5)],
+		[Vector2(-gate * 0.5, d * 0.5), Vector2(-w * 0.5, d * 0.5)]]
 	for e in edges:
 		var a: Vector2 = e[0]
 		var b: Vector2 = e[1]
 		var len := a.distance_to(b)
-		var n := maxi(1, int(round(len / 0.9)))
-		for i in n + 1:
-			var p := a.lerp(b, float(i) / n)
-			k.rbox(Vector3(0.11, h + 0.1, 0.11), 0.035, post, MeshKit.at(p.x, (h + 0.1) * 0.5, p.y))
-			if tier >= 3:
-				k.sphere(0.075, post, MeshKit.at(p.x, h + 0.12, p.y), 8, 5)
-		var mid := (a + b) * 0.5
-		var ang := rad_to_deg(atan2(b.y - a.y, b.x - a.x))
-		for yy in [h * 0.45, h * 0.85]:
-			k.rbox(Vector3(len, 0.07, 0.05), 0.025, rail, MeshKit.xf(Vector3(mid.x, yy, mid.y), Vector3(0, -ang, 0)))
+		var dir := (b - a).normalized()
+		var ang := rad_to_deg(atan2(dir.y, dir.x))
+		# stones laid in two courses with staggered joints
+		for course in 2:
+			var t := 0.0 if course == 0 else 0.17
+			while t < len - 0.05:
+				var sl := minf(rng.randf_range(0.26, 0.42), len - t)
+				var p := a + dir * (t + sl * 0.5)
+				var tone := Pal.STONE.lerp(Pal.STONE_DARK, rng.randf() * 0.6)
+				k.rbox(Vector3(sl - 0.03, h * 0.5, 0.26), 0.05, tone, MeshKit.xf(Vector3(p.x, h * 0.25 + course * h * 0.5, p.y), Vector3(0, -ang + rng.randf_range(-3, 3), 0)))
+				t += sl
+		if tier >= 2:
+			var mid := (a + b) * 0.5
+			k.rbox(Vector3(len, 0.06, 0.08), 0.02, Pal.WOOD, MeshKit.xf(Vector3(mid.x, h + 0.28, mid.y), Vector3(0, -ang, 0)))
+			var n := maxi(1, int(round(len / 1.1)))
+			for i in n + 1:
+				var q := a.lerp(b, float(i) / n)
+				k.rbox(Vector3(0.07, 0.34, 0.07), 0.02, Pal.WOOD_DARK, MeshKit.at(q.x, h + 0.14, q.y))
+	# gate posts (+ lanterns from tier 1)
+	for sx in [-1.0, 1.0]:
+		var gp := Vector3(sx * gate * 0.5, 0, d * 0.5)
+		k.rbox(Vector3(0.18, h + 0.32, 0.18), 0.03, Pal.STONE_DARK, MeshKit.at(gp.x, (h + 0.32) * 0.5, gp.z))
+		if tier >= 1:
+			k.cyl(0.02, 0.25, Pal.STEEL_DARK, MeshKit.at(gp.x, h + 0.32, gp.z), 6)
+			k.rbox(Vector3(0.1, 0.13, 0.1), 0.02, Color(1.0, 0.86, 0.6, 0.4), MeshKit.at(gp.x, h + 0.62, gp.z))
 	return k.commit()
