@@ -16,6 +16,7 @@ var hopper_nodes := {}   # ing -> Node3D (for squish)
 var hopper_fill := {}    # ing -> MeshInstance3D (fill level)
 var hopper_labels := {}
 var hopper_alert := {}
+var hopper_bang := {}    # ing -> Label3D "!" shown while the line waits on it
 var zones := {}          # ing -> Zone
 var tray: Holder
 var tray_zone: Zone
@@ -114,6 +115,16 @@ func _process(dt: float) -> void:
 			_oven_queue -= 1
 			_finish_batch(batch)
 	_animate_oven(dt, _oven_queue > 0)
+	# a bouncing "!" on any hopper the line is waiting for
+	for ing in hopper_bang:
+		var waiting := false
+		for d in doughs:
+			if d["stage"] < _stations.size() and Defs.INGREDIENTS[d["stage"]] == ing and d["wait"] <= 0.0 and is_equal_approx(d["x"], _stations[d["stage"]]):
+				waiting = true
+		var b: Label3D = hopper_bang[ing]
+		b.visible = waiting and hoppers[ing].count() == 0
+		if b.visible:
+			b.position.y = 2.1 + absf(sin(_t * 6.0)) * 0.3
 
 
 func _moving() -> bool:
@@ -331,6 +342,11 @@ func _build_hopper(ing: String) -> void:
 	lab.position = Vector3(0.62, 1.95, -0.3)
 	root.add_child(lab)
 	hopper_labels[ing] = lab
+	var bang := UI3D.label("!", 90, Color(1.0, 0.42, 0.38), 20)
+	bang.position = Vector3(-0.62, 2.1, -0.3)
+	bang.visible = false
+	root.add_child(bang)
+	hopper_bang[ing] = bang
 	var h := Holder.new().setup(8, [ing], Holder.Layout.NONE)
 	h.position = Vector3(0, 0.7, 0)
 	root.add_child(h)
@@ -357,13 +373,14 @@ func _build_oven() -> void:
 	add_child(_oven)
 	Mats.inst(MeshKit.cached("oven", Line.oven_mesh), _oven)
 	_oven_face = Node3D.new()
-	_oven_face.position = Vector3(0, 1.98, 0.98)
+	_oven_face.position = Vector3(0, 1.98, 1.03)
 	_oven.add_child(_oven_face)
 	Mats.inst(MeshKit.cached("oven_face", func():
 		var k := MeshKit.new()
 		for sx in [-1.0, 1.0]:
-			k.ellipsoid(Vector3(0.1, 0.14, 0.06), Color(0.2, 0.12, 0.1), MeshKit.xf(Vector3(sx * 0.3, 0.0, 0.0), Vector3(-12, sx * 18, 0)), 10, 7)
-			k.sphere(0.035, Color(1, 1, 1), MeshKit.at(sx * 0.3 + 0.03, 0.05, 0.06), 6, 4)
+			# tall eyes tilted up toward the (high) camera so they don't read as slits
+			k.ellipsoid(Vector3(0.1, 0.2, 0.06), Color(0.2, 0.12, 0.1), MeshKit.xf(Vector3(sx * 0.3, 0.0, 0.0), Vector3(-35, sx * 16, 0)), 10, 7)
+			k.sphere(0.04, Color(1, 1, 1), MeshKit.at(sx * 0.3 + 0.03, 0.07, 0.07), 6, 4)
 			k.ellipsoid(Vector3(0.13, 0.07, 0.04), Color(1.0, 0.45, 0.5), MeshKit.xf(Vector3(sx * 0.55, -0.2, -0.03), Vector3(0, sx * 30, 0)), 10, 5)
 		return k.commit()), _oven_face, Transform3D.IDENTITY, false)
 	_oven_glow = OmniLight3D.new()
@@ -402,7 +419,7 @@ func _build_oven() -> void:
 	tray = Holder.new().setup(20, ["cookie"], Holder.Layout.GRID)
 	tray.grid = Vector2i(3, 3)
 	tray.cell = Vector2(0.42, 0.36)
-	tray.max_visible = 45
+	tray.max_visible = 36
 	tray.position = Vector3(0, 0.76, 0)
 	tray_root.add_child(tray)
 	tray.changed.connect(_update_tray)

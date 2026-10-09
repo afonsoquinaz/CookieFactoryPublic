@@ -49,20 +49,25 @@ func _build_pantry() -> void:
 	# a long market counter along z with five bins and a striped awning
 	Mats.inst(MeshKit.cached("pantry", func():
 		var k := MeshKit.new()
-		var wood := Pal.WOOD
-		k.rbox(Vector3(1.6, 0.8, 5.8), 0.1, wood, MeshKit.at(-0.1, 0.4, 0))
-		k.rbox(Vector3(1.7, 0.1, 5.9), 0.05, Pal.WOOD_LIGHT, MeshKit.at(-0.1, 0.82, 0))
-		k.rbox(Vector3(0.25, 2.3, 5.8), 0.08, Pal.WOOD_DARK, MeshKit.at(-0.95, 1.15, 0))
+		# a long market counter: back wall, five open crates, a short striped
+		# awning over the back so the bins stay visible from above
+		k.rbox(Vector3(1.6, 0.7, 5.9), 0.1, Pal.WOOD_DARK, MeshKit.at(-0.1, 0.35, 0))
+		k.rbox(Vector3(0.22, 1.9, 5.9), 0.08, Pal.WOOD, MeshKit.at(-0.95, 0.95, 0))
+		for i in 5:
+			var z := -2.3 + i * 1.15
+			k.rbox(Vector3(1.2, 0.16, 1.02), 0.04, Pal.WOOD_LIGHT, MeshKit.at(-0.15, 0.76, z))
+			for sz in [-1.0, 1.0]:
+				k.rbox(Vector3(1.2, 0.2, 0.07), 0.03, Pal.WOOD, MeshKit.at(-0.15, 0.88, z + sz * 0.5))
 		for sz in [-1.0, 1.0]:
-			k.cyl(0.07, 2.6, Pal.WOOD_DARK, MeshKit.at(0.55, 0, sz * 2.85), 8, 0.02)
-		# awning: alternating stripes, tilted toward the front
+			k.cyl(0.07, 2.3, Pal.WOOD_DARK, MeshKit.at(-0.95, 0, sz * 2.9), 8, 0.02)
 		for i in 10:
 			var c := Color(0.98, 0.42, 0.42) if i % 2 == 0 else Color(1, 0.97, 0.92)
-			k.rbox(Vector3(1.9, 0.08, 0.6), 0.03, c, MeshKit.xf(Vector3(-0.1, 2.65, -2.7 + i * 0.6), Vector3(0, 0, -14)))
-		for i in 10:
-			var c2 := Color(0.98, 0.42, 0.42) if i % 2 == 0 else Color(1, 0.97, 0.92)
-			k.ellipsoid(Vector3(0.3, 0.12, 0.3), c2, MeshKit.at(0.82, 2.42, -2.7 + i * 0.6), 10, 5)
+			k.rbox(Vector3(0.8, 0.07, 0.6), 0.03, c, MeshKit.xf(Vector3(-0.72, 2.2, -2.7 + i * 0.6), Vector3(0, 0, -18)))
+			k.ellipsoid(Vector3(0.3, 0.1, 0.3), c, MeshKit.at(-0.33, 2.08, -2.7 + i * 0.6), 10, 5)
 		return k.commit()), self)
+	var badge := UI3D.badge("storage", Color(0.95, 0.45, 0.4), 1.0)
+	badge.position = Vector3(-0.95, 2.9, 0)
+	add_child(badge)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
 	var sh := BoxShape3D.new()
@@ -81,11 +86,11 @@ func _build_pantry() -> void:
 		add_child(h)
 		h.changed.connect(_update_labels)
 		bins[ing] = h
-		var ic := UI3D.icon(ing, 0.0016)
-		ic.position = Vector3(-0.92, 2.05, -2.3 + i * 1.15)
+		var ic := UI3D.icon(ing, 0.0018)
+		ic.position = Vector3(-1.2, 1.55, -2.3 + i * 1.15)
 		add_child(ic)
 		var l := UI3D.label("0/12", 34)
-		l.position = Vector3(-0.9, 1.6, -2.3 + i * 1.15)
+		l.position = Vector3(0.75, 0.95, -2.3 + i * 1.15 + 0.3)
 		add_child(l)
 		_labels[ing] = l
 		i += 1
@@ -121,7 +126,7 @@ func _build_shelf() -> void:
 	var h := Holder.new().setup(24, ["cookie"], Holder.Layout.GRID)
 	h.grid = Vector2i(4, 3)
 	h.cell = Vector2(0.42, 0.42)
-	h.max_visible = 200
+	h.max_visible = 60
 	h.position = Vector3(0, 0.33, 0)
 	add_child(h)
 	h.changed.connect(_update_labels)

@@ -115,12 +115,12 @@ static func factory_floor(region: Node3D, i: int) -> void:
 		var k := MeshKit.new()
 		var x0 := Lay.TUBE_X0 - 0.8
 		var x1 := Lay.TRAY_X + 1.2
-		var cols := int((x1 - x0) / 1.0)
+		var cols := int((x1 - x0) / 2.0)
 		k.rbox(Vector3(x1 - x0 + 0.3, 0.06, 5.0), 0.03, Color(0.8, 0.76, 0.9), MeshKit.at((x0 + x1) * 0.5, 0.0, 0.0))
 		for cx in cols:
-			for cz in 4:
+			for cz in 2:
 				var c := Color(0.95, 0.93, 0.98) if (cx + cz) % 2 == 0 else Color(0.9, 0.88, 0.97)
-				k.rbox(Vector3(0.94, 0.06, 1.14), 0.05, c, MeshKit.at(x0 + 0.5 + cx * 1.0 + 0.15, 0.02, -1.8 + cz * 1.2), 1)
+				k.rbox(Vector3(1.92, 0.06, 2.32), 0.06, c, MeshKit.at(x0 + 1.0 + cx * 2.0 + 0.15, 0.02, -1.2 + cz * 2.4), 1)
 		return k.commit()), region, Transform3D.IDENTITY, false)
 	mi.position = Vector3(0, 0, z)
 

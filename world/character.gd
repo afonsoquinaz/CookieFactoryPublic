@@ -83,7 +83,7 @@ func _build() -> void:
 	eyes.position = Vector3(0, 0.0, 0.0)
 	var hat := _hat_mesh()
 	if hat:
-		Mats.inst(hat, head)
+		Mats.inst(hat, head, Transform3D.IDENTITY, hat_casts_shadow())
 	# limbs
 	arm_l = _limb(Vector3(-0.2, SHOULDER_Y, 0), MeshKit.cached("arm_" + key, _arm_mesh))
 	arm_r = _limb(Vector3(0.2, SHOULDER_Y, 0), MeshKit.cached("arm_" + key, _arm_mesh))
@@ -105,7 +105,9 @@ func _limb(pos: Vector3, mesh: Mesh) -> Node3D:
 	var p := Node3D.new()
 	p.position = pos
 	body.add_child(p)
-	Mats.inst(mesh, p)
+	# limbs skip the shadow pass: the body + head shadow reads the same, and
+	# it halves the draw calls per character on phones
+	Mats.inst(mesh, p, Transform3D.IDENTITY, false)
 	return p
 
 
@@ -237,6 +239,10 @@ static func build_hat(hat: String) -> Mesh:
 	return b.commit()
 
 
+func hat_casts_shadow() -> bool:
+	return look == "farmer" or look == "collector"
+
+
 func _build_tool() -> void:
 	if not Defs.ROLES.has(look):
 		return
@@ -244,12 +250,12 @@ func _build_tool() -> void:
 	var mesh := MeshKit.cached("tool_" + tool, func(): return Character.build_tool(tool))
 	match tool:
 		"basket":
-			tool_node = Mats.inst(mesh, back_mount)
+			tool_node = Mats.inst(mesh, back_mount, Transform3D.IDENTITY, false)
 		"dolly":
-			tool_node = Mats.inst(mesh, body)
+			tool_node = Mats.inst(mesh, body, Transform3D.IDENTITY, false)
 			tool_node.position = Vector3(0, 0, 0.42)
 		_:
-			tool_node = Mats.inst(mesh, hand_r)
+			tool_node = Mats.inst(mesh, hand_r, Transform3D.IDENTITY, false)
 
 
 static func build_tool(tool: String) -> Mesh:

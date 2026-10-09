@@ -5,17 +5,21 @@ config_version=5
 
 config/name="Cookie Factory"
 config/description="Grow a tiny chocolate-cookie workshop into a cookie empire."
-run/main_scene="res://main.tscn"
+run/main_scene="res://boot.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
 boot_splash/bg_color=Color(0.99, 0.86, 0.68, 1)
-boot_splash/show_image=false
+boot_splash/show_image=true
+boot_splash/image="res://assets/splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
 config/icon="res://icon.png"
 
 [autoload]
 
 Game="*res://autoload/game.gd"
 Sfx="*res://autoload/sfx.gd"
+Quality="*res://autoload/quality.gd"
 
 [display]
 

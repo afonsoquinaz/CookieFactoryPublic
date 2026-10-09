@@ -16,11 +16,11 @@ var _closing := false
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim = ColorRect.new()
 	_dim.color = Color(0.15, 0.08, 0.05, 0.0)
-	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim.gui_input.connect(func(e):
 		if (e is InputEventMouseButton or e is InputEventScreenTouch) and e.pressed:

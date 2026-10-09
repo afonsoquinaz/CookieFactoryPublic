@@ -40,7 +40,7 @@ const UPGRADES := {
 	"wcarry": {"name": "Worker Baskets", "icon": "backpack", "base": 160, "growth": 1.75, "max": 10,
 		"desc": "Workers carry more", "group": "staff", "needs": "cabin"},
 }
-const UPGRADE_GROUPS := [["farms", "Farms"], ["factory", "Factory"], ["storage", "Storage & Trucks"], ["you", "You"], ["staff", "Staff"]]
+const UPGRADE_GROUPS := [["farms", "Farms"], ["factory", "Factory"], ["storage", "Trucks"], ["you", "You"], ["staff", "Staff"]]
 
 # farms: one upgrade per ingredient, "farm_<ingredient>"
 const FARM_BASE := {"wheat": 20, "sugar": 25, "cocoa": 30, "egg": 35, "milk": 40}

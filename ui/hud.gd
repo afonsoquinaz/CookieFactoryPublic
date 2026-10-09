@@ -27,7 +27,7 @@ var _top: HBoxContainer
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	joystick = Joystick.new()
 	add_child(joystick)
@@ -254,6 +254,8 @@ func open_sheet(s: Sheet) -> void:
 		world.cam.zoom = 1.0)
 	add_child(s)
 	world.cam.zoom = 1.25
+	goals.visible = false
+	s.closed.connect(func(): goals.visible = true)
 
 
 # ---------------------------------------------------------------- feedback
@@ -337,12 +339,12 @@ func _offline_popup(amount: int) -> void:
 
 func _popup(head: String, sub: String, text: String, icon: String, btn_text: String, on_ok := Callable()) -> void:
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(root)
 	var dim := ColorRect.new()
 	dim.color = Color(0.15, 0.08, 0.05, 0.5)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(dim)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", Kit.card(36))

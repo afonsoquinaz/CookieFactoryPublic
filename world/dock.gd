@@ -47,7 +47,7 @@ func setup(p_index: int) -> void:
 	cargo = Holder.new().setup(10, ["cookie"], Holder.Layout.GRID)
 	cargo.grid = Vector2i(4, 3)
 	cargo.cell = Vector2(0.36, 0.38)
-	cargo.max_visible = 140
+	cargo.max_visible = 60
 	cargo.position = Vector3(-0.55, 0.92, 0)
 	_truck_body.add_child(cargo)
 	cargo.landed.connect(_on_load)

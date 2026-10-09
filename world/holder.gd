@@ -25,6 +25,8 @@ var sway := 0.0                  # COLUMN: lateral lag when the carrier moves
 var label_name := ""
 
 var _nodes: Array[Node3D] = []
+var _mm := {}                    # GRID: item type -> MultiMeshInstance3D (one draw per type)
+var _dirty := false
 var _sway_v := Vector3.ZERO
 var _last_pos := Vector3.ZERO
 
@@ -67,6 +69,12 @@ func has(t: String) -> bool:
 ## Adds an item (data + visual).
 func add(t: String, animate := true) -> void:
 	items.append(t)
+	if layout == Layout.GRID:
+		_dirty = true
+		if animate:
+			_bump()
+		changed.emit()
+		return
 	if layout != Layout.NONE and _nodes.size() < max_visible:
 		var n := Items.node(t)
 		add_child(n)
@@ -90,6 +98,10 @@ func take(t := "") -> String:
 			return ""
 	var got := items[idx]
 	items.remove_at(idx)
+	if layout == Layout.GRID:
+		_dirty = true
+		changed.emit()
+		return got
 	if idx < _nodes.size():
 		var n := _nodes[idx]
 		_nodes.remove_at(idx)
@@ -110,6 +122,7 @@ func take(t := "") -> String:
 
 func clear_all() -> void:
 	items.clear()
+	_dirty = true
 	for n in _nodes:
 		n.queue_free()
 	_nodes.clear()
@@ -157,12 +170,55 @@ func next_slot_global() -> Vector3:
 ## World position of the top-most item of type t.
 func item_global(t := "") -> Vector3:
 	var idx := items.size() - 1 if t == "" else items.rfind(t)
+	if layout == Layout.GRID and idx >= 0:
+		return global_transform * slot_transform(mini(idx, max_visible - 1)).origin
 	if idx >= 0 and idx < _nodes.size():
 		return _nodes[idx].global_position
 	return global_position + Vector3(0, 0.3, 0)
 
 
+func _bump() -> void:
+	var tw := create_tween()
+	scale = Vector3(1.04, 0.94, 1.04)
+	tw.tween_property(self, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _rebuild_mm() -> void:
+	_dirty = false
+	var per := {}
+	for i in mini(items.size(), max_visible):
+		var t := items[i]
+		if not per.has(t):
+			per[t] = []
+		per[t].append(slot_transform(i))
+	for t in _mm.keys():
+		if not per.has(t):
+			_mm[t].queue_free()
+			_mm.erase(t)
+	for t in per:
+		var mmi: MultiMeshInstance3D = _mm.get(t)
+		if mmi == null:
+			mmi = MultiMeshInstance3D.new()
+			mmi.material_override = Mats.toon()
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = Items.mesh(t)
+			mmi.multimesh = mm
+			add_child(mmi)
+			_mm[t] = mmi
+		var xs: Array = per[t]
+		var m: MultiMesh = mmi.multimesh
+		if m.instance_count < xs.size() or m.instance_count > xs.size() + 16:
+			m.instance_count = xs.size() + 8
+		m.visible_instance_count = xs.size()
+		for k in xs.size():
+			m.set_instance_transform(k, xs[k])
+
+
 func _process(dt: float) -> void:
+	if _dirty:
+		_rebuild_mm()
 	if sway <= 0.0 or _nodes.is_empty():
 		return
 	# carried stacks lean against the motion and wobble back

@@ -43,6 +43,12 @@ func _ready() -> void:
 			"upgrades": ui.call("open_sheet", UpgradePanel.new())
 			"workers": ui.call("_open_workers")
 			"settings": ui.call("open_sheet", SettingsPanel.new())
+	if a.has("tris"):
+		add_child(load("res://dev/tris.gd").new())
+	if a.has("perf"):
+		add_child(load("res://dev/perf.gd").new())
+	if a.has("dbg"):
+		add_child(load("res://dev/dbg.gd").new())
 	Shot.attach(self)
 
 

@@ -15,6 +15,8 @@ extends RefCounted
 ## A colour with alpha < 1 marks a glowing part (see toon.gdshader).
 
 static var _cache := {}
+## Global tessellation multiplier for round shapes (lower on weak devices).
+static var detail := 0.75
 
 var _v := PackedVector3Array()
 var _n := PackedVector3Array()
@@ -82,8 +84,11 @@ func _push(t: Transform3D, vs: PackedVector3Array, ns: PackedVector3Array, cs: P
 # ------------------------------------------------------------------ primitives
 
 ## Box with rounded edges and corners (radius r), centred on the origin.
-func rbox(size: Vector3, r: float, col: Color, t := Transform3D.IDENTITY, steps := 2) -> MeshKit:
+func rbox(size: Vector3, r: float, col: Color, t := Transform3D.IDENTITY, steps := -1) -> MeshKit:
 	var h := size * 0.5
+	if steps < 0:
+		# small bevels don't need many rings
+		steps = 1 if r < 0.07 else 2
 	r = clampf(r, 0.0, minf(h.x, minf(h.y, h.z)) - 0.0001)
 	if r <= 0.001:
 		steps = 0
@@ -150,6 +155,7 @@ func rbox(size: Vector3, r: float, col: Color, t := Transform3D.IDENTITY, steps 
 ## top; repeat a point to make a hard edge there. cols: one colour per profile
 ## point (or a single colour).
 func lathe(profile: PackedVector2Array, col, t := Transform3D.IDENTITY, segs := 16, arc := TAU) -> MeshKit:
+	segs = maxi(5, int(round(segs * detail)))
 	var count := profile.size()
 	var pn := PackedVector2Array()
 	pn.resize(count)
@@ -196,6 +202,7 @@ func lathe(profile: PackedVector2Array, col, t := Transform3D.IDENTITY, segs := 
 
 
 func sphere(r: float, col: Color, t := Transform3D.IDENTITY, segs := 16, rings := 10) -> MeshKit:
+	rings = maxi(3, int(round(rings * detail)))
 	var p := PackedVector2Array()
 	for i in rings + 1:
 		var a := -PI * 0.5 + PI * float(i) / rings
@@ -225,12 +232,13 @@ func cyl(r: float, h: float, col, t := Transform3D.IDENTITY, segs := 16, b := 0.
 	var c_top: Color = col[1] if col is Array else col
 	if caps:
 		p.append(Vector2(0, 0)); cols.append(c_bot)
+	var bn := 3 if b > 0.05 else 2
 	if b > 0.001:
-		for k in 4:
-			var a := PI * 0.5 * float(k) / 3.0
+		for k in bn + 1:
+			var a := PI * 0.5 * float(k) / bn
 			p.append(Vector2(r - b + sin(a) * b, b - cos(a) * b)); cols.append(c_bot)
-		for k in 4:
-			var a := PI * 0.5 * float(k) / 3.0
+		for k in bn + 1:
+			var a := PI * 0.5 * float(k) / bn
 			p.append(Vector2(r2 - b + cos(a) * b, h - b + sin(a) * b)); cols.append(c_top)
 	else:
 		if caps:
@@ -246,6 +254,7 @@ func cyl(r: float, h: float, col, t := Transform3D.IDENTITY, segs := 16, b := 0.
 
 ## Capsule standing on y=0, total height h.
 func capsule(r: float, h: float, col: Color, t := Transform3D.IDENTITY, segs := 14, rings := 4) -> MeshKit:
+	rings = maxi(2, int(round(rings * detail)))
 	var p := PackedVector2Array()
 	for i in rings + 1:
 		var a := -PI * 0.5 + PI * 0.5 * float(i) / rings
@@ -260,6 +269,7 @@ func capsule(r: float, h: float, col: Color, t := Transform3D.IDENTITY, segs := 
 
 ## Torus in the XZ plane.
 func torus(big_r: float, small_r: float, col: Color, t := Transform3D.IDENTITY, segs := 18, sides := 8, arc := TAU) -> MeshKit:
+	sides = maxi(3, int(round(sides * detail)))
 	var p := PackedVector2Array()
 	for i in sides + 1:
 		var a := TAU * float(i) / sides

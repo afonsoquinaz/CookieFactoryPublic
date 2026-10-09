@@ -24,8 +24,13 @@ var _bake_cd := 0.0
 var _floors := {}
 
 
+var sun: DirectionalLight3D
+
+
 func _ready() -> void:
-	Env.build(self)
+	sun = Env.build(self)
+	Quality.changed.connect(_on_quality)
+	_on_quality.call_deferred(Quality.level)
 	region = NavigationRegion3D.new()
 	var nm := NavigationMesh.new()
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
@@ -79,6 +84,12 @@ func _process(dt: float) -> void:
 			_bake_pending = false
 			region.bake_navigation_mesh(true)
 	_store_state()
+
+
+func _on_quality(lv: int) -> void:
+	sun.shadow_enabled = Quality.LEVELS[lv]["shadows"]
+	if lv >= 2:
+		MeshKit.detail = 0.55
 
 
 func _request_bake() -> void:
