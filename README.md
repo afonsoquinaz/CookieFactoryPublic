@@ -130,3 +130,7 @@ Older phones fall back to the OpenGL renderer and step quality down automaticall
 - **Lighter shadow pass.** Character limbs, hats and tools skip it.
 - **Global detail.** `MeshKit.detail` sets the tessellation for everything round, and it drops on weak devices.
 - **Result.** A busy late-game view is about 480 draw calls and about 290k triangles.
+
+## Play in the browser
+
+`docs/` holds a Web build (Godot Compatibility renderer, single-threaded, so it runs on any static host). To play it online, enable **GitHub Pages** for this repository: Settings → Pages → Branch → `/docs`. Rebuild it with `tools/web.sh docs`.
