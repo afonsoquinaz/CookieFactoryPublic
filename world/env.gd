@@ -5,7 +5,7 @@ static func build(parent: Node3D) -> DirectionalLight3D:
 	var we := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.56, 0.82, 0.98)
+	e.background_color = Color(0.13, 0.26, 0.29)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.8, 0.84, 1.0)
 	e.ambient_light_energy = 0.32
@@ -13,13 +13,13 @@ static func build(parent: Node3D) -> DirectionalLight3D:
 	e.tonemap_exposure = 0.92
 	e.tonemap_white = 6.0
 	e.glow_enabled = true
-	e.glow_intensity = 0.35
+	e.glow_intensity = 0.2
 	e.glow_strength = 0.8
 	e.glow_bloom = 0.02
 	e.glow_hdr_threshold = 1.1
 	e.adjustment_enabled = true
-	e.adjustment_saturation = 1.14
-	e.adjustment_contrast = 1.07
+	e.adjustment_saturation = 0.96
+	e.adjustment_contrast = 1.06
 	we.environment = e
 	parent.add_child(we)
 	var sun := DirectionalLight3D.new()

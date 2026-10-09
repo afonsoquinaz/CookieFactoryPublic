@@ -41,6 +41,28 @@ static func cached(key: String, build: Callable) -> Mesh:
 	return _cache[key]
 
 
+## DEADGRID's baked soft gradient: darker toward the feet, a brighter "sun
+## cap" on up-facing surfaces. y_offset = where this part sits on the figure.
+func shade_figure(y_offset := 0.0, height := 1.9) -> MeshKit:
+	for i in _v.size():
+		var y := (_v[i].y + y_offset) / height
+		var t := clampf(y, 0.0, 1.0)
+		var s := 0.82 + 0.16 * t * t * (3.0 - 2.0 * t)
+		if _n[i].y > 0.0:
+			s *= 1.0 + 0.3 * _n[i].y * _n[i].y
+		var c := _c[i]
+		_c[i] = Color(minf(c.r * s, 1.0), minf(c.g * s, 1.0), minf(c.b * s, 1.0), c.a)
+	return self
+
+
+## Inward-only taper of x (and z) as a function of local y, like DEADGRID's.
+func taper(fn: Callable) -> MeshKit:
+	for i in _v.size():
+		var f: Vector2 = fn.call(_v[i].y)
+		_v[i] = Vector3(_v[i].x * f.x, _v[i].y, _v[i].z * f.y)
+	return self
+
+
 func vertex_count() -> int:
 	return _v.size()
 

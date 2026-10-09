@@ -61,11 +61,10 @@ func _build_pantry() -> void:
 		for sz in [-1.0, 1.0]:
 			k.cyl(0.07, 2.3, Pal.WOOD_DARK, MeshKit.at(-0.95, 0, sz * 2.9), 8, 0.02)
 		for i in 10:
-			var c := Color(0.98, 0.42, 0.42) if i % 2 == 0 else Color(1, 0.97, 0.92)
-			k.rbox(Vector3(0.8, 0.07, 0.6), 0.03, c, MeshKit.xf(Vector3(-0.72, 2.2, -2.7 + i * 0.6), Vector3(0, 0, -18)))
-			k.ellipsoid(Vector3(0.3, 0.1, 0.3), c, MeshKit.at(-0.33, 2.08, -2.7 + i * 0.6), 10, 5)
+			var c := Pal.SAGE if i % 2 == 0 else Pal.CREAM
+			k.rbox(Vector3(0.8, 0.05, 0.6), 0.015, c, MeshKit.xf(Vector3(-0.72, 2.2, -2.7 + i * 0.6), Vector3(0, 0, -18)))
 		return k.commit()), self)
-	var badge := UI3D.badge("storage", Color(0.95, 0.45, 0.4), 1.0)
+	var badge := UI3D.badge("storage", Pal.STEEL_DARK, 0.7)
 	badge.position = Vector3(-0.95, 2.9, 0)
 	add_child(badge)
 	var body := StaticBody3D.new()
@@ -89,15 +88,15 @@ func _build_pantry() -> void:
 		var ic := UI3D.icon(ing, 0.0018)
 		ic.position = Vector3(-1.2, 1.55, -2.3 + i * 1.15)
 		add_child(ic)
-		var l := UI3D.label("0/12", 34)
+		var l := UI3D.label("0/12", 26)
 		l.position = Vector3(0.75, 0.95, -2.3 + i * 1.15 + 0.3)
 		add_child(l)
 		_labels[ing] = l
 		i += 1
-	give_zone = Zone.make(Zone.Kind.GIVE, holders(), Vector2(1.5, 5.4), "storage", Color(0.75, 0.9, 1.0))
+	give_zone = Zone.make(Zone.Kind.GIVE, holders(), Vector2(1.5, 5.4), "storage", Pal.SAGE)
 	give_zone.position = Vector3(1.55, 0, 0)
 	add_child(give_zone)
-	take_zone = Zone.make(Zone.Kind.TAKE, holders(), Vector2(1.6, 1.4), "feeder", Color(1.0, 0.75, 0.45))
+	take_zone = Zone.make(Zone.Kind.TAKE, holders(), Vector2(1.6, 1.4), "feeder", Pal.OCHRE)
 	take_zone.position = Vector3(0.6, 0, 3.75)
 	add_child(take_zone)
 
@@ -105,15 +104,14 @@ func _build_pantry() -> void:
 func _build_shelf() -> void:
 	Mats.inst(MeshKit.cached("shelf", func():
 		var k := MeshKit.new()
-		var frame := Color(0.55, 0.5, 0.85)
-		k.rbox(Vector3(2.0, 0.25, 1.6), 0.08, frame.darkened(0.2), MeshKit.at(0, 0.12, 0))
-		k.rbox(Vector3(1.9, 0.08, 1.5), 0.04, Pal.WOOD_LIGHT, MeshKit.at(0, 0.28, 0))
+		var frame := Pal.STEEL_DARK
+		k.rbox(Vector3(2.0, 0.2, 1.6), 0.03, frame, MeshKit.at(0, 0.1, 0))
+		k.rbox(Vector3(1.9, 0.06, 1.5), 0.02, Pal.WOOD, MeshKit.at(0, 0.27, 0))
 		for sx in [-1.0, 1.0]:
 			for sz in [-1.0, 1.0]:
-				k.cyl(0.06, 2.0, frame, MeshKit.at(sx * 0.92, 0.2, sz * 0.72), 8, 0.02)
-		k.rbox(Vector3(2.1, 0.12, 1.7), 0.05, frame, MeshKit.at(0, 2.25, 0))
-		k.rbox(Vector3(1.3, 0.5, 0.08), 0.08, Color(1, 0.97, 0.9), MeshKit.at(0, 2.6, 0.3))
-		Items.cookie_into(k, 0.18, 0.05, MeshKit.xf(Vector3(0, 2.6, 0.36), Vector3(90, 0, 0)))
+				k.rbox(Vector3(0.06, 1.6, 0.06), 0.015, frame, MeshKit.at(sx * 0.95, 0.9, sz * 0.75))
+		for sz in [-1.0, 1.0]:
+			k.rbox(Vector3(1.96, 0.05, 0.05), 0.015, frame, MeshKit.at(0, 1.7, sz * 0.75))
 		return k.commit()), self)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
@@ -131,13 +129,13 @@ func _build_shelf() -> void:
 	add_child(h)
 	h.changed.connect(_update_labels)
 	bins["cookie"] = h
-	var l := UI3D.label("0/24", 40)
-	l.position = Vector3(0, 3.2, 0)
+	var l := UI3D.label("0/24", 30)
+	l.position = Vector3(0, 2.3, 0)
 	add_child(l)
 	_labels["cookie"] = l
-	give_zone = Zone.make(Zone.Kind.GIVE, holders(), Vector2(1.4, 1.7), "collector", Color(1.0, 0.95, 0.85))
+	give_zone = Zone.make(Zone.Kind.GIVE, holders(), Vector2(1.4, 1.7), "collector", Pal.CREAM)
 	give_zone.position = Vector3(-1.85, 0, 0)
 	add_child(give_zone)
-	take_zone = Zone.make(Zone.Kind.TAKE, holders(), Vector2(1.4, 1.7), "loader", Color(1.0, 0.6, 0.55))
+	take_zone = Zone.make(Zone.Kind.TAKE, holders(), Vector2(1.4, 1.7), "loader", Pal.TERRACOTTA)
 	take_zone.position = Vector3(1.85, 0, 0)
 	add_child(take_zone)

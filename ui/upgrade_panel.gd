@@ -18,7 +18,8 @@ func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(6)
 	v.add_child(h)
 	for g in Bal.UPGRADE_GROUPS:
-		var b := Kit.juicy(g[1], Kit.BLUE, Kit.BLUE_EDGE, 20, Vector2(0, 52))
+		var b := Kit.juicy(g[1], Kit.PAPER_DARK, Kit.LINE, 17, Vector2(0, 46))
+		b.sound = "click"
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func(): _select(g[0]))
 		h.add_child(b)
@@ -37,7 +38,7 @@ func _build() -> void:
 func _select(tab: String) -> void:
 	_tab = tab
 	for k in _tabs:
-		_tabs[k].set_colors(Kit.PINK if k == tab else Kit.BLUE, Kit.PINK_EDGE if k == tab else Kit.BLUE_EDGE)
+		_tabs[k].set_colors(Kit.CHARCOAL if k == tab else Kit.PAPER_DARK, Kit.CHARCOAL_EDGE if k == tab else Kit.LINE)
 	for c in body.get_children():
 		c.queue_free()
 	_rows.clear()
@@ -54,24 +55,24 @@ func _row(id: String) -> Control:
 	var box := Sheet.row_box()
 	var h := Kit.hbox(14)
 	box.add_child(h)
-	var ic := Kit.icon(d["icon"], 84)
+	var ic := Kit.icon(d["icon"], 72)
 	h.add_child(ic)
 	var v := Kit.vbox(2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
 	var top := Kit.hbox(10)
 	v.add_child(top)
-	top.add_child(Kit.label(d["name"], 28, Kit.CHOCO, 0))
-	var lv := Kit.label("", 22, Kit.WHITE, 6)
+	top.add_child(Kit.label(d["name"], 23, Kit.INK, 0))
+	var lv := Kit.label("", 17, Kit.MUTED, 0, false)
 	top.add_child(lv)
-	var desc := Kit.label(d["desc"], 20, Color(0.5, 0.36, 0.28), 0, false)
+	var desc := Kit.label(d["desc"], 17, Kit.MUTED, 0, false)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 300
 	v.add_child(desc)
-	var eff := Kit.label("", 22, Color(0.2, 0.62, 0.3), 0)
+	var eff := Kit.label("", 18, Kit.SAGE_EDGE, 0)
 	v.add_child(eff)
-	var btn := Kit.juicy("", Kit.GREEN, Kit.GREEN_EDGE, 26, Vector2(170, 76))
-	btn.set_icon("coin", 34)
+	var btn := Kit.juicy("", Kit.GREEN, Kit.GREEN_EDGE, 21, Vector2(150, 64))
+	btn.set_icon("coin", 28)
 	btn.sound = ""
 	btn.pressed.connect(func(): _buy(id, btn, box))
 	h.add_child(btn)
@@ -98,7 +99,7 @@ func _refresh() -> void:
 			continue
 		if maxed:
 			btn.set_text_value("MAX")
-			btn.set_colors(Kit.PURPLE, Kit.PURPLE_EDGE)
+			btn.set_colors(Kit.PAPER_DARK, Kit.LINE)
 			eff.text = effect_text(id, lvl, true)
 			continue
 		var cost := Game.upgrade_cost(id)
@@ -143,7 +144,7 @@ static func effect_text(id: String, l: int, maxed := false) -> String:
 		"oven": return "Bake " + fmt2.call(Bal.bake_time(l), Bal.bake_time(n), "%.1fs")
 		"batch": return "Cookies " + fmt2.call(Bal.batch_size(l), Bal.batch_size(n), "%d") + " per dough"
 		"hopper": return "Holds " + fmt2.call(Bal.hopper_cap(l), Bal.hopper_cap(n), "%d")
-		"recipe": return "Price " + fmt2.call(Bal.cookie_price(l), Bal.cookie_price(n), "$%d")
+		"recipe": return "Price " + fmt2.call(Bal.cookie_price(l, Game.cookie_grade()), Bal.cookie_price(n, Game.cookie_grade()), "$%d")
 		"pantry": return "Each bin " + fmt2.call(Bal.pantry_cap(l), Bal.pantry_cap(n), "%d")
 		"shelf": return "Holds " + fmt2.call(Bal.shelf_cap(l), Bal.shelf_cap(n), "%d")
 		"truck": return "Trucks " + fmt2.call(Bal.truck_cap(l), Bal.truck_cap(n), "%d")

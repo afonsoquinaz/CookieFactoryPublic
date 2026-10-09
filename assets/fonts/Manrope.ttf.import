@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://daa5pff7jjl1i"
-path="res://.godot/imported/Fredoka-SemiBold.ttf-2ae945ebc2bef2ceaaf2f46e6646c281.fontdata"
+uid="uid://bonaakhmxgqbu"
+path="res://.godot/imported/Manrope.ttf-ecfd2e896dbe43e438bf404172bc1e6d.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/Fredoka-SemiBold.ttf"
-dest_files=["res://.godot/imported/Fredoka-SemiBold.ttf-2ae945ebc2bef2ceaaf2f46e6646c281.fontdata"]
+source_file="res://assets/fonts/Manrope.ttf"
+dest_files=["res://.godot/imported/Manrope.ttf-ecfd2e896dbe43e438bf404172bc1e6d.fontdata"]
 
 [params]
 

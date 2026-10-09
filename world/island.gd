@@ -16,8 +16,8 @@ static func build(world: Node3D, region: Node3D) -> void:
 	region.add_child(grass)
 	# sandy cliff skirt + beach
 	var ck := MeshKit.new()
-	ck.rbox(Vector3(size.x + 2.2, 3.0, size.y + 2.2), 1.4, Color(0.98, 0.86, 0.62), MeshKit.at(center.x, -1.9, center.y), 3)
-	ck.rbox(Vector3(size.x + 0.9, 2.4, size.y + 0.9), 0.8, Color(0.86, 0.68, 0.5), MeshKit.at(center.x, -1.4, center.y), 3)
+	ck.rbox(Vector3(size.x + 1.6, 3.0, size.y + 1.6), 0.9, Pal.STONE_DARK, MeshKit.at(center.x, -1.75, center.y), 3)
+	ck.rbox(Vector3(size.x + 0.7, 2.4, size.y + 0.7), 0.5, Pal.STONE, MeshKit.at(center.x, -1.3, center.y), 3)
 	Mats.inst(ck.commit(), region, Transform3D.IDENTITY, false)
 	# sea
 	var sea := MeshInstance3D.new()
@@ -96,10 +96,10 @@ static func scatter(region: Node3D) -> void:
 			var k := MeshKit.new()
 			for i in 4:
 				var a := TAU * i / 4.0 + 0.3
-				k.cone(0.045, 0.22 + (i % 2) * 0.08, Color(0.36, 0.68, 0.24) if i % 2 == 0 else Color(0.46, 0.78, 0.3),
+				k.cone(0.045, 0.22 + (i % 2) * 0.08, Color(0.4, 0.5, 0.3) if i % 2 == 0 else Color(0.5, 0.58, 0.36),
 					MeshKit.xf(Vector3(cos(a) * 0.05, 0, sin(a) * 0.05), Vector3(sin(a) * 18, 0, cos(a) * 18)), 5)
 			return k.commit()],
-		"daisy": [160, func():
+		"daisy": [90, func():
 			var k := MeshKit.new()
 			k.cyl(0.012, 0.14, Pal.LEAF_DARK, MeshKit.at(0, 0, 0), 4)
 			for i in 5:
@@ -107,10 +107,10 @@ static func scatter(region: Node3D) -> void:
 				k.ellipsoid(Vector3(0.045, 0.012, 0.025), Color(1, 1, 1), MeshKit.xf(Vector3(cos(a) * 0.04, 0.15, sin(a) * 0.04), Vector3(0, -rad_to_deg(a), 0)), 5, 3)
 			k.sphere(0.025, Color(1.0, 0.82, 0.25), MeshKit.at(0, 0.16, 0), 5, 3)
 			return k.commit()],
-		"pebble": [90, func():
+		"pebble": [45, func():
 			var k := MeshKit.new()
-			k.ellipsoid(Vector3(0.12, 0.06, 0.09), Color(0.82, 0.8, 0.84), MeshKit.at(0, 0.02, 0), 6, 4)
-			k.ellipsoid(Vector3(0.07, 0.04, 0.06), Color(0.74, 0.72, 0.78), MeshKit.at(0.13, 0.01, 0.05), 6, 3)
+			k.ellipsoid(Vector3(0.12, 0.05, 0.09), Color(0.62, 0.6, 0.57), MeshKit.at(0, 0.0, 0), 6, 4)
+			k.ellipsoid(Vector3(0.07, 0.035, 0.06), Color(0.55, 0.53, 0.5), MeshKit.at(0.13, 0.0, 0.05), 6, 3)
 			return k.commit()],
 	}
 	for name in kinds:
@@ -189,10 +189,10 @@ static func factory_floor(region: Node3D, i: int) -> void:
 		var x0 := Lay.TUBE_X0 - 0.8
 		var x1 := Lay.TRAY_X + 1.2
 		var cols := int((x1 - x0) / 2.0)
-		k.rbox(Vector3(x1 - x0 + 0.3, 0.06, 5.0), 0.03, Color(0.7, 0.66, 0.82), MeshKit.at((x0 + x1) * 0.5, 0.0, 0.0))
+		k.rbox(Vector3(x1 - x0 + 0.3, 0.06, 5.0), 0.03, Color(0.6, 0.57, 0.53), MeshKit.at((x0 + x1) * 0.5, 0.0, 0.0))
 		for cx in cols:
 			for cz in 2:
-				var c := Color(0.86, 0.84, 0.92) if (cx + cz) % 2 == 0 else Color(0.81, 0.79, 0.9)
+				var c := Color(0.8, 0.77, 0.72) if (cx + cz) % 2 == 0 else Color(0.76, 0.73, 0.68)
 				k.rbox(Vector3(1.86, 0.07, 2.26), 0.07, c, MeshKit.at(x0 + 1.0 + cx * 2.0 + 0.15, 0.025, -1.2 + cz * 2.4), 1)
 		return k.commit()), region, Transform3D.IDENTITY, false)
 	mi.position = Vector3(0, 0, z)
@@ -211,7 +211,7 @@ static func pier(region: Node3D, i: int) -> void:
 			for sz in [-1.0, 1.0]:
 				k.cyl(0.14, 1.6, Pal.WOOD_DARK, MeshKit.at(x0 + 0.5 + p * 2.2, -1.5, sz * 1.45), 8, 0.03)
 		# striped bumper + lamp
-		k.rbox(Vector3(0.3, 0.5, 2.6), 0.1, Color(1.0, 0.85, 0.3), MeshKit.at(x0 + 0.6, 0.25, 0))
+		k.rbox(Vector3(0.24, 0.42, 2.6), 0.04, Pal.WOOD_DARK, MeshKit.at(x0 + 0.6, 0.21, 0))
 		k.cyl(0.06, 2.2, Pal.METAL_DARK, MeshKit.at(x0 + 0.2, 0, 1.75), 8)
 		k.sphere(0.2, Color(1.0, 0.95, 0.7, 0.3), MeshKit.at(x0 + 0.2, 2.3, 1.75), 10, 7)
 		return k.commit()), region, Transform3D.IDENTITY, false)

@@ -52,13 +52,13 @@ func _ready() -> void:
 	_mat.shader = PAD_SHADER
 	_mat.render_priority = -1
 	_mat.set_shader_parameter("size", size)
-	_mat.set_shader_parameter("color", color)
-	_mat.set_shader_parameter("fill_color", Color(color.r, color.g, color.b, 0.2))
+	_mat.set_shader_parameter("color", Color(0.97, 0.95, 0.9, 0.9))
+	_mat.set_shader_parameter("fill_color", Color(color.r, color.g, color.b, 0.22))
+	_mat.set_shader_parameter("border", 0.05)
+	_mat.set_shader_parameter("radius", 0.22)
 	_mat.set_shader_parameter("direction", 1.0 if kind == Kind.GIVE else (-1.0 if kind == Kind.TAKE else 0.0))
-	var t := Icons.tex(icon_name) if icon_name != "" else null
-	_mat.set_shader_parameter("has_icon", 1.0 if t else 0.0)
-	if t:
-		_mat.set_shader_parameter("icon", t)
+	# icons live on badges above things; pads stay clean outlines
+	_mat.set_shader_parameter("has_icon", 0.0)
 	_quad.material_override = _mat
 	add_child(_quad)
 	if kind == Kind.PAY:
@@ -67,10 +67,6 @@ func _ready() -> void:
 
 func set_icon(n: String) -> void:
 	icon_name = n
-	var t := Icons.tex(n)
-	_mat.set_shader_parameter("has_icon", 1.0 if t else 0.0)
-	if t:
-		_mat.set_shader_parameter("icon", t)
 
 
 func contains(p: Vector3, margin := 0.0) -> bool:

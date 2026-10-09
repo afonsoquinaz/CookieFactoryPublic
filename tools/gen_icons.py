@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate Cookie Factory UI icons with the OpenAI Images API.
+"""Generate Cookie Empire UI icons with the OpenAI Images API.
 
 Usage:
     python3 tools/gen_icons.py                 # generate everything missing
-    python3 tools/gen_icons.py cookie gem      # only these names (missing only)
+    python3 tools/gen_icons.py cookie coin     # only these names (missing only)
     python3 tools/gen_icons.py --force cookie  # regenerate these names
     python3 tools/gen_icons.py --post-only     # re-run post-processing on existing sources
     python3 tools/gen_icons.py --contact       # rebuild the contact sheet only
@@ -11,7 +11,11 @@ Usage:
 Reads the API key from env var OPENAI_APIKEY (never printed).
 Raw 1024px sources -> tools/icon_src/<name>.png (gitignored)
 Processed 256px    -> assets/icons/<name>.png
-Also: assets/app_icon.png (1024 opaque) and assets/logo.png (transparent wordmark).
+Also: assets/app_icon.png (1024 opaque) and assets/emblem.png (512 transparent).
+The old childish "Cookie Factory" sources live in tools/icon_src/old_childish/.
+
+Models: transparent icons use gpt-image-1.5 (gpt-image-2 has no transparent
+background support); the opaque app icon uses gpt-image-2.
 
 Dependencies: python3 stdlib + Pillow + numpy.
 """
@@ -37,89 +41,87 @@ ASSET_DIR = os.path.join(ROOT, "assets")
 META_PATH = os.path.join(SRC_DIR, "meta.json")
 
 API_URL = "https://api.openai.com/v1/images/generations"
-MODELS = ["gpt-image-2", "gpt-image-1.5", "gpt-image-1"]
+MODELS_TRANSPARENT = ["gpt-image-1.5", "gpt-image-1"]
+MODELS_OPAQUE = ["gpt-image-2", "gpt-image-1.5"]
 CA_BUNDLE = "/root/.ccr/ca-bundle.crt"
 
 ICON_SIZE = 256
+EMBLEM_SIZE = 512
 MARGIN = 0.06
 WORKERS = 4
 
 STYLE = (
-    "single centered object, cute stylized 3D game icon, soft clay/plastic render, "
-    "chunky rounded shapes, vibrant saturated colors, soft studio lighting with gentle "
-    "glossy highlight, subtle dark warm-brown outline, no text, no letters, no numbers, "
-    "no background, no ground shadow, no floor, transparent background, isolated object, "
-    "Supercell-style mobile game UI icon"
-)
-
-CHAR_STYLE = (
-    "same cute chibi mascot design: round peach-skinned face, big glossy dark eyes, "
-    "rosy cheeks, small happy smile"
+    "single centered object, refined minimalist 3D render, matte ceramic / clay material "
+    "with subtle real material hints (brushed steel, wood grain, linen), muted sophisticated "
+    "palette (warm cream, sage green, terracotta, walnut brown, chocolate, brushed steel, "
+    "soft brass accents), soft natural studio light with gentle shadow on the object only, "
+    "calm premium aesthetic like a high-end artisan bakery brand or Monument Valley, clean "
+    "silhouette, NO outlines, NO cartoon faces or eyes, NO glossy candy look, NO text, "
+    "transparent background. "
+    "Consistent icon-set framing: three-quarter view from slightly above, the object fills "
+    "about 80% of the square frame, soft key light from the upper left, isolated object "
+    "with no floor, no ground plane, no cast shadow on the ground, no backdrop, no letters, "
+    "no numbers, no logos"
 )
 
 ICONS = [
-    ("wheat", "a bundle of golden wheat stalks tied with a red ribbon"),
-    ("sugar", "a small bundle of three fresh green-and-yellow segmented sugar cane stalks with long leaves, cut ends visible, tied with twine, with two white sugar cubes in front"),
-    ("cocoa", "a ripe orange-brown cocoa pod, one half cut open showing creamy cocoa beans inside"),
-    ("egg", "two cute fresh cream-white eggs sitting in a little golden straw nest"),
-    ("milk", "a cute rounded glass milk bottle full of white milk with a blue cap"),
-    ("cookie", "a perfect golden-brown chocolate-chip cookie with chunky dark chocolate chips"),
-    ("dough", "a soft round ball of raw pale cookie dough studded with chocolate chips"),
-    ("coin", "a shiny thick gold coin with a cookie emblem embossed on its face"),
-    ("cash", "a small neat stack of green cash bills held by a paper band"),
-    ("gem", "a pink candy-colored faceted gemstone"),
-    ("farmer", f"head-and-shoulders portrait of a cute tiny character wearing a straw hat and a green shirt, holding a garden hoe; {CHAR_STYLE}"),
-    ("gatherer", f"head-and-shoulders portrait of a cute tiny character wearing a blue cap with a woven basket on their back; {CHAR_STYLE}"),
-    ("feeder", f"head-and-shoulders portrait of a cute tiny character wearing an orange hard hat, holding a big metal scoop; {CHAR_STYLE}"),
-    ("collector", f"head-and-shoulders portrait of a cute tiny character wearing a white chef hat, holding a tray of cookies; {CHAR_STYLE}"),
-    ("loader", f"a cute tiny character wearing a red cap pushing a hand truck carrying a cardboard box; {CHAR_STYLE}"),
-    ("worker", f"a cute tiny generic factory worker character in purple overalls, waving hello; {CHAR_STYLE}"),
-    ("hire", f"head-and-shoulders portrait of a cute tiny character with a round green badge with a white plus sign next to them (hiring); {CHAR_STYLE}"),
-    ("speed", "a winged running sneaker with little white wings and speed swooshes"),
-    ("backpack", "a chunky stacked pile of three wooden crates and cardboard boxes"),
-    ("truck", "a cute rounded delivery truck, pastel red and cream, with a round cookie logo on the side, three-quarter view"),
-    ("oven", "a cute rounded industrial cookie oven with a glowing orange window, metal body"),
-    ("conveyor", "a short conveyor belt segment on rollers with a single cookie on it"),
-    ("hopper", "a funnel-shaped metal ingredient hopper dropper standing on four legs"),
-    ("storage", "a small wooden shelf with glass jars and burlap sacks on it"),
-    ("star", "a chunky glossy golden star"),
-    ("lock", "a chunky golden padlock"),
-    ("gear", "a chunky rounded settings cog gear, light grey-blue"),
-    ("recipe", "an open recipe book with a cookie and a chocolate drop on its pages"),
-    ("price", "a paper price tag on a string with a gold coin attached"),
-    ("farm", "a tiny farm plot island with a red barn and a green crop field"),
-    ("factory", "a cute tiny cookie factory building with a chimney puffing a cookie-shaped cloud"),
-    ("trophy", "a chunky golden trophy cup with two handles"),
-    ("clock", "a chunky round orange alarm clock with two bells on top, a cream clock face with two dark clock hands and small tick marks"),
-    ("chicken", "a cute round plump white chicken with a red comb"),
-    ("cow", "a cute round black-and-white cow head with little horns and a pink nose"),
-    ("boost", "a glowing yellow lightning bolt with a soft glow"),
-    ("shop", "a little market shop stall with a red and white striped awning"),
+    ("wheat", "a tied sheaf of ripe golden wheat with a linen band; the wheat ears are warm golden-amber (not white), with fine awns, golden straw stalks"),
+    ("sugar", "three cut sugar cane stalks bundled with twine; the stalks are clearly sugar cane: long, slender, segmented with visible ring-shaped nodes like bamboo, muted sage-green and straw-yellow with a few narrow leaves at the top, pale fibrous cut ends"),
+    ("cocoa", "a ripe ochre-terracotta cocoa pod, one half cut open showing pale beans"),
+    ("egg", "three brown and cream eggs in a small woven nest"),
+    ("milk", "a simple glass milk bottle with a cream paper cap"),
+    ("cookie", "one perfect golden chocolate-chip cookie, slightly realistic, matte"),
+    ("dough", "a ball of pale cookie dough with a few chocolate chips"),
+    ("coin", "a thick matte gold coin with a subtle embossed cookie emblem"),
+    ("cash", "a neat stack of muted sage-green banknotes with a plain paper band"),
+    ("gem", "a single faceted gemstone in muted rose quartz, cut like a classic brilliant, matte satin finish"),
+    ("farmer", "a woven straw hat resting on a small wooden-handled hoe (object only, no person)"),
+    ("gatherer", "a wicker harvest basket with a linen cloth"),
+    ("feeder", "a brushed steel ingredient scoop with flour"),
+    ("collector", "a dark steel baking tray with three cookies and a folded linen cloth"),
+    ("loader", "a dark steel hand truck (dolly) carrying a kraft cardboard box"),
+    ("worker", "a folded sage-green work apron with a brass buckle"),
+    ("hire", 'a plain canvas apron hanging on a wooden peg, with a prominent round brass medallion tag pinned on the apron chest, the tag about a third of the apron width, with a bold raised plus-sign symbol (a simple cross shape) clearly visible on it'),
+    ("speed", "a minimal plain cream leather running shoe with no logo and no markings on its side, with three short parallel brass speed lines floating just behind the heel, separate from the shoe, suggesting fast motion; the shoe is angled forward as if mid-stride"),
+    ("backpack", "two stacked kraft cardboard boxes with twine"),
+    ("truck", "a sleek cream delivery van (side 3/4 view), terracotta stripe"),
+    ("oven", "a terracotta brick dome bread oven with dark iron door and warm glow"),
+    ("conveyor", "a short dark steel conveyor segment with a glass cover and a cookie"),
+    ("hopper", "a brushed steel funnel silo on dark steel legs"),
+    ("storage", "a walnut wood shelf with glass jars and linen sacks"),
+    ("star", "a matte brass eight-point star medal"),
+    ("lock", "a matte brass padlock"),
+    ("gear", "a matte brushed steel cog"),
+    ("recipe", "an open linen-bound recipe book with a cookie beside it"),
+    ("price", "a kraft paper price tag with twine and a small gold coin"),
+    ("farm", "a tiny square field of golden wheat with a low dry-stone wall"),
+    ("factory", "a small elegant brick bakery building with a chimney"),
+    ("trophy", "a matte brass trophy cup"),
+    ("clock", "a minimal brass pocket watch"),
+    ("chicken", "a calm white hen (stylized, no cartoon eyes)"),
+    ("cow", "a calm black-and-white dairy cow head (stylized, dignified)"),
+    ("boost", "a brass lightning bolt"),
+    ("shop", "a small striped canvas market awning stall"),
 ]
 
 APP_ICON_PROMPT = (
-    "mobile app icon, a joyful giant chocolate chip cookie with a cute tiny factory chimney "
-    "puffing steam behind it, warm cream and chocolate brown with a pop of pastel pink and "
-    "mint background gradient, rounded chunky 3D clay style, Supercell-quality, no text, "
-    "simple bold centered composition that reads clearly at small sizes: the big smiling "
-    "cookie fills the center, the little factory chimney peeks out behind it at the upper "
-    "right, soft smooth gradient background without scenery clutter, "
-    "full-bleed square artwork filling the whole canvas edge to edge, square corners, "
-    "no rounded corners, no border, no frame"
+    "premium mobile app icon for 'Cookie Empire': one perfect chocolate chip cookie, matte "
+    "stylized-realistic 3D, centered, resting on a deep chocolate-brown background with a "
+    "very subtle thin brass laurel ring around it, soft studio light, elegant and minimal, "
+    "no text, no letters, no words. Full-bleed square artwork filling the whole canvas edge "
+    "to edge, square corners, no rounded corners, no border, no frame"
 )
 
-LOGO_PROMPT = (
-    'game title wordmark logo that reads exactly "Cookie Factory" (two words: C-O-O-K-I-E '
-    "F-A-C-T-O-R-Y), on two lines or one line, chunky bubbly 3D cartoon letters, chocolate "
-    "brown letters with a thick cream-colored outline and glossy highlights, a small "
-    'chocolate chip cookie replacing the first letter "o" in "Cookie", playful mobile game '
-    "logo, Supercell-style, correct spelling, no other text, transparent background, isolated"
+EMBLEM_PROMPT = (
+    "an elegant emblem: a perfect chocolate chip cookie inside a thin brass laurel wreath, "
+    "matte refined 3D, minimal, no text, no letters, transparent background, isolated, "
+    "front view, no floor, no backdrop, no cast shadow"
 )
 
 SPECIAL = {
     # name: (prompt, size, transparent, out_path)
     "app_icon": (APP_ICON_PROMPT, "1024x1024", False, os.path.join(ASSET_DIR, "app_icon.png")),
-    "logo": (LOGO_PROMPT, "1536x1024", True, os.path.join(ASSET_DIR, "logo.png")),
+    "emblem": (EMBLEM_PROMPT, "1024x1024", True, os.path.join(ASSET_DIR, "emblem.png")),
 }
 
 _print_lock = threading.Lock()
@@ -204,7 +206,7 @@ def call_api(model, prompt, size, transparent, quality):
 def generate(name, prompt, size, transparent, quality):
     """Try models in order with retries; return (png_bytes, model)."""
     last = None
-    for model in MODELS:
+    for model in (MODELS_TRANSPARENT if transparent else MODELS_OPAQUE):
         if transparent and model in _no_transparent:
             continue
         for attempt in range(4):
@@ -339,14 +341,14 @@ def postprocess_icon(name):
     im.save(os.path.join(ICON_DIR, name + ".png"), optimize=True)
 
 
-def postprocess_logo():
-    im = Image.open(os.path.join(SRC_DIR, "logo.png")).convert("RGBA")
+def postprocess_emblem():
+    im = Image.open(os.path.join(SRC_DIR, "emblem.png")).convert("RGBA")
     if is_opaque_bg(im):
+        log("  [emblem] WARNING: source has opaque background, flood-filling it out")
         im = remove_flat_background(im)
-    im = trim_and_square(clean_alpha(im), margin=0.04, square=False)
-    if im.width > 1024:
-        im = im.resize((1024, round(im.height * 1024 / im.width)), Image.LANCZOS)
-    clean_alpha(im).save(SPECIAL["logo"][3], optimize=True)
+    im = trim_and_square(clean_alpha(im), margin=0.04)
+    im = im.resize((EMBLEM_SIZE, EMBLEM_SIZE), Image.LANCZOS)
+    clean_alpha(im).save(SPECIAL["emblem"][3], optimize=True)
 
 
 def postprocess_app_icon():
@@ -357,8 +359,8 @@ def postprocess_app_icon():
 
 
 def postprocess(name):
-    if name == "logo":
-        postprocess_logo()
+    if name == "emblem":
+        postprocess_emblem()
     elif name == "app_icon":
         postprocess_app_icon()
     else:
@@ -400,7 +402,7 @@ def run_job(name, quality, force):
     return name, model
 
 
-def contact_sheet(path=os.path.join(SRC_DIR, "contact.png"), cols=8, cell=200, bg=(128, 128, 128)):
+def contact_sheet(path=os.path.join(SRC_DIR, "contact.png"), cols=8, cell=200, bg=(48, 48, 50)):
     from PIL import ImageDraw
     names = [n for n, _ in ICONS if os.path.exists(os.path.join(ICON_DIR, n + ".png"))]
     rows = (len(names) + cols - 1) // cols
@@ -418,7 +420,7 @@ def contact_sheet(path=os.path.join(SRC_DIR, "contact.png"), cols=8, cell=200, b
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("names", nargs="*", help="subset of icon names (also app_icon, logo)")
+    ap.add_argument("names", nargs="*", help="subset of icon names (also app_icon, emblem)")
     ap.add_argument("--force", action="store_true", help="regenerate even if source exists")
     ap.add_argument("--quality", default="high", choices=["low", "medium", "high"])
     ap.add_argument("--post-only", action="store_true")
