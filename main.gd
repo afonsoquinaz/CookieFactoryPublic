@@ -26,12 +26,17 @@ func _ready() -> void:
 		ui.set("world", world)
 		layer.add_child(ui)
 	Sfx.start_music()
+	var menu := not a.has("shot") and not a.has("bot") and not a.has("nomenu")
+	if a.has("title"):
+		menu = true
+	if menu:
+		ui.call("show_title")
+	else:
+		ui.call("skip_title")
 	if a.has("cam"):
 		var p: PackedStringArray = a["cam"].split(",")
 		world.player.global_position = Vector3(float(p[0]), 0, float(p[1]))
 		world.cam.snap()
-	if not a.has("shot") and not a.has("bot"):
-		world.cam.intro()
 	if a.has("zoom"):
 		world.cam.zoom = float(a["zoom"])
 	if a.has("bot"):

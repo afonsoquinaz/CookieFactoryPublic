@@ -69,6 +69,30 @@ func _on_carry_changed() -> void:
 	ch.squash(0.6)
 
 
+## Empty your hands: everything you carry tumbles to the ground and is gone.
+## Always available, so you can never get stuck holding things.
+func discard_all() -> void:
+	if carry.count() == 0:
+		return
+	var root := get_tree().current_scene
+	for i in range(carry.items.size() - 1, -1, -1):
+		var t := carry.items[i]
+		var from := carry.item_global(t)
+		var n := Items.node(t)
+		root.add_child(n)
+		n.global_position = from
+		var to := global_position + Vector3(randf_range(-0.7, 0.7), 0.05, randf_range(-0.7, 0.7))
+		var tw := n.create_tween()
+		tw.tween_interval(i * 0.03)
+		tw.tween_property(n, "global_position", to, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(n, "rotation", Vector3(randf_range(-2, 2), randf() * 6, randf_range(-2, 2)), 0.3)
+		tw.tween_property(n, "scale", Vector3.ZERO, 0.25).set_delay(0.3)
+		tw.tween_callback(n.queue_free)
+	carry.clear_all()
+	Fx.puff(root, global_position + Vector3(0, 0.3, 0), Pal.CREAM, 5)
+	Sfx.play("whoosh")
+
+
 func _physics_process(dt: float) -> void:
 	var dir := Vector2.ZERO
 	if input_enabled:

@@ -1,16 +1,20 @@
 class_name Kit
-## UI building blocks for Cookie Empire: a calm, premium look. Manrope for
-## text, DM Serif Display for titles and big numbers, Material Icons glyphs,
-## paper-white sheets, dark glass pills over the world, flat buttons.
+## UI building blocks for Cookie Empire's game UI: wood-framed parchment
+## panels, glossy beveled buttons, ribbon banners and framed counters (9-patch
+## textures drawn by tools/gen_ui.py), Lilita One for game text with a dark
+## outline, Manrope for small print, Material Icons glyphs.
 
 const FONT_FILE := preload("res://assets/fonts/Manrope.ttf")
 const SERIF := preload("res://assets/fonts/DMSerifDisplay.ttf")
+const GAME := preload("res://assets/fonts/LilitaOne.ttf")
 const ICONS := preload("res://assets/fonts/MaterialIconsRound.otf")
 
 static var _fonts := {}
+static var _skins := {}
 
-const INK := Color(0.15, 0.13, 0.12)
-const MUTED := Color(0.47, 0.43, 0.39)
+const INK := Color(0.32, 0.19, 0.11)
+const OUTLINE := Color(0.2, 0.11, 0.06)
+const MUTED := Color(0.52, 0.4, 0.3)
 const WHITE := Color(1, 1, 1)
 const PAPER := Color(0.97, 0.95, 0.91)
 const PAPER_DARK := Color(0.9, 0.87, 0.81)
@@ -50,8 +54,46 @@ const GLYPH := {
 	"settings": 0xe8b8, "upgrades": 0xe8e5, "staff": 0xf233, "boost": 0xea0b, "close": 0xe5cd,
 	"add": 0xe145, "remove": 0xe15b, "lock": 0xe897, "music": 0xe405, "sound": 0xe050,
 	"vibrate": 0xe62d, "restart": 0xf053, "star": 0xe838, "truck": 0xe558, "hire": 0xe7fe,
-	"arrow": 0xe5c8, "schedule": 0xe8b5,
+	"arrow": 0xe5c8, "schedule": 0xe8b5, "delete": 0xe872,
 }
+
+
+## A 9-patch skin from assets/ui/<name>.png.
+## margin = texture border kept unscaled; pad = content padding.
+static func skin(name: String, margin := 40, pad := Vector4(24, 18, 24, 22)) -> StyleBoxTexture:
+	var key := "%s_%d_%s" % [name, margin, pad]
+	if not _skins.has(key):
+		var s := StyleBoxTexture.new()
+		s.texture = load("res://assets/ui/%s.png" % name)
+		s.texture_margin_left = margin
+		s.texture_margin_right = margin
+		s.texture_margin_top = margin
+		s.texture_margin_bottom = margin
+		s.content_margin_left = pad.x
+		s.content_margin_top = pad.y
+		s.content_margin_right = pad.z
+		s.content_margin_bottom = pad.w
+		_skins[key] = s
+	return _skins[key]
+
+
+## Chunky game text with a dark outline and a drop shadow.
+static func game(text: String, size := 30, color := WHITE, outline := 8) -> Label:
+	var l := Label.new()
+	l.text = text
+	var ls := LabelSettings.new()
+	ls.font = GAME
+	ls.font_size = size
+	ls.font_color = color
+	if outline > 0:
+		ls.outline_size = outline
+		ls.outline_color = OUTLINE
+		ls.shadow_size = 1
+		ls.shadow_color = Color(0.1, 0.05, 0.02, 0.5)
+		ls.shadow_offset = Vector2(0, maxf(2.0, outline * 0.45))
+	l.label_settings = ls
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 
 ## Manrope at a weight (400 regular .. 800 extra bold).
@@ -118,10 +160,12 @@ static func label(text: String, size := 26, color := INK, outline := 0, bold := 
 	return l
 
 
-## Big serif numbers and titles.
+## Big numbers and titles: game font (outlined when light on dark).
 static func title(text: String, size := 40, color := INK) -> Label:
+	if color.get_luminance() > 0.6:
+		return game(text, size, color, maxi(4, size / 7))
 	var l := label(text, size, color)
-	l.label_settings.font = SERIF
+	l.label_settings.font = GAME
 	return l
 
 

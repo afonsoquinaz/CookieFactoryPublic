@@ -46,11 +46,12 @@ func _ready() -> void:
 	var pm := PlaneMesh.new()
 	pm.size = size
 	_quad.mesh = pm
-	_quad.position.y = 0.03
+	# above every floor tile and path top (factory tiles reach y = 0.06)
+	_quad.position.y = 0.1
 	_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mat = ShaderMaterial.new()
 	_mat.shader = PAD_SHADER
-	_mat.render_priority = -1
+	_mat.render_priority = 1
 	_mat.set_shader_parameter("size", size)
 	_mat.set_shader_parameter("color", Color(0.97, 0.95, 0.9, 0.9))
 	_mat.set_shader_parameter("fill_color", Color(color.r, color.g, color.b, 0.22))
