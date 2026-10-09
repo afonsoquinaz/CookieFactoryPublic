@@ -59,6 +59,9 @@ func apply_role() -> void:
 	add_child(ch)
 	ch.setup(role if role != "" else "idle", int(data["id"]) * 13 + 5)
 	ch.scale = Vector3.ONE * 1.35
+	if role == "loader":
+		# loaders stack cookies on their hand truck's nose plate
+		ch.carry_mount.position = Vector3(0, 0.08, 0.52)
 	carry = Holder.new().setup(Bal.worker_carry(Game.lvl("wcarry")), [], Holder.Layout.COLUMN)
 	carry.sway = 0.05
 	ch.carry_mount.add_child(carry)
@@ -121,6 +124,7 @@ func _process(dt: float) -> void:
 				_timer = 0.0
 		S.TAKING:
 			ch.move_speed = 0.0
+			ch.work = _anim(true)
 			var before := carry.count() + carry.incoming
 			if before >= _want or carry.space() <= 0:
 				_after_take()
@@ -136,6 +140,7 @@ func _process(dt: float) -> void:
 				_timer = 0.0
 		S.GIVING:
 			ch.move_speed = 0.0
+			ch.work = _anim(false)
 			if carry.count() == 0 and carry.incoming == 0:
 				state = S.DECIDE
 				return
@@ -151,6 +156,16 @@ func _process(dt: float) -> void:
 				state = S.DECIDE
 		S.REST:
 			_rest(dt)
+
+
+## Each role has its own loading / unloading motion.
+func _anim(taking: bool) -> String:
+	match role:
+		"gatherer": return "pick" if taking else "scoop"
+		"feeder": return "scoop"
+		"collector": return "pick" if taking else ""
+		"loader": return "push"
+	return ""
 
 
 # ---------------------------------------------------------------- decisions
@@ -370,7 +385,7 @@ func _move_to(z: Zone, dt: float) -> bool:
 		ch.face(to, dt, 10.0)
 	global_position.y = 0.0
 	ch.move_speed = clampf(spd / 4.0, 0.5, 1.0)
-	ch.work = "push" if role == "loader" and carry.count() > 0 else ""
+	ch.work = "push" if role == "loader" else ""
 	return false
 
 

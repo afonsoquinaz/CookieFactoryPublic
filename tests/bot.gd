@@ -81,8 +81,8 @@ func _print_status() -> void:
 	var roles := {}
 	for w in Game.workers:
 		roles[w["role"]] = roles.get(w["role"], 0) + 1
-	print("[%5.0fs] $%d lvl %d xp %d/%d cookies %d batches %d workers %s goal=%s ups=%s" % [_t, Game.money, Game.level, Game.xp,
-		Bal.xp_needed(Game.level), int(Game.stats["cookies"]), int(Game.stats["batches"]), JSON.stringify(roles), _goal, _ups()])
+	print(("[%5.0fs] tut=%d $%d lvl %d xp %d/%d cookies %d batches %d workers %s goal=%s ups=%s" % [_t, Game.tutorial_step, Game.money, Game.level, Game.xp,
+		Bal.xp_needed(Game.level), int(Game.stats["cookies"]), int(Game.stats["batches"]), JSON.stringify(roles), _goal, _ups()]))
 	if _goal == "idle" or Shot.args().has("dump"):
 		_dump()
 

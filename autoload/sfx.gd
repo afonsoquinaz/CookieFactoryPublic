@@ -41,6 +41,9 @@ func _ready() -> void:
 			var s = load(DIR + base)
 			if s:
 				_streams[key] = s
+	print_verbose("sfx: %d sounds" % _streams.size())
+	if _streams.is_empty():
+		push_warning("Sfx: no sounds found in " + DIR)
 	_music = AudioStreamPlayer.new()
 	_music.volume_db = -9.0
 	add_child(_music)
