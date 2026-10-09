@@ -20,6 +20,7 @@ func _ready() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup("farmer", hash(farm.ing) + index * 31)
+	ch.scale = Vector3.ONE * 1.25
 	carry = Holder.new().setup(6, [], Holder.Layout.COLUMN)
 	ch.carry_mount.add_child(carry)
 	_bubble = UI3D.label("...", 40, Color(1, 1, 1))

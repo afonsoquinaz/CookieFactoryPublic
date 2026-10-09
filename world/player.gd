@@ -20,7 +20,7 @@ func _ready() -> void:
 	collision_mask = 1
 	var cs := CollisionShape3D.new()
 	var sh := CapsuleShape3D.new()
-	sh.radius = 0.32
+	sh.radius = 0.4
 	sh.height = 1.2
 	cs.shape = sh
 	cs.position.y = 0.6
@@ -28,7 +28,7 @@ func _ready() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup("player")
-	ch.scale = Vector3.ONE * 1.25
+	ch.scale = Vector3.ONE * 1.5
 	carry = Holder.new().setup(Bal.carry(Game.lvl("carry")), [], Holder.Layout.COLUMN)
 	carry.sway = 0.06
 	carry.max_visible = 80

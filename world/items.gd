@@ -52,7 +52,7 @@ static func _build(t: String) -> Mesh:
 			k.cyl(0.02, 0.06, Pal.LEAF_DARK, MeshKit.xf(Vector3(-0.2, 0.1, 0), Vector3(0, 0, 90)), 6)
 		"egg":
 			# a little tray with four eggs
-			k.rbox(Vector3(0.4, 0.08, 0.4), 0.035, Color(0.62, 0.84, 0.98), MeshKit.at(0, 0.04, 0))
+			k.rbox(Vector3(0.4, 0.08, 0.4), 0.035, Color(0.96, 0.74, 0.55), MeshKit.at(0, 0.04, 0))
 			for x in [-0.095, 0.095]:
 				for z in [-0.095, 0.095]:
 					k.ellipsoid(Vector3(0.075, 0.1, 0.075), Color(1.0, 0.95, 0.84), MeshKit.at(x, 0.1, z), 10, 7)

@@ -31,10 +31,6 @@ func _ready() -> void:
 	st.content_margin_top = 6
 	st.content_margin_bottom = 8
 	_card.add_theme_stylebox_override("panel", st)
-	_card.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_card.offset_top = 128
-	_card.offset_left = -300
-	_card.offset_right = 300
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card)
 	var h := Kit.hbox(10)
@@ -43,7 +39,7 @@ func _ready() -> void:
 	h.add_child(_icon)
 	_text = Kit.label("", 26, Kit.CHOCO, 0)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text.custom_minimum_size.x = 500
+	_text.custom_minimum_size.x = 440
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(_text)
 	_arrow = Node3D.new()
@@ -55,6 +51,13 @@ func _ready() -> void:
 	m.set_shader_parameter("emit", 0.35)
 	mi.material_override = m
 	world.add_child(_arrow)
+
+
+func layout(vs: Vector2, top_inset: float) -> void:
+	var w := minf(vs.x - 40, 600.0)
+	_card.size = Vector2(w, 0)
+	_card.position = Vector2((vs.x - _card.size.x) * 0.5, 120 + top_inset)
+	_card.pivot_offset = _card.size * 0.5
 
 
 func _process(dt: float) -> void:

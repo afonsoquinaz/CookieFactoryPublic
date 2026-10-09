@@ -15,6 +15,8 @@ func _ready() -> void:
 		Game.level = int(a["level"])
 	for b in a.get("build", "").split(",", false):
 		Game.buildings[b] = true
+	if a.has("demo"):
+		_demo_state()
 	world = World.new()
 	add_child(world)
 	var layer := CanvasLayer.new()
@@ -34,4 +36,46 @@ func _ready() -> void:
 		var bot := Bot.new()
 		bot.world = world
 		add_child(bot)
+	if a.has("tscale"):
+		Engine.time_scale = float(a["tscale"])
+	if a.has("panel"):
+		match a["panel"]:
+			"upgrades": ui.call("open_sheet", UpgradePanel.new())
+			"workers": ui.call("_open_workers")
+			"settings": ui.call("open_sheet", SettingsPanel.new())
 	Shot.attach(self)
+
+
+## A mid-game factory for screenshots and testing (--demo).
+func _demo_state() -> void:
+	Game.reset_state()
+	Game.no_save = true
+	Game.money = 12500
+	Game.level = 7
+	Game.xp = 140
+	Game.tutorial_step = 99
+	for b in ["cabin", "pantry", "shelf", "dock2", "line2"]:
+		Game.buildings[b] = true
+	for ing in Defs.INGREDIENTS:
+		Game.upgrades["farm_" + ing] = 11
+	for id in ["carry", "speed", "belt", "oven", "hopper", "truck", "batch", "cabin", "wcarry", "wspeed"]:
+		Game.upgrades[id] = 3
+	var roles := [["farmer", "wheat"], ["farmer", "milk"], ["gatherer", ""], ["gatherer", ""], ["feeder", ""], ["feeder", ""], ["collector", ""], ["loader", ""], ["", ""]]
+	var i := 1
+	for r in roles:
+		Game.workers.append({"id": i, "role": r[0], "target": r[1]})
+		i += 1
+	Game.next_worker_id = i
+	Game.hired = i - 1
+	var ws := {}
+	for ing in Defs.INGREDIENTS:
+		ws["farm_" + ing] = 12
+		ws["pantry_" + ing] = 14
+		ws["hop0_" + ing] = 14
+		ws["hop1_" + ing] = 9
+	ws["tray0"] = 12
+	ws["tray1"] = 7
+	ws["shelf"] = 40
+	ws["dock0"] = 18
+	ws["carry"] = ["cookie", "cookie", "cookie", "cookie", "cookie", "cookie", "cookie", "cookie"]
+	Game.world_state = ws

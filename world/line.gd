@@ -357,14 +357,14 @@ func _build_oven() -> void:
 	add_child(_oven)
 	Mats.inst(MeshKit.cached("oven", Line.oven_mesh), _oven)
 	_oven_face = Node3D.new()
-	_oven_face.position = Vector3(0, 1.45, 0.92)
+	_oven_face.position = Vector3(0, 1.98, 0.98)
 	_oven.add_child(_oven_face)
 	Mats.inst(MeshKit.cached("oven_face", func():
 		var k := MeshKit.new()
 		for sx in [-1.0, 1.0]:
-			k.ellipsoid(Vector3(0.09, 0.13, 0.05), Color(0.2, 0.12, 0.1), MeshKit.at(sx * 0.32, 0.55, 0), 10, 7)
-			k.sphere(0.03, Color(1, 1, 1), MeshKit.at(sx * 0.32 + 0.03, 0.6, 0.04), 6, 4)
-			k.ellipsoid(Vector3(0.11, 0.06, 0.03), Color(1.0, 0.55, 0.55), MeshKit.at(sx * 0.55, 0.4, -0.02), 10, 5)
+			k.ellipsoid(Vector3(0.1, 0.14, 0.06), Color(0.2, 0.12, 0.1), MeshKit.xf(Vector3(sx * 0.3, 0.0, 0.0), Vector3(-12, sx * 18, 0)), 10, 7)
+			k.sphere(0.035, Color(1, 1, 1), MeshKit.at(sx * 0.3 + 0.03, 0.05, 0.06), 6, 4)
+			k.ellipsoid(Vector3(0.13, 0.07, 0.04), Color(1.0, 0.45, 0.5), MeshKit.xf(Vector3(sx * 0.55, -0.2, -0.03), Vector3(0, sx * 30, 0)), 10, 5)
 		return k.commit()), _oven_face, Transform3D.IDENTITY, false)
 	_oven_glow = OmniLight3D.new()
 	_oven_glow.light_color = Color(1.0, 0.6, 0.25)
@@ -416,32 +416,43 @@ func _build_oven() -> void:
 
 static func oven_mesh() -> Mesh:
 	var k := MeshKit.new()
-	var body := Color(0.98, 0.62, 0.55)
-	var trim := Color(1.0, 0.8, 0.35)
-	var dark := Color(0.55, 0.38, 0.62)
-	k.rbox(Vector3(2.2, 0.3, 1.9), 0.1, dark, MeshKit.at(0, 0.15, 0))
-	k.rbox(Vector3(2.0, 1.9, 1.75), 0.45, body, MeshKit.at(0, 1.2, 0))
-	k.ellipsoid(Vector3(1.0, 0.5, 0.875), body, MeshKit.at(0, 2.0, 0), 18, 8)
-	# glowing window (vertex alpha < 1 = emissive)
-	k.rbox(Vector3(1.2, 0.62, 0.1), 0.22, trim, MeshKit.at(0, 1.05, 0.86))
-	k.rbox(Vector3(1.0, 0.46, 0.1), 0.18, Color(1.0, 0.62, 0.22, 0.55), MeshKit.at(0, 1.05, 0.89))
-	# mouth slot facing the tube (west) and the tray (east)
-	k.rbox(Vector3(0.12, 0.7, 1.0), 0.06, trim, MeshKit.at(-1.0, Lay.TUBE_Y, 0))
-	k.rbox(Vector3(0.12, 0.4, 0.9), 0.06, Color(0.3, 0.16, 0.12), MeshKit.at(1.02, 0.95, 0))
-	# chimney with a gold band
-	k.cyl(0.24, 0.9, Pal.METAL_DARK, MeshKit.at(0.45, 2.1, -0.3), 14, 0.05)
-	k.cyl(0.29, 0.14, trim, MeshKit.at(0.45, 2.92, -0.3), 14, 0.05)
-	# dials
+	var body := Color(0.99, 0.62, 0.52)
+	var band := Color(1.0, 0.93, 0.8)
+	var trim := Color(1.0, 0.8, 0.32)
+	var dark := Color(0.5, 0.36, 0.6)
+	# plinth
+	k.rbox(Vector3(2.5, 0.36, 2.2), 0.12, dark, MeshKit.at(0, 0.18, 0))
+	k.rbox(Vector3(2.62, 0.1, 2.32), 0.05, dark.lightened(0.15), MeshKit.at(0, 0.36, 0))
+	# beehive dome
+	var prof := PackedVector2Array([Vector2(0, 0.38), Vector2(1.05, 0.38), Vector2(1.12, 0.5), Vector2(1.14, 1.2),
+		Vector2(1.12, 1.6), Vector2(1.05, 1.95), Vector2(0.9, 2.3), Vector2(0.62, 2.58), Vector2(0.28, 2.74), Vector2(0, 2.77)])
+	k.lathe(prof, body, Transform3D.IDENTITY, 28)
+	k.torus(1.15, 0.07, band, MeshKit.at(0, 1.42, 0), 28, 6)
+	k.torus(1.13, 0.06, band, MeshKit.at(0, 0.55, 0), 28, 6)
+	# arched mouth with a golden frame, glowing inside (alpha < 1 = emissive)
+	k.rbox(Vector3(1.34, 1.06, 0.3), 0.36, trim, MeshKit.at(0, 0.98, 1.0))
+	k.rbox(Vector3(1.08, 0.82, 0.3), 0.3, Color(0.6, 0.25, 0.15), MeshKit.at(0, 0.96, 1.04))
+	k.rbox(Vector3(0.9, 0.62, 0.3), 0.24, Color(1.0, 0.5, 0.12, 0.55), MeshKit.at(0, 0.98, 1.07))
+	k.rbox(Vector3(0.8, 0.12, 0.2), 0.05, Color(0.5, 0.3, 0.25), MeshKit.at(0, 0.62, 1.12))
+	# tube inlet ring (west) and output slot (east)
+	k.torus(0.55, 0.09, trim, MeshKit.xf(Vector3(-1.08, Lay.TUBE_Y, 0), Vector3(0, 0, 90)), 18, 6)
+	k.rbox(Vector3(0.2, 0.5, 0.95), 0.08, trim, MeshKit.at(1.1, 1.0, 0))
+	k.rbox(Vector3(0.2, 0.34, 0.75), 0.06, Color(0.3, 0.16, 0.12), MeshKit.at(1.16, 1.0, 0))
+	# chimney
+	k.cyl(0.24, 0.85, Pal.METAL_DARK, MeshKit.at(-0.35, 2.3, -0.35), 14, 0.05)
+	k.cyl(0.3, 0.16, trim, MeshKit.at(-0.35, 3.08, -0.35), 14, 0.05)
+	# little dials on the side
 	for i in 2:
-		k.cyl(0.1, 0.06, [Pal.MINT, Pal.PINK][i], MeshKit.xf(Vector3(0.75, 1.6 - i * 0.3, 0.86), Vector3(90, 0, 0)), 12, 0.02)
+		k.cyl(0.1, 0.07, [Pal.MINT, Pal.PINK][i], MeshKit.xf(Vector3(0.78, 1.15 - i * 0.28, 0.82), Vector3(90, 0, -40)), 12, 0.02)
 	return k.commit()
 
 
 func _animate_oven(dt: float, busy: bool) -> void:
 	_oven_glow.light_energy = lerpf(_oven_glow.light_energy, (1.2 + sin(_t * 9.0) * 0.25) if busy else 0.25, clampf(dt * 3.0, 0.0, 1.0))
-	_oven_face.position.y = 1.45 + (sin(_t * 8.0) * 0.02 if busy else 0.0)
+	_oven_face.position.y = 1.98 + (sin(_t * 8.0) * 0.02 if busy else 0.0)
+	_oven_face.scale.y = 1.0 if fmod(_t, 4.0) > 0.12 else 0.15
 	if busy:
 		_chimney_t -= dt
 		if _chimney_t <= 0.0:
 			_chimney_t = 0.35
-			Fx.puff(get_tree().current_scene, _oven.global_position + Vector3(0.45, 3.1, -0.3), Color(1, 1, 1), 1)
+			Fx.puff(get_tree().current_scene, _oven.global_position + Vector3(-0.35, 3.3, -0.35), Color(1, 1, 1), 1)

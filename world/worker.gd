@@ -57,6 +57,7 @@ func apply_role() -> void:
 	ch = Character.new()
 	add_child(ch)
 	ch.setup(role if role != "" else "idle", int(data["id"]) * 13 + 5)
+	ch.scale = Vector3.ONE * 1.35
 	carry = Holder.new().setup(Bal.worker_carry(Game.lvl("wcarry")), [], Holder.Layout.COLUMN)
 	carry.sway = 0.05
 	ch.carry_mount.add_child(carry)
@@ -65,12 +66,13 @@ func apply_role() -> void:
 	if role != "":
 		col = Defs.ROLES[role]["color"]
 		_badge = UI3D.icon(Defs.ROLES[role]["icon"], 0.0026)
-		_badge.position = Vector3(0, 1.95, 0)
+		_badge.position = Vector3(0, 2.3, 0)
 		add_child(_badge)
 	_ring = MeshInstance3D.new()
 	var k := MeshKit.new()
 	k.torus(0.4, 0.04, Color(1, 1, 1), Transform3D.IDENTITY, 24, 4)
 	_ring.mesh = k.commit()
+	_ring.scale = Vector3.ONE * 1.3
 	_ring.material_override = Mats.flat(Color(col.r, col.g, col.b, 0.95))
 	_ring.position.y = 0.05
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -90,7 +92,7 @@ func _speed() -> float:
 
 func _process(dt: float) -> void:
 	if _badge:
-		_badge.position.y = 1.95 + carry.count() * 0.05 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
+		_badge.position.y = 2.3 + carry.count() * 0.05 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
 	_bubble.visible = state == S.WAIT or state == S.REST
 	match state:
 		S.DECIDE:

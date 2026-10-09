@@ -22,6 +22,8 @@ var _sheet: Sheet
 var _shown_money := 0.0
 var goals: Goals
 var _route_role := ""
+var _bar: HBoxContainer
+var _top: HBoxContainer
 
 
 func _ready() -> void:
@@ -32,10 +34,6 @@ func _ready() -> void:
 	_build_top()
 	_build_bottom()
 	_toast_box = Kit.vbox(8)
-	_toast_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_toast_box.offset_top = 240
-	_toast_box.offset_left = -330
-	_toast_box.offset_right = 330
 	_toast_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(_toast_box)
 	goals = Goals.new()
@@ -59,11 +57,8 @@ func _ready() -> void:
 
 func _build_top() -> void:
 	var top := Kit.hbox(10)
-	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top.offset_left = 16
-	top.offset_right = -16
-	top.offset_top = 22
 	add_child(top)
+	_top = top
 	# money pill
 	var pill := PanelContainer.new()
 	var st := Kit.box(Color(0.2, 0.11, 0.07, 0.72), 34, 4, Color(1, 1, 1, 0.25), 4)
@@ -131,7 +126,25 @@ func _on_money(_value: int, delta: int) -> void:
 		Kit.bounce(_money_pill, 0.06)
 
 
+func _layout() -> void:
+	# manual layout: robust on any aspect ratio (phones, tablets, desktop)
+	var vs := get_viewport_rect().size
+	var safe := DisplayServer.get_display_safe_area()
+	var top_inset := 0.0
+	if OS.has_feature("mobile") and safe.size.y > 0:
+		top_inset = safe.position.y * vs.y / float(DisplayServer.window_get_size().y)
+	_top.position = Vector2(16, 18 + top_inset)
+	_top.size = Vector2(vs.x - 32, 86)
+	var bw := minf(vs.x - 40, 700.0)
+	_bar.position = Vector2((vs.x - bw) * 0.5, vs.y - 150)
+	_bar.size = Vector2(bw, 118)
+	_toast_box.size = Vector2(minf(vs.x - 40, 640), 0)
+	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 250 + top_inset)
+	goals.layout(vs, top_inset)
+
+
 func _process(dt: float) -> void:
+	_layout()
 	_shown_money = lerpf(_shown_money, float(Game.money), clampf(dt * 10.0, 0.0, 1.0))
 	if absf(_shown_money - Game.money) < 1.0:
 		_shown_money = Game.money
@@ -145,13 +158,9 @@ func _process(dt: float) -> void:
 
 func _build_bottom() -> void:
 	var bar := Kit.hbox(14)
-	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bar.offset_left = 20
-	bar.offset_right = -20
-	bar.offset_top = -150
-	bar.offset_bottom = -30
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(bar)
+	_bar = bar
 	_btn_up = _big_button("Upgrades", "star", Kit.YELLOW, Kit.YELLOW_EDGE)
 	_btn_up.pressed.connect(func(): open_sheet(UpgradePanel.new()))
 	bar.add_child(_btn_up)

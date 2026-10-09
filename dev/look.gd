@@ -58,4 +58,11 @@ func _ready() -> void:
 				ch.work = works[i]
 				if a.has("carry") and i == 0:
 					ch.carrying = true
+		"oven":
+			cam.position = Vector3(2.5, 4.5, 7.5)
+			cam.look_at(Vector3(0, 1.3, 0))
+			var l := Line.new()
+			add_child(l)
+			l.setup(0)
+			l.position = Vector3(-Lay.OVEN_X, 0, 0)
 	Shot.attach(self)
