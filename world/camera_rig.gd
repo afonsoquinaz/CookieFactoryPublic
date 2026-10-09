@@ -10,6 +10,7 @@ var pitch := 62.0
 var base_dist := 15.5
 var lead := Vector3.ZERO
 var shake := 0.0
+var free_focus := false        # the title menu drives global_position itself
 var _touches := {}
 var _pinch_d := 0.0
 
@@ -50,8 +51,9 @@ func _focus() -> Vector3:
 func _process(dt: float) -> void:
 	if target == null:
 		return
-	var f := _focus()
-	global_position = global_position.lerp(f, clampf(dt * 5.0, 0.0, 1.0))
+	if not free_focus:
+		var f := _focus()
+		global_position = global_position.lerp(f, clampf(dt * 3.0 if zoom > 1.05 else dt * 5.0, 0.0, 1.0))
 	shake = move_toward(shake, 0.0, dt * 2.0)
 	_place()
 

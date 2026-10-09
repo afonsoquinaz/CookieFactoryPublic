@@ -1,14 +1,14 @@
 extends Node
-## First scene: keeps the launch splash (logo on cream) on screen with a
-## chunky progress bar while the game loads in the background, lets the first
+## First scene: the Cookie Empire crest (emblem + title, laid out to fit any
+## screen) with a progress bar while the game loads in the background, lets the first
 ## frames of the world draw behind it (shader warm-up), then fades away.
 
 const MAIN := "res://main.tscn"
-const SPLASH := preload("res://assets/splash.png")
+const EMBLEM := preload("res://assets/emblem.png")
 
 var _layer: CanvasLayer
 var _cover: Control
-var _logo: TextureRect
+var _crest: VBoxContainer
 var _track: Panel
 var _fill: Panel
 var _tip: Label
@@ -40,19 +40,34 @@ func _ready() -> void:
 	bg.color = Color(0.15, 0.1, 0.08)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_cover.add_child(bg)
-	_logo = TextureRect.new()
-	_logo.texture = SPLASH
-	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_logo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_cover.add_child(_logo)
+	# laid out live (not a baked image) so it fits any screen shape
+	_crest = Kit.vbox(0)
+	_crest.alignment = BoxContainer.ALIGNMENT_CENTER
+	_cover.add_child(_crest)
+	var em := TextureRect.new()
+	em.texture = EMBLEM
+	em.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	em.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	em.custom_minimum_size = Vector2(260, 260)
+	em.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_crest.add_child(em)
+	var t1 := Kit.game("COOKIE", 92, Color(1.0, 0.93, 0.78), 14)
+	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_crest.add_child(t1)
+	var ribbon := PanelContainer.new()
+	ribbon.add_theme_stylebox_override("panel", Kit.skin("ribbon", 70, Vector4(100, 10, 100, 30)))
+	ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_crest.add_child(ribbon)
+	var t2 := Kit.game("EMPIRE", 54, Kit.WHITE, 9)
+	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ribbon.add_child(t2)
 	_track = Panel.new()
-	_track.add_theme_stylebox_override("panel", Kit.box(Color(1, 1, 1, 0.08), 4))
+	_track.add_theme_stylebox_override("panel", Kit.skin("track", 18))
 	_cover.add_child(_track)
 	_fill = Panel.new()
-	_fill.add_theme_stylebox_override("panel", Kit.box(Kit.BRASS, 3))
+	_fill.add_theme_stylebox_override("panel", Kit.skin("fill_gold", 18))
 	_track.add_child(_fill)
-	_tip = Kit.label(TIPS.pick_random(), 19, Color(0.82, 0.76, 0.66), 0, false)
+	_tip = Kit.game(TIPS.pick_random(), 21, Color(0.9, 0.84, 0.74), 5)
 	_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_cover.add_child(_tip)
@@ -65,11 +80,18 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var vs := get_viewport().get_visible_rect().size
-	var w := minf(vs.x * 0.7, 520.0)
-	_track.size = Vector2(w * 0.7, 8)
-	_track.position = Vector2((vs.x - w * 0.7) * 0.5, vs.y * 0.8)
+	var cs := _crest.get_combined_minimum_size()
+	# shrink the crest on narrow or short screens so it always fits
+	var sc := minf(1.0, minf((vs.x - 48.0) / cs.x, vs.y * 0.6 / cs.y))
+	_crest.size = cs
+	_crest.pivot_offset = Vector2(cs.x * 0.5, 0)
+	_crest.scale = Vector2.ONE * sc
+	_crest.position = Vector2((vs.x - cs.x) * 0.5, vs.y * 0.42 - cs.y * sc * 0.5)
+	var w := minf(vs.x - 120.0, 420.0)
+	_track.size = Vector2(w, 30)
+	_track.position = Vector2((vs.x - w) * 0.5, vs.y * 0.8)
 	_tip.size = Vector2(vs.x - 80, 80)
-	_tip.position = Vector2(40, vs.y * 0.8 + 30)
+	_tip.position = Vector2(40, vs.y * 0.8 + 44)
 
 
 func _process(dt: float) -> void:
@@ -107,4 +129,4 @@ func _process(dt: float) -> void:
 				tw.tween_callback(queue_free)
 	_shown = move_toward(_shown, _target, dt * (2.5 if _phase >= 3 else 1.3))
 	_fill.position = Vector2(0, 0)
-	_fill.size = Vector2(maxf(8.0, _track.size.x * _shown), _track.size.y)
+	_fill.size = Vector2(maxf(28.0, _track.size.x * _shown), _track.size.y)

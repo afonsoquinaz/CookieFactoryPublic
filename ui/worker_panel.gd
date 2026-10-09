@@ -22,7 +22,7 @@ func _init() -> void:
 func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(12)
 	v.add_child(h)
-	_staff_label = Kit.label("", 19, Kit.MUTED, 0, false)
+	_staff_label = Kit.game("", 21, Kit.INK, 0)
 	_staff_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(_staff_label)
 	_hire_btn = Kit.juicy("Hire", Kit.GREEN, Kit.GREEN_EDGE, 21, Vector2(220, 64))
@@ -66,9 +66,9 @@ func _card(role: String) -> Control:
 	h.add_child(mid)
 	var name_row := Kit.hbox(8)
 	mid.add_child(name_row)
-	var nl := Kit.label(d["name"], 24, Kit.INK, 0)
+	var nl := Kit.game(d["name"], 27, Kit.INK, 0)
 	name_row.add_child(nl)
-	var cnt := Kit.label("×0", 19, Kit.MUTED, 0, false)
+	var cnt := Kit.game("×0", 22, Kit.MUTED, 0)
 	name_row.add_child(cnt)
 	# FROM → TO
 	var flow := Kit.hbox(6)

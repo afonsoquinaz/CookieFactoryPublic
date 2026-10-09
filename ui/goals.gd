@@ -24,14 +24,14 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", Kit.glass(20))
+	_card.add_theme_stylebox_override("panel", Kit.skin("card_dark", 30, Vector4(16, 10, 22, 16)))
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card)
 	var h := Kit.hbox(10)
 	_card.add_child(h)
-	_icon = Kit.icon("star", 38)
+	_icon = Kit.icon("star", 50)
 	h.add_child(_icon)
-	_text = Kit.label("", 19, Kit.WHITE)
+	_text = Kit.game("", 22, Kit.WHITE, 6)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size.x = 380
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -52,7 +52,7 @@ func _ready() -> void:
 func layout(vs: Vector2, top_inset: float) -> void:
 	var w := minf(vs.x - 40, 520.0)
 	_card.size = Vector2(w, 0)
-	_card.position = Vector2((vs.x - _card.size.x) * 0.5, 112 + top_inset)
+	_card.position = Vector2((vs.x - _card.size.x) * 0.5, 108 + top_inset)
 	_card.pivot_offset = _card.size * 0.5
 
 
@@ -165,7 +165,7 @@ func _build_goal(id: String, why: String) -> void:
 
 func _free_goal() -> void:
 	if Game.idle_workers() > 0 and Game.workers.size() > 0:
-		_goal("%d worker%s waiting for a job" % [Game.idle_workers(), "s" if Game.idle_workers() > 1 else ""], "worker", null, hud._btn_workers)
+		_goal("%d worker%s waiting for a job" % [Game.idle_workers(), "s" if Game.idle_workers() > 1 else ""], "hire", null, hud._btn_workers)
 		return
 	for id in Defs.BUILD_ORDER:
 		if Game.has_building(id):
@@ -185,7 +185,7 @@ func _draw() -> void:
 		var r := _target_ui.get_global_rect()
 		var c := Vector2(r.get_center().x, r.position.y - 30 - absf(sin(_t * 5.0)) * 22)
 		_draw_pointer(c, Vector2(0, 1))
-		draw_arc(r.get_center(), r.size.x * 0.52 + sin(_t * 4.0) * 4, 0, TAU, 48, Color(Kit.BRASS, 0.8), 3, true)
+		draw_arc(r.get_center(), r.size.x * 0.55 + sin(_t * 4.0) * 5, 0, TAU, 48, Color(1.0, 0.85, 0.35, 0.9), 5, true)
 	# edge pointer when the world target is off screen
 	if _has_world:
 		var cam := get_viewport().get_camera_3d()
@@ -201,10 +201,13 @@ func _draw() -> void:
 
 func _draw_pointer(at: Vector2, dir: Vector2) -> void:
 	var n := Vector2(-dir.y, dir.x)
-	var tip := at + dir * 26
-	var pts := PackedVector2Array([tip, at - dir * 14 + n * 24, at - dir * 14 - n * 24])
+	var tip := at + dir * 30
+	var pts := PackedVector2Array([tip, at - dir * 16 + n * 28, at - dir * 16 - n * 28])
 	var sh := PackedVector2Array()
 	for q in pts:
-		sh.append(q + Vector2(0, 5))
-	draw_colored_polygon(sh, Color(0.05, 0.04, 0.03, 0.3))
-	draw_colored_polygon(pts, Kit.BRASS)
+		sh.append(q + Vector2(0, 6))
+	draw_colored_polygon(sh, Color(0.05, 0.04, 0.03, 0.35))
+	var rim := PackedVector2Array(pts)
+	rim.append(pts[0])
+	draw_colored_polygon(pts, Color(1.0, 0.82, 0.3))
+	draw_polyline(rim, Kit.OUTLINE, 5.0, true)

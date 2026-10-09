@@ -4,7 +4,7 @@ A calm, premium 3D idle factory game made in **Godot 4.7** (GDScript, Mobile ren
 
 Start at the kitchen table: one wheat field right next to a brick oven and a delivery truck. Your first cookies sell within seconds. Unlock the sugar cane field, cocoa orchard, hen house and dairy one at a time: each adds a hopper to the glass production line, upgrades the recipe (plain shortbread → sugar cookie → chocolate chip → butter → premium) and raises the price of every cookie. Hire staff, automate every step, upgrade everything and grow a cookie empire.
 
-**Look:** muted, grown-up production site (steel silo hoppers, dark-steel tube frame, brick dome oven, dry-stone farm walls, cypress and olive trees, deep teal sea) with cute toy-figure staff in the style of DEADGRID's characters. UI: Manrope + DM Serif Display, Material Icons, dark glass pills and paper sheets.
+**Look:** muted, grown-up production site (steel silo hoppers, dark-steel tube frame, brick dome oven, dry-stone farm walls, cypress and olive trees, deep teal sea) with cute toy farmers and factory staff (faces, plaid shirts and overalls, hi-vis, chef whites). UI: a proper game UI with framed counters, a gold-star level badge, chunky wooden and coloured 9-patch buttons, ribbon-titled panels and the Lilita One display font (skins drawn by `tools/gen_ui.py`).
 
 All 3D art is procedural low-poly (`world/mesh_kit.gd`). The 2D icons, app icon and logo were generated for this game with the OpenAI Images API (`tools/gen_icons.py`), and all sound and music is synthesized in code (`tools/gen_audio.py`). No third-party art or audio.
 
@@ -16,7 +16,8 @@ All 3D art is procedural low-poly (`world/mesh_kit.gd`). The 2D icons, app icon 
 | Pick up / drop off | stand on a coloured pad: items fly onto or off your stack by themselves |
 | Build | stand on a gold pad to pay for a new building |
 | Zoom | pinch, or the mouse wheel |
-| Upgrades / Workers / Rush | the big buttons at the bottom |
+| Upgrades / Staff / Boost | the big buttons at the bottom |
+| Drop | the red button on the left whenever you carry something: empties your hands, so you can never get stuck |
 
 **The production loop**
 1. **Farms** (top row): each has a farmer who harvests the crop, carries it to the crate at the gate, and repeats. Take from the crate's pad.
@@ -53,7 +54,7 @@ Resting workers sit on the cabin bench with a "z z" until you give them a job.
 ## Project layout
 
 ```
-boot.gd/.tscn       splash with the logo + loading bar, then fades into the game
+boot.gd/.tscn       crest (emblem + title, laid out to fit any screen) + loading bar, then fades into the game
 main.gd/.tscn       creates the World and the HUD; dev flags (--demo, --bot, --shot …)
 autoload/game.gd    game state: money, level/xp, upgrades, buildings, workers, save/load, offline
 autoload/sfx.gd     sound effects + music
@@ -73,9 +74,9 @@ world/
   cabin.gd, build_pad.gd, island.gd, env.gd, camera_rig.gd, fx.gd, items.gd, ui3d.gd
   character.gd      the chibi rig: body, face, hats, tools, procedural walk/work/carry animations
   player.gd, worker.gd   you, and hired workers (role AI on the navmesh)
-ui/                 HUD, joystick, bottom sheets (upgrades, workers, settings), goals, UI kit
+ui/                 title menu, HUD, joystick, panels (upgrades, staff, settings), goals, UI kit + skins
 render/             toon, ground, glass, sea, belt and pad shaders
-assets/             icons (generated), audio (synthesized), fonts (Fredoka, OFL), logo, splash
+assets/             icons (generated), UI skins (tools/gen_ui.py), audio (synthesized), fonts (Lilita One, Manrope, OFL), logo, splash
 tests/              headless logic tests + the autopilot bot
 tools/              check, test, bot, screenshot scripts; icon and audio generators
 dev/                visual test bench, screenshot helper, perf/triangle probes
@@ -99,6 +100,7 @@ tools/shot.sh res://main.tscn out.png -- --demo --cam=2,-3     # screenshot (Xvf
 
 Dev flags (after `--`):
 - `--fresh` starts a new game.
+- `--title` shows the title menu in screenshots; `--nomenu` skips it when playing.
 - `--demo` loads a mid-game factory.
 - `--money=N` and `--level=N` set your money and level.
 - `--build=cabin,pantry` adds buildings.

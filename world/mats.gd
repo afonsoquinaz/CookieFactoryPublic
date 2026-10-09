@@ -15,7 +15,8 @@ static func inked() -> ShaderMaterial:
 		_ink = toon().duplicate() as ShaderMaterial
 		var o := ShaderMaterial.new()
 		o.shader = preload("res://render/outline.gdshader")
-		o.set_shader_parameter("width", 0.016)
+		o.set_shader_parameter("width", 0.014)
+		o.set_shader_parameter("ink", Color(0.2, 0.13, 0.1))
 		_ink.next_pass = o
 	return _ink
 

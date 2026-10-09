@@ -18,14 +18,14 @@ func _build() -> void:
 	var st := Sheet.row_box()
 	var v := Kit.vbox(4)
 	st.add_child(v)
-	v.add_child(Kit.title("Your empire", 28, Kit.INK))
+	v.add_child(Kit.game("Your empire", 30, Kit.INK, 0))
 	var s: Dictionary = Game.stats
 	for line in ["Cookies sold: %s" % Fmt.num(int(s["cookies"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
 			"Dough balls baked: %s" % Fmt.num(int(s["batches"])), "Workers: %d" % Game.workers.size(),
 			"Time played: %s" % Fmt.time(float(s["play_time"]))]:
 		v.add_child(Kit.label(line, 18, Kit.MUTED, 0, false))
 	body.add_child(st)
-	var reset := Kit.juicy("Start over", Kit.PAPER_DARK, Kit.LINE, 20, Vector2(0, 58))
+	var reset := Kit.juicy("Start over", Kit.TERRACOTTA, Kit.TERRACOTTA_EDGE, 22, Vector2(0, 64))
 	reset.pressed.connect(func():
 		if not _confirm:
 			_confirm = true
@@ -45,7 +45,7 @@ func _toggle(text: String, key: String, apply: Callable) -> Control:
 	var row := Sheet.row_box()
 	var h := Kit.hbox(10)
 	row.add_child(h)
-	var l := Kit.label(text, 21, Kit.INK, 0)
+	var l := Kit.game(text, 25, Kit.INK, 0)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
 	var on: bool = Game.settings.get(key, true)

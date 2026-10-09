@@ -15,6 +15,7 @@ func _ready() -> void:
 	_test_save_roundtrip()
 	await _test_holders()
 	await _test_line()
+	await _test_discard()
 	print("\n%d checks, %d failed" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)
 
@@ -170,3 +171,18 @@ func _test_line() -> void:
 	for ing in Defs.INGREDIENTS:
 		ok(l.hoppers[ing].count() <= 1, "hopper %s was used" % ing)
 	l.queue_free()
+
+
+func _test_discard() -> void:
+	# you can always empty your hands, whatever you hold
+	Game.reset_state()
+	var p := Player.new()
+	add_child(p)
+	for t in ["wheat", "egg", "cookie"]:
+		p.carry.add(t, false)
+	ok(p.carry.count() == 3, "player holds 3 items")
+	p.discard_all()
+	ok(p.carry.count() == 0, "discard_all empties the hands")
+	ok(not p.ch.carrying, "carry pose ends after discarding")
+	await get_tree().create_timer(0.8).timeout
+	p.queue_free()

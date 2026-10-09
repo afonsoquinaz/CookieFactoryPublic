@@ -18,7 +18,7 @@ func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(6)
 	v.add_child(h)
 	for g in Bal.UPGRADE_GROUPS:
-		var b := Kit.juicy(g[1], Kit.PAPER_DARK, Kit.LINE, 17, Vector2(0, 46))
+		var b := Kit.juicy(g[1], Kit.PAPER_DARK, Kit.LINE, 19, Vector2(0, 58))
 		b.sound = "click"
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func(): _select(g[0]))
@@ -38,7 +38,7 @@ func _build() -> void:
 func _select(tab: String) -> void:
 	_tab = tab
 	for k in _tabs:
-		_tabs[k].set_colors(Kit.CHARCOAL if k == tab else Kit.PAPER_DARK, Kit.CHARCOAL_EDGE if k == tab else Kit.LINE)
+		_tabs[k].set_colors(Kit.BRASS if k == tab else Kit.PAPER_DARK, Kit.BRASS_EDGE if k == tab else Kit.LINE)
 	for c in body.get_children():
 		c.queue_free()
 	_rows.clear()
@@ -62,14 +62,14 @@ func _row(id: String) -> Control:
 	h.add_child(v)
 	var top := Kit.hbox(10)
 	v.add_child(top)
-	top.add_child(Kit.label(d["name"], 23, Kit.INK, 0))
+	top.add_child(Kit.game(d["name"], 26, Kit.INK, 0))
 	var lv := Kit.label("", 17, Kit.MUTED, 0, false)
 	top.add_child(lv)
 	var desc := Kit.label(d["desc"], 17, Kit.MUTED, 0, false)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 300
 	v.add_child(desc)
-	var eff := Kit.label("", 18, Kit.SAGE_EDGE, 0)
+	var eff := Kit.game("", 19, Color(0.3, 0.5, 0.22), 0)
 	v.add_child(eff)
 	var btn := Kit.juicy("", Kit.GREEN, Kit.GREEN_EDGE, 21, Vector2(150, 64))
 	btn.set_icon("coin", 28)
