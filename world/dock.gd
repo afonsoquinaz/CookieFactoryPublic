@@ -21,6 +21,8 @@ var _timer := 0.0
 var _label: Label3D
 var _t := 0.0
 var _park_x := 0.0
+var _truck_mesh: MeshInstance3D
+var _tier := 0
 
 
 func setup(p_index: int) -> void:
@@ -33,7 +35,7 @@ func setup(p_index: int) -> void:
 	add_child(truck)
 	_truck_body = Node3D.new()
 	truck.add_child(_truck_body)
-	Mats.inst(MeshKit.cached("truck", Dock.truck_mesh), _truck_body)
+	_truck_mesh = Mats.inst(MeshKit.cached("truck_0", func(): return Dock.truck_mesh(0)), _truck_body)
 	for p in [Vector3(-1.05, 0.32, 0.72), Vector3(-1.05, 0.32, -0.72), Vector3(1.0, 0.32, 0.72), Vector3(1.0, 0.32, -0.72)]:
 		var w := Node3D.new()
 		w.position = p
@@ -65,11 +67,18 @@ func setup(p_index: int) -> void:
 	cs.position = Vector3(_park_x, 1.0, 0)
 	body.add_child(cs)
 	add_child(body)
-	refresh()
+	refresh(false)
 
 
-func refresh() -> void:
+func refresh(animate := true) -> void:
 	cargo.capacity = Bal.truck_cap(Game.lvl("truck"))
+	var l := Game.lvl("truck")
+	var tier := 2 if l >= 10 else (1 if l >= 5 else 0)
+	if tier != _tier:
+		_tier = tier
+		_truck_mesh.mesh = MeshKit.cached("truck_%d" % tier, func(): return Dock.truck_mesh(tier))
+		if animate:
+			Fx.burst(get_tree().current_scene, truck.global_position + Vector3(0, 1.5, 0), Pal.GOLD, 20)
 	_update_label()
 
 
@@ -162,10 +171,11 @@ func _depart() -> void:
 	_idle = 0.0
 
 
-static func truck_mesh() -> Mesh:
+## Tier 0: little red van, 1: blue delivery truck, 2: golden cookie express.
+static func truck_mesh(tier := 0) -> Mesh:
 	var k := MeshKit.new()
-	var red := Color(0.96, 0.38, 0.38)
-	var cream := Color(1.0, 0.95, 0.85)
+	var red: Color = [Color(0.96, 0.38, 0.38), Color(0.32, 0.58, 0.96), Color(1.0, 0.76, 0.22)][tier]
+	var cream := Color(1.0, 0.95, 0.85) if tier < 2 else Color(1.0, 0.98, 0.94)
 	var dark := Color(0.4, 0.3, 0.4)
 	# chassis
 	k.rbox(Vector3(3.3, 0.3, 1.5), 0.1, dark, MeshKit.at(0, 0.45, 0))
@@ -185,4 +195,14 @@ static func truck_mesh() -> Mesh:
 	k.rbox(Vector3(0.1, 0.35, 1.55), 0.05, red, MeshKit.at(-1.6, 0.85, 0))
 	for sz in [-1.0, 1.0]:
 		k.rbox(Vector3(2.12, 0.1, 0.12), 0.04, red, MeshKit.at(-0.55, 1.24, sz * 0.73))
+	if tier >= 1:
+		# roof light bar + side stripe
+		k.rbox(Vector3(0.5, 0.12, 0.9), 0.05, Color(1.0, 0.9, 0.5, 0.5), MeshKit.at(1.0, 1.78, 0))
+		for sz in [-1.0, 1.0]:
+			k.rbox(Vector3(1.0, 0.1, 0.04), 0.03, cream, MeshKit.at(1.05, 0.95, sz * 0.79))
+	if tier >= 2:
+		# chrome exhaust stacks + a big cookie on the cab roof
+		for sz in [-1.0, 1.0]:
+			k.cyl(0.07, 1.0, Pal.METAL, MeshKit.at(0.42, 0.9, sz * 0.62), 10, 0.02)
+		Items.cookie_into(k, 0.3, 0.08, MeshKit.xf(Vector3(1.0, 1.95, 0), Vector3(0, 0, 0)))
 	return k.commit()

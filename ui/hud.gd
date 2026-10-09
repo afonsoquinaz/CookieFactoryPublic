@@ -23,12 +23,21 @@ var _shown_money := 0.0
 var goals: Goals
 var _route_role := ""
 var _bar: HBoxContainer
+var _vignette: ColorRect
+var _rush_glow := 0.0
 var _top: HBoxContainer
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette = ColorRect.new()
+	_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vm := ShaderMaterial.new()
+	vm.shader = preload("res://render/vignette.gdshader")
+	_vignette.material = vm
+	add_child(_vignette)
 	joystick = Joystick.new()
 	add_child(joystick)
 	_build_top()
@@ -152,6 +161,9 @@ func _process(dt: float) -> void:
 	var inc := Game.recent_income()
 	_income_label.text = ("+$%s/min" % Fmt.num(inc * 60.0)) if inc > 0.05 else ""
 	_update_buttons()
+	_rush_glow = move_toward(_rush_glow, 1.0 if Game.rush_active() else 0.0, dt * 2.0)
+	(_vignette.material as ShaderMaterial).set_shader_parameter("strength", _rush_glow)
+	_vignette.visible = _rush_glow > 0.001
 
 
 # ---------------------------------------------------------------- bottom buttons

@@ -113,6 +113,7 @@ func tick(who: Object, carrier: Holder, dt: float, rate := 0.07, filter := "") -
 				var t := filter if filter != "" else best.items[best.items.size() - 1]
 				if carrier.can_accept(t) and Holder.fly(best, carrier, t, 0.28):
 					Sfx.play("pop", 0.0, 1.0 + minf(carrier.count(), 20) * 0.025)
+					_buzz(who)
 					return true
 		Kind.GIVE:
 			if carrier == null:
@@ -125,10 +126,16 @@ func tick(who: Object, carrier: Holder, dt: float, rate := 0.07, filter := "") -
 				for h in holders:
 					if h.can_accept(t2) and Holder.fly(carrier, h, t2, 0.3):
 						Sfx.play("drop")
+						_buzz(who)
 						return true
 		Kind.PAY:
 			return _pay(dt)
 	return false
+
+
+func _buzz(who: Object) -> void:
+	if who is Player and OS.has_feature("mobile") and Game.settings.get("haptics", true):
+		Input.vibrate_handheld(6)
 
 
 func _pay(_dt: float) -> bool:

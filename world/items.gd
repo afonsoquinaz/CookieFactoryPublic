@@ -3,7 +3,43 @@ class_name Items
 ## footprint and stacks cleanly (height = Defs.ITEMS[t].h).
 
 static func mesh(t: String) -> Mesh:
+	if t == "cookie":
+		var tier := cookie_tier()
+		return MeshKit.cached("item_cookie_%d" % tier, func(): return _cookie_mesh(tier))
 	return MeshKit.cached("item_" + t, func(): return _build(t))
+
+
+## Cookies get fancier with the Secret Recipe: classic, double chocolate,
+## then frosted with sprinkles.
+static func cookie_tier() -> int:
+	var l := Game.lvl("recipe")
+	return 2 if l >= 10 else (1 if l >= 5 else 0)
+
+
+static func _cookie_mesh(tier: int) -> Mesh:
+	var k := MeshKit.new()
+	match tier:
+		0:
+			_cookie(k, 0.19, 0.085)
+		1:
+			# double chocolate: dark dough, white chips
+			var r := 0.19
+			var h := 0.085
+			k.cyl(r, h, [Color(0.36, 0.2, 0.12), Color(0.46, 0.27, 0.16)], Transform3D.IDENTITY, 12, h * 0.45)
+			for c in [Vector2(0.08, 0.04), Vector2(-0.06, 0.09), Vector2(-0.09, -0.05), Vector2(0.03, -0.1), Vector2(0.11, -0.06)]:
+				k.ellipsoid(Vector3(0.032, 0.024, 0.032), Color(1.0, 0.96, 0.88), MeshKit.at(c.x, h - 0.004, c.y), 5, 3)
+		2:
+			# frosted: golden cookie with pink icing and sprinkles
+			var r2 := 0.19
+			var h2 := 0.085
+			k.cyl(r2, h2, [Pal.COOKIE_DARK, Pal.COOKIE], Transform3D.IDENTITY, 12, h2 * 0.45)
+			k.cyl(r2 * 0.82, 0.03, Color(1.0, 0.62, 0.74), MeshKit.at(0, h2 - 0.01, 0), 12, 0.014)
+			var cols := [Pal.YELLOW, Pal.MINT, Pal.SKY, Pal.WHITE, Pal.PURPLE]
+			for i in 9:
+				var a := TAU * i / 9.0 + 0.4
+				var rr := 0.05 + (i % 3) * 0.035
+				k.rbox(Vector3(0.04, 0.014, 0.014), 0.006, cols[i % cols.size()], MeshKit.xf(Vector3(cos(a) * rr, h2 + 0.02, sin(a) * rr), Vector3(0, i * 47, 0)))
+	return k.commit()
 
 
 static func height(t: String) -> float:

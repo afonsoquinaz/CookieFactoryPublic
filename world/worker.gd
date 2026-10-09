@@ -30,6 +30,7 @@ var _bubble: Label3D
 var _stuck := 0.0
 var _last_pos := Vector3.ZERO
 var _seat := -1
+var _greet_t := 0.0
 
 
 func setup(p_world: World, p_data: Dictionary) -> void:
@@ -82,6 +83,17 @@ func apply_role() -> void:
 	Fx.ring(get_tree().current_scene if is_inside_tree() else null, global_position, col, 1.6)
 
 
+## Just hired: pop in, wave, confetti.
+func greet() -> void:
+	scale = Vector3(0.2, 0.2, 0.2)
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	Fx.burst(get_tree().current_scene, global_position + Vector3(0, 1.2, 0), Pal.MINT, 18)
+	UI3D.pop_text(get_tree().current_scene, global_position + Vector3(0, 2.4, 0), "Hi!", Color(1, 1, 1), 70)
+	ch.work = "cheer"
+	_greet_t = 1.4
+
+
 func refresh() -> void:
 	carry.capacity = Bal.worker_carry(Game.lvl("wcarry"))
 
@@ -91,6 +103,12 @@ func _speed() -> float:
 
 
 func _process(dt: float) -> void:
+	if _greet_t > 0.0:
+		_greet_t -= dt
+		ch.move_speed = 0.0
+		if _greet_t <= 0.0:
+			ch.work = ""
+		return
 	if _badge:
 		_badge.position.y = 2.3 + carry.count() * 0.05 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
 	_bubble.visible = state == S.WAIT or state == S.REST

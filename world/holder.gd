@@ -120,6 +120,14 @@ func take(t := "") -> String:
 	return got
 
 
+## Rebuilds the item visuals (e.g. after the cookie mesh changed).
+func refresh_visuals() -> void:
+	for t in _mm:
+		_mm[t].queue_free()
+	_mm.clear()
+	_dirty = true
+
+
 func clear_all() -> void:
 	items.clear()
 	_dirty = true

@@ -65,4 +65,11 @@ func _ready() -> void:
 			add_child(l)
 			l.setup(0)
 			l.position = Vector3(-Lay.OVEN_X, 0, 0)
+		"tiers":
+			cam.position = Vector3(0, 6.5, 7.5)
+			cam.look_at(Vector3(0, 0.6, 0))
+			for t in 3:
+				Mats.inst(Dock.truck_mesh(t), self, MeshKit.xf(Vector3(-4 + t * 4, 0.1, -1), Vector3(0, -25, 0)))
+				for j in 6:
+					Mats.inst(Items._cookie_mesh(t), self, MeshKit.at(-4 + t * 4, j * 0.085, 2.2))
 	Shot.attach(self)

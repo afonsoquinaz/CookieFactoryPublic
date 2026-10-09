@@ -22,6 +22,7 @@ var nav_ready := false
 var _bake_pending := false
 var _bake_cd := 0.0
 var _floors := {}
+var _synced_once := false
 
 
 var sun: DirectionalLight3D
@@ -38,7 +39,7 @@ func _ready() -> void:
 	nm.cell_size = 0.25
 	nm.cell_height = 0.25
 	nm.agent_radius = 0.25
-	nm.agent_height = 1.2
+	nm.agent_height = 1.25
 	nm.agent_max_climb = 0.25
 	nm.region_min_size = 4.0
 	region.navigation_mesh = nm
@@ -180,6 +181,14 @@ func _on_upgraded(id: String, _lvl: int) -> void:
 		"truck":
 			for d in docks:
 				d.refresh()
+		"recipe":
+			# new cookies look fancier; restack the visible ones
+			for l in lines:
+				l.tray.refresh_visuals()
+			for d in docks:
+				d.cargo.refresh_visuals()
+			if shelf:
+				shelf.bins["cookie"].refresh_visuals()
 		"pantry":
 			if pantry:
 				pantry.refresh()
@@ -211,6 +220,8 @@ func _sync_workers() -> void:
 			actors.add_child(w2)
 			w2.global_position = cabin.global_position + Vector3(randf_range(-1, 1), 0, 2.5) if cabin else Lay.PLAYER_START
 			workers[id] = w2
+			if _synced_once:
+				w2.greet()
 	for id in workers.keys():
 		if not seen.has(id):
 			var w3: Worker = workers[id]
@@ -219,6 +230,7 @@ func _sync_workers() -> void:
 			workers.erase(id)
 	for f in farms.values():
 		f.refresh()
+	_synced_once = true
 
 
 func idle_seat_index(w: Worker) -> int:
