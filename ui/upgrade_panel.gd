@@ -129,7 +129,7 @@ static func effect_text(id: String, l: int, maxed := false) -> String:
 	var fmt2 := func(a, b, f: String) -> String:
 		return (f % a) if maxed else (f % a) + "  →  " + (f % b)
 	if id.begins_with("farm_"):
-		var t: String = fmt2.call(Bal.farm_work_time(l), Bal.farm_work_time(n), "%.1fs")
+		var t: String = fmt2.call(Bal.farm_work_time(l), Bal.farm_work_time(n), "%.2fs" if Bal.farm_work_time(l) < 1.0 else "%.1fs")
 		var c: String = fmt2.call(Bal.farm_crate_cap(l), Bal.farm_crate_cap(n), "%d")
 		var extra := ""
 		if not maxed and Bal.farm_yield(n) > Bal.farm_yield(l):
@@ -141,7 +141,7 @@ static func effect_text(id: String, l: int, maxed := false) -> String:
 		"carry": return "Carry " + fmt2.call(Bal.carry(l), Bal.carry(n), "%d")
 		"speed": return "Speed " + fmt2.call(Bal.player_speed(l), Bal.player_speed(n), "%.1f")
 		"belt": return "Belt " + fmt2.call(Bal.dough_speed(l), Bal.dough_speed(n), "%.1f m/s")
-		"oven": return "Bake " + fmt2.call(Bal.bake_time(l), Bal.bake_time(n), "%.1fs")
+		"oven": return "Bake " + fmt2.call(Bal.bake_time(l), Bal.bake_time(n), "%.2fs" if Bal.bake_time(l) < 1.0 else "%.1fs")
 		"batch": return "Cookies " + fmt2.call(Bal.batch_size(l), Bal.batch_size(n), "%d") + " per dough"
 		"hopper": return "Holds " + fmt2.call(Bal.hopper_cap(l), Bal.hopper_cap(n), "%d")
 		"recipe": return "Price " + fmt2.call(Bal.cookie_price(l, Game.cookie_grade()), Bal.cookie_price(n, Game.cookie_grade()), "$%d")
