@@ -73,6 +73,7 @@ static func build(world: Node3D, region: Node3D) -> void:
 		mi.rotation.y = rng.randf() * TAU
 		var s := rng.randf_range(0.85, 1.2)
 		mi.scale = Vector3(s, s, s)
+	scatter(region)
 	# flower patches inside the island
 	for i in 26:
 		var p2 := Vector3(rng.randf_range(mn.x + 1, mx.x - 3), 0, rng.randf_range(mn.y + 1, mx.y - 1))
@@ -81,6 +82,78 @@ static func build(world: Node3D, region: Node3D) -> void:
 		var mi2 := Mats.inst(MeshKit.cached("deco_4", func(): return Crops.tree(4)), region, Transform3D.IDENTITY, false)
 		mi2.position = p2
 		mi2.rotation.y = rng.randf() * TAU
+
+
+## Grass tufts, daisies and pebbles over the open grass: three MultiMeshes,
+## so hundreds of little details cost three draw calls.
+static func scatter(region: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var mn := Lay.ISLAND_MIN + Vector2(0.6, 0.6)
+	var mx := Lay.ISLAND_MAX - Vector2(0.6, 0.6)
+	var kinds := {
+		"tuft": [420, func():
+			var k := MeshKit.new()
+			for i in 4:
+				var a := TAU * i / 4.0 + 0.3
+				k.cone(0.045, 0.22 + (i % 2) * 0.08, Color(0.36, 0.68, 0.24) if i % 2 == 0 else Color(0.46, 0.78, 0.3),
+					MeshKit.xf(Vector3(cos(a) * 0.05, 0, sin(a) * 0.05), Vector3(sin(a) * 18, 0, cos(a) * 18)), 5)
+			return k.commit()],
+		"daisy": [160, func():
+			var k := MeshKit.new()
+			k.cyl(0.012, 0.14, Pal.LEAF_DARK, MeshKit.at(0, 0, 0), 4)
+			for i in 5:
+				var a := TAU * i / 5.0
+				k.ellipsoid(Vector3(0.045, 0.012, 0.025), Color(1, 1, 1), MeshKit.xf(Vector3(cos(a) * 0.04, 0.15, sin(a) * 0.04), Vector3(0, -rad_to_deg(a), 0)), 5, 3)
+			k.sphere(0.025, Color(1.0, 0.82, 0.25), MeshKit.at(0, 0.16, 0), 5, 3)
+			return k.commit()],
+		"pebble": [90, func():
+			var k := MeshKit.new()
+			k.ellipsoid(Vector3(0.12, 0.06, 0.09), Color(0.82, 0.8, 0.84), MeshKit.at(0, 0.02, 0), 6, 4)
+			k.ellipsoid(Vector3(0.07, 0.04, 0.06), Color(0.74, 0.72, 0.78), MeshKit.at(0.13, 0.01, 0.05), 6, 3)
+			return k.commit()],
+	}
+	for name in kinds:
+		var n: int = kinds[name][0]
+		var xs := []
+		var tries := 0
+		while xs.size() < n and tries < n * 20:
+			tries += 1
+			var p := Vector3(rng.randf_range(mn.x, mx.x), 0.0, rng.randf_range(mn.y, mx.y))
+			if _on_path(p):
+				continue
+			var s := rng.randf_range(0.8, 1.4)
+			xs.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), p))
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = MeshKit.cached("scatter_" + name, kinds[name][1])
+		mm.instance_count = xs.size()
+		for i in xs.size():
+			mm.set_instance_transform(i, xs[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = Mats.toon()
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		region.add_child(mmi)
+
+
+static func _on_path(p: Vector3) -> bool:
+	var paths := [[Vector3(0, 0, -8.0), Vector2(21.0, 2.0)], [Vector3(-12.2, 0, -1.5), Vector2(2.2, 16.0)],
+		[Vector3(14.2, 0, 5.0), Vector2(2.4, 22.0)], [Vector3(0.0, 0, 16.6), Vector2(26.0, 1.8)]]
+	for q in paths:
+		var c: Vector3 = q[0]
+		var s: Vector2 = q[1]
+		if absf(p.x - c.x) < s.x * 0.5 + 0.3 and absf(p.z - c.z) < s.y * 0.5 + 0.3:
+			return true
+	# farms, line floors and the pier area stay clean
+	if p.z < -6.8 and p.z > -15.2 and absf(p.x) < 10.4:
+		return true
+	for i in 3:
+		if absf(p.z - Lay.LINE_Z[i]) < 2.8 and p.x > Lay.TUBE_X0 - 1.0 and p.x < Lay.TRAY_X + 1.6:
+			return true
+	if p.x > 15.0:
+		return true
+	return false
 
 
 ## Keeps decorations off the busy areas.
@@ -116,11 +189,11 @@ static func factory_floor(region: Node3D, i: int) -> void:
 		var x0 := Lay.TUBE_X0 - 0.8
 		var x1 := Lay.TRAY_X + 1.2
 		var cols := int((x1 - x0) / 2.0)
-		k.rbox(Vector3(x1 - x0 + 0.3, 0.06, 5.0), 0.03, Color(0.8, 0.76, 0.9), MeshKit.at((x0 + x1) * 0.5, 0.0, 0.0))
+		k.rbox(Vector3(x1 - x0 + 0.3, 0.06, 5.0), 0.03, Color(0.7, 0.66, 0.82), MeshKit.at((x0 + x1) * 0.5, 0.0, 0.0))
 		for cx in cols:
 			for cz in 2:
-				var c := Color(0.95, 0.93, 0.98) if (cx + cz) % 2 == 0 else Color(0.9, 0.88, 0.97)
-				k.rbox(Vector3(1.92, 0.06, 2.32), 0.06, c, MeshKit.at(x0 + 1.0 + cx * 2.0 + 0.15, 0.02, -1.2 + cz * 2.4), 1)
+				var c := Color(0.86, 0.84, 0.92) if (cx + cz) % 2 == 0 else Color(0.81, 0.79, 0.9)
+				k.rbox(Vector3(1.86, 0.07, 2.26), 0.07, c, MeshKit.at(x0 + 1.0 + cx * 2.0 + 0.15, 0.025, -1.2 + cz * 2.4), 1)
 		return k.commit()), region, Transform3D.IDENTITY, false)
 	mi.position = Vector3(0, 0, z)
 
