@@ -4,7 +4,7 @@
 // Incrementing CACHE_VERSION will kick off the install event and force
 // previously cached resources to be updated from the network.
 /** @type {string} */
-const CACHE_VERSION = '1791506677|4343219';
+const CACHE_VERSION = '1791507384|3761013';
 /** @type {string} */
 const CACHE_PREFIX = 'Cookie Factory-sw-cache-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
