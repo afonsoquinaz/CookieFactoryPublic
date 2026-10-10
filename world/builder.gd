@@ -38,10 +38,15 @@ func _process(dt: float) -> void:
 		if _dust_t <= 0.0:
 			_dust_t = 0.55
 			Fx.puff(get_tree().current_scene, global_position + ch.global_transform.basis.z * 0.6 + Vector3(0, 0.3, 0), Color(0.86, 0.8, 0.7), 2)
-			Sfx.play("step", -14.0, 1.6, 0.2)
+			if _near_camera():
+				Sfx.play("hammer", 0.0, 1.0, 0.08)
 	else:
 		ch.work = "sit"
 		ch.face(Vector3(0, 0, 1), dt, 4.0)
+
+
+func _near_camera() -> bool:
+	return world.cam and global_position.distance_to(world.cam.global_position) < 26.0 * world.cam.zoom
 
 
 func _home() -> Vector3:

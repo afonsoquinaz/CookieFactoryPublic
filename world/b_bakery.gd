@@ -41,6 +41,9 @@ var _chimney := Vector3.ZERO
 var _silo_x := {}              # ingredient -> local x
 var _inited := false
 var _recheck := 0.0
+var _starve := 0.0
+var _want: Node3D
+var _want_icon := ""
 var _built_slots := 0
 
 
@@ -282,10 +285,13 @@ func _process(dt: float) -> void:
 	var len := TUBE_X1 - TUBE_X0
 	_spawn_cd -= dt * mult
 	var room: bool = doughs.is_empty() or doughs[doughs.size() - 1]["s"] > Bal.DOUGH_GAP + 0.4
-	if room and _spawn_cd <= 0.0 and doughs.size() < 10 and _has_inputs():
+	var has := _has_inputs()
+	if room and _spawn_cd <= 0.0 and doughs.size() < 10 and has:
 		_spawn_cd = Bal.mixer_interval(level)
 		_consume()
 		_spawn_dough()
+	_starve = 0.0 if has else _starve + dt
+	_show_want(_missing_input() if _starve > 3.0 and doughs.is_empty() else "")
 	for i in doughs.size():
 		var d: Dictionary = doughs[i]
 		var stop := len
@@ -337,6 +343,33 @@ func _has_inputs() -> bool:
 		if not silos.has(i) or (silos[i] as Holder).count() <= 0:
 			return false
 	return true
+
+
+## The first input that's run out ("" if none).
+func _missing_input() -> String:
+	if flour.count() <= 0:
+		return "wheat"
+	for i in ings():
+		if not silos.has(i) or (silos[i] as Holder).count() <= 0:
+			return i
+	return ""
+
+
+## A bobbing bubble over the bakery with what it's waiting for.
+func _show_want(icon: String) -> void:
+	if icon == _want_icon:
+		if _want:
+			_want.position.y = 5.2 + sin(_t * 3.0) * 0.12
+		return
+	_want_icon = icon
+	if _want:
+		_want.queue_free()
+		_want = null
+	if icon == "":
+		return
+	_want = UI3D.badge(icon, Pal.TERRACOTTA, 0.9)
+	_want.position = Vector3(MIXER_X + 1.2, 5.2, TUBE_Z)
+	add_child(_want)
 
 
 func _consume() -> void:

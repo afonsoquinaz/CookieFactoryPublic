@@ -20,6 +20,7 @@ signal jobs_changed
 signal job_done(job: Dictionary)
 signal land_bought(chunk: Vector2i)
 signal obstacles_changed
+signal obstacle_cleared(key: String, gems: int)
 signal researched(id: String, level: int)
 signal workers_changed
 signal rush_changed(active: bool)
@@ -520,9 +521,10 @@ func _complete(j: Dictionary) -> void:
 		"clear":
 			var ob: Dictionary = obstacles.get(j["ob"], {})
 			if not ob.is_empty():
+				var g := int(ob.get("gems", 0))
+				obstacle_cleared.emit(j["ob"], g)
 				obstacles.erase(j["ob"])
 				cleared += 1
-				var g := int(ob.get("gems", 0))
 				if g > 0:
 					add_gems(g)
 				obstacles_changed.emit()

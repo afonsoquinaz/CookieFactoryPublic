@@ -30,6 +30,7 @@ var _xfer := 0.0
 var _badge: Node3D
 var _bubble: Label3D
 var _greet_t := 0.0
+var _stuck := 0
 
 
 func setup(p_world: World, p_data: Dictionary) -> void:
@@ -243,11 +244,28 @@ func _redirect() -> void:
 	_item = carry.items[carry.items.size() - 1]
 	var d := world.find_dest(_item, global_position)
 	if d == null:
+		# nobody wants it and storage is full: leave the surplus and get back to work
+		_stuck += 1
+		if _stuck >= 3:
+			_stuck = 0
+			_dump()
+			state = S.DECIDE
+			return
 		_wait("FULL")
 		return
+	_stuck = 0
 	_dst = d
 	_goal = Vector3.INF
 	state = S.GO_GIVE
+
+
+## Drops what we carry (it's surplus nobody can use right now).
+func _dump() -> void:
+	if carry.count() == 0:
+		return
+	var root := get_tree().current_scene
+	Fx.puff(root, global_position + Vector3(0, 0.6, 0), Pal.CREAM, 6)
+	carry.clear_all()
 
 
 func _abort() -> void:

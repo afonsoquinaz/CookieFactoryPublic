@@ -57,6 +57,12 @@ func _ready() -> void:
 	Game.building_upgraded.connect(_on_upgraded)
 	Game.land_bought.connect(_on_land)
 	Game.obstacles_changed.connect(_on_obstacles)
+	Game.obstacle_cleared.connect(func(key, gems):
+		var n: Node3D = obst_nodes.get(key)
+		if n and gems > 0:
+			UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 2.2, 0), "+%d gems" % gems, Color(1.0, 0.7, 0.8), 90)
+			Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.2, 0), Color(0.95, 0.55, 0.7), 14, false)
+			Sfx.play("cash", -4.0, 1.3))
 	Game.workers_changed.connect(_sync_workers)
 	Game.jobs_changed.connect(_sync_jobs)
 	Game.researched.connect(func(_id, _l): _on_research())
@@ -265,6 +271,27 @@ func obstacle_at(p: Vector3) -> String:
 
 func rebuild_roads() -> void:
 	_roads_dirty = false
+	var before := roads.cells.duplicate()
+	roads.build(_road_entries(), func(c): return grid.blocked(c), func(c): return Game.owns_cell(c), _owned_bounds())
+	terrain.set_roads(roads.cells)
+	roads_changed.emit()
+	# new cobbles get laid with a little dust, one after another
+	if _synced_once and is_inside_tree():
+		var fresh := []
+		for c in roads.cells:
+			if not before.has(c):
+				fresh.append(c)
+		for i in mini(fresh.size(), 40):
+			var p := Grid.cell_center(fresh[i]) + Vector3(0, 0.1, 0)
+			get_tree().create_timer(i * 0.05).timeout.connect(func():
+				Fx.puff(get_tree().current_scene, p, Color(0.86, 0.8, 0.7), 3))
+		if not fresh.is_empty():
+			Sfx.play("pop", -12.0, 0.8)
+
+
+## Entrances for the road builder, the Hall's first. `skip` = a building
+## being moved (left out); `extra` = a ghost {uid, kind, origin, rot}.
+func _road_entries(skip := 0, extra := {}) -> Array:
 	var h := hall()
 	var entries := []
 	var hc := Vector2i.ZERO
@@ -273,13 +300,44 @@ func rebuild_roads() -> void:
 		hc = hcells[0]
 		entries.append({"uid": h.uid, "cells": hcells, "stub": Building.stub_dir(h.rot()), "d": 0})
 	for n in bnodes.values():
-		if n == h or not n.has_entrance():
+		if n == h or not n.has_entrance() or n.uid == skip:
 			continue
 		var ec: Array[Vector2i] = n.entrance_cells()
 		entries.append({"uid": n.uid, "cells": ec, "stub": Building.stub_dir(n.rot()), "d": absi(ec[0].x - hc.x) + absi(ec[0].y - hc.y)})
-	roads.build(entries, func(c): return grid.blocked(c), func(c): return Game.owns_cell(c), _owned_bounds())
-	terrain.set_roads(roads.cells)
-	roads_changed.emit()
+	if not extra.is_empty() and Building.kind_has_entrance(extra["kind"]):
+		var ec2 := Building.entrance_of(extra["kind"], extra["origin"], extra["rot"])
+		entries.append({"uid": -99, "cells": ec2, "stub": Building.stub_dir(extra["rot"]), "d": absi(ec2[0].x - hc.x) + absi(ec2[0].y - hc.y)})
+	return entries
+
+
+## Buildings that would lose their road if `kind` went here (names).
+func would_cut(kind: String, origin: Vector2i, rot: int, ignore := 0) -> Array[String]:
+	var out: Array[String] = []
+	var fp := {}
+	for c in Grid.cells(origin, Defs.size_of(kind), rot):
+		fp[c] = true
+	var touches := false
+	for c in fp:
+		if roads.is_road(c):
+			touches = true
+			break
+	if not touches:
+		return out
+	var old := {}
+	if ignore:
+		var ob: Building = bnodes.get(ignore)
+		if ob:
+			for c in Grid.cells(ob.cell(), ob.size(), ob.rot()):
+				old[c] = true
+	var sim := Roads.new()
+	var blocked := func(c): return fp.has(c) or (grid.blocked(c) and not old.has(c))
+	sim.build(_road_entries(ignore, {"kind": kind, "origin": origin, "rot": rot}), blocked, func(c): return Game.owns_cell(c), _owned_bounds())
+	for uid in roads.connected:
+		if uid != ignore and not sim.connected.has(uid):
+			var n: Building = bnodes.get(uid)
+			if n:
+				out.append(n.def["name"])
+	return out
 
 
 func _owned_bounds() -> Rect2i:
@@ -378,6 +436,13 @@ func check_spot(kind: String, origin: Vector2i, rot: int, ignore := 0) -> Dictio
 			if not Game.owns_cell(e) or (grid.at(e) != 0 and grid.at(e) != ignore) or grid.obstacle_at(e) != "" or cells.has(e):
 				bad.append(e)
 				reason = "Its entrance is blocked: leave room in front for a road."
+	if reason == "":
+		var cut := would_cut(kind, origin, rot, ignore)
+		if not cut.is_empty():
+			reason = "This would cut off the road to the %s." % cut[0]
+			for c in cells:
+				if roads.is_road(c):
+					bad.append(c)
 	return {"ok": reason == "", "reason": reason, "bad": bad, "entrance": ents}
 
 

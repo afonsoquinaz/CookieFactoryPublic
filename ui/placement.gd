@@ -87,7 +87,9 @@ func _ready() -> void:
 	_gmat.vertex_color_use_as_albedo = true
 	_gmat.vertex_color_is_srgb = true
 	_gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_gmat.albedo_color = Color(1, 1, 1, 0.72)
+	_gmat.albedo_color = Color(1, 1, 1, 0.85)
+	_gmat.emission_enabled = true
+	_gmat.emission = Color(0.25, 0.22, 0.15)
 	_ghost_mi = MeshInstance3D.new()
 	_ghost_mi.mesh = Previews.mesh(kind, "", 0)
 	_ghost_mi.material_override = _gmat
@@ -105,7 +107,37 @@ func _ready() -> void:
 	if move_uid and world.building(move_uid):
 		world.cam.fly_to(world.building(move_uid).global_position, -1.0, 0.3)
 		world.building(move_uid).visible = false
+	else:
+		# start on the nearest free spot that gets a road
+		var spot = Placement.free_spot(world, kind, Grid.cell_of(world.cam.global_position), rot)
+		if spot != null:
+			rot = spot[1]
+			world.cam.fly_to(Grid.center_of(spot[0], Defs.size_of(kind), rot), -1.0, 0.45)
 	Kit.pop_in.call_deferred(_banner)
+
+
+## The nearest spot to a cell where a building fits and a road reaches it:
+## [origin, rot] or null.
+static func free_spot(w: World, k: String, near: Vector2i, prefer_rot := 0) -> Variant:
+	var sz := Defs.size_of(k)
+	for r in range(0, 30):
+		for dx in range(-r, r + 1):
+			for dy in ([-r, r] if r > 0 else [0]):
+				for q in [Vector2i(dx, dy), Vector2i(dy, dx)]:
+					for rot in [prefer_rot, (prefer_rot + 2) % 4]:
+						var o: Vector2i = near + q - Grid.rotated(sz, rot) / 2
+						var s := w.check_spot(k, o, rot)
+						if not s["ok"]:
+							continue
+						if Building.kind_has_entrance(k):
+							var on := false
+							for e in s["entrance"]:
+								if w.roads.is_road(e):
+									on = true
+							if not on and w.preview_road(k, o, rot).is_empty():
+								continue
+						return [o, rot]
+	return null
 
 
 func _price_text() -> String:
@@ -122,7 +154,7 @@ func _price_text() -> String:
 func _process(dt: float) -> void:
 	_t += dt
 	_layout()
-	var c := world.cam.ground_at(get_viewport_rect().size * Vector2(0.5, 0.45))
+	var c := world.cam.global_position
 	var o := Grid.origin_for(c, Defs.size_of(kind), rot)
 	if o != origin or _dirty:
 		origin = o
@@ -168,7 +200,7 @@ func _evaluate() -> void:
 	_cost.text = _price_text()
 	_hint.text = reason if reason != "" else _advice(road)
 	_paint(spot, road)
-	_gmat.albedo_color = Color(1, 1, 1, 0.75) if valid else Color(1.0, 0.55, 0.5, 0.6)
+	_gmat.albedo_color = Color(1, 1, 1, 0.88) if valid else Color(1.0, 0.55, 0.5, 0.7)
 	_ok.set_colors(Kit.SAGE if valid else Kit.GREY, Kit.SAGE_EDGE if valid else Kit.GREY_EDGE)
 
 

@@ -210,7 +210,7 @@ const BUILDINGS := {
 		"aura": {"what": "global_price", "r": 0, "v": 0.05}, "desc": "Every cookie in the empire sells for 5% more."},
 
 	# ---- the wonder
-	"palace": {"name": "Grand Cookie Palace", "cat": "wonder", "tab": "town", "icon": "palace", "size": Vector2i(5, 5), "hall": 12, "n": [12], "cost": 2.0e8, "growth": 1.0, "up": 0, "max": 1, "time": 14400,
+	"palace": {"name": "Grand Cookie Palace", "cat": "wonder", "tab": "town", "icon": "palace", "size": Vector2i(5, 5), "hall": 12, "n": [12], "cost": 2.0e8, "growth": 1.0, "up": 0, "max": 1, "time": 28800,
 		"desc": "The crown of your empire. Build it in five stages to win."},
 }
 
@@ -235,22 +235,22 @@ const HALL := [
 	{"cost": 32000, "time": 1800, "gems": 12},
 	{"cost": 100000, "time": 3600, "gems": 15},
 	{"cost": 320000, "time": 7200, "gems": 18},
-	{"cost": 1.0e6, "time": 10800, "gems": 20},
-	{"cost": 3.2e6, "time": 14400, "gems": 25},
-	{"cost": 1.0e7, "time": 21600, "gems": 30},
-	{"cost": 3.2e7, "time": 28800, "gems": 35},
-	{"cost": 1.0e8, "time": 36000, "gems": 40},
-	{"cost": 3.2e8, "time": 43200, "gems": 45},
-	{"cost": 1.0e9, "time": 57600, "gems": 60},
+	{"cost": 1.0e6, "time": 14400, "gems": 20},
+	{"cost": 3.2e6, "time": 21600, "gems": 25},
+	{"cost": 1.0e7, "time": 28800, "gems": 30},
+	{"cost": 3.2e7, "time": 43200, "gems": 35},
+	{"cost": 1.0e8, "time": 57600, "gems": 40},
+	{"cost": 3.2e8, "time": 72000, "gems": 45},
+	{"cost": 1.0e9, "time": 86400, "gems": 60},
 ]
 
 ## Palace stages: money, royal deliveries and build time for each.
 const PALACE_STAGES := [
-	{"name": "Foundations", "cost": 2.0e8, "need": 0, "time": 14400},
-	{"name": "Biscuit Walls", "cost": 1.5e9, "need": 200, "time": 28800},
-	{"name": "Cream Towers", "cost": 9.0e9, "need": 600, "time": 43200},
-	{"name": "Golden Domes", "cost": 5.0e10, "need": 1500, "time": 57600},
-	{"name": "The Crown", "cost": 1.6e11, "need": 4000, "time": 86400},
+	{"name": "Foundations", "cost": 2.0e8, "need": 0, "time": 28800},
+	{"name": "Biscuit Walls", "cost": 1.5e9, "need": 200, "time": 43200},
+	{"name": "Cream Towers", "cost": 9.0e9, "need": 600, "time": 86400},
+	{"name": "Golden Domes", "cost": 5.0e10, "need": 1500, "time": 129600},
+	{"name": "The Crown", "cost": 1.6e11, "need": 4000, "time": 172800},
 ]
 
 ## Obstacles on your land: clear them (money + a builder) for space and gems.

@@ -178,6 +178,9 @@ func _evaluate() -> void:
 				return
 			var key := _nearest_obstacle()
 			var on: Node3D = world.obst_nodes.get(key)
+			if on and _flown != Game.tutorial_step and hud.selected_ob == "":
+				_flown = Game.tutorial_step
+				world.cam.fly_to(on.global_position + Vector3(0, 0, 2), 1.0)
 			_goal("Tap a bush, stump or rock and clear it: many hide gems!", "gem", on.global_position + Vector3(0, 2.4, 0) if on else null, hud.actions.find("clear"))
 		8:
 			if Game.workers.size() >= 3:

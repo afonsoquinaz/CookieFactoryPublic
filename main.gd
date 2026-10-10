@@ -11,13 +11,13 @@ func _ready() -> void:
 		Game.reset_state()
 	if a.has("money"):
 		Game.money = int(a["money"])
-	if a.has("level"):
-		Game.level = int(a["level"])
-		Game.hall()["lvl"] = Game.level
 	if a.has("demo"):
 		_demo_state()
 	if a.has("tut"):
 		Game.tutorial_step = int(a["tut"])
+	if a.has("level"):
+		Game.level = int(a["level"])
+		Game.hall()["lvl"] = Game.level
 	if a.has("showcase"):
 		_showcase(int(a.get("tier", "-1")))
 	world = World.new()
@@ -78,6 +78,8 @@ func _ready() -> void:
 		add_child(load("res://dev/perf.gd").new())
 	if a.has("dbg"):
 		add_child(load("res://dev/dbg.gd").new())
+	if a.has("tour"):
+		add_child(load("res://dev/tour.gd").new())
 	if a.has("wdbg"):
 		add_child(load("res://dev/wdbg.gd").new())
 	Shot.attach(self)

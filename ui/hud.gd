@@ -95,6 +95,7 @@ func _ready() -> void:
 	Game.discovered.connect(_on_discovered)
 	Game.trend_changed.connect(_on_trend)
 	Game.land_bought.connect(func(_c): toast("New land! Clear it and build on it.", "land"))
+	Game.obstacle_cleared.connect(func(_k, g): toast("Cleared!%s" % ("  +%d gems" % g if g > 0 else ""), "gem" if g > 0 else "hammer"))
 	world.sold.connect(_on_sold)
 	Game.victory.connect(func():
 		Sfx.play("levelup")
@@ -759,7 +760,8 @@ func _on_built(uid: int) -> void:
 
 func _on_job_done(j: Dictionary) -> void:
 	if j["type"] == "clear":
-		toast("Cleared!", "hammer")
+		if selected_ob == str(j.get("ob", "")):
+			deselect()
 	if selected and int(j.get("uid", 0)) == selected.uid:
 		_refresh_actions.call_deferred()
 	if j["type"] == "build" and selected and selected.uid == int(j["uid"]):

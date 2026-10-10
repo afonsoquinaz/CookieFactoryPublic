@@ -362,6 +362,18 @@ func _test_world() -> void:
 		await get_tree().process_frame
 		ok(not w.roads.is_road(road_cell), "no road under the new flower bed")
 		ok(w.roads.connected.size() >= before - 0, "everything still connected (%d / %d)" % [w.roads.connected.size(), before])
+	# a building that would wall another off can't go there
+	var cut_ok := true
+	for n in w.bnodes.values():
+		if n.has_entrance() and n != w.hall():
+			var path: Array = w.roads.paths.get(n.uid, [])
+			if path.size() > 2:
+				var c2: Vector2i = path[path.size() / 2]
+				var s2 := w.check_spot("flowers", c2, 0)
+				# either it's fine (another way round) or it says what it would cut off
+				if not s2["ok"] and not str(s2["reason"]).contains("cut off") and not str(s2["reason"]).contains("entrance"):
+					cut_ok = false
+	ok(cut_ok, "spots on roads are refused only for a reason")
 	# entrances must stay clear
 	var h := w.hall()
 	var e: Vector2i = h.entrance_cells()[0]

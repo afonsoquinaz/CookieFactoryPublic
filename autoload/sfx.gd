@@ -9,7 +9,7 @@ const VOLUME := {
 	"pop": -9.0, "drop": -8.0, "coin": -10.0, "cash": -4.0, "whoosh": -14.0, "plop": -10.0,
 	"dispense": -12.0, "oven_ding": -9.0, "horn": -6.0, "engine": -12.0, "build": -3.0,
 	"upgrade": -5.0, "levelup": -2.0, "hire": -5.0, "click": -8.0, "open": -10.0, "close": -12.0,
-	"deny": -8.0, "pay_tick": -16.0, "cluck": -14.0, "moo": -12.0, "step": -22.0,
+	"deny": -8.0, "pay_tick": -16.0, "cluck": -14.0, "moo": -12.0, "step": -22.0, "hammer": -16.0,
 }
 const MIN_GAP := 0.045
 

@@ -47,7 +47,7 @@ func _select(tab: String) -> void:
 		"perks":
 			var g := Kit.hbox(8)
 			g.add_child(Kit.icon("gem", 40))
-			g.add_child(Kit.game("%d gems  ·  earn them by finishing orders on the Order Board" % Game.gems, 18, Kit.INK, 0))
+			g.add_child(Kit.game("%d gems  ·  from orders, obstacles and Cookie Hall upgrades" % Game.gems, 18, Kit.INK, 0))
 			body.add_child(g)
 			for id in Bal.PERK_ORDER:
 				body.add_child(_row(id, true))
@@ -112,7 +112,7 @@ func _refresh() -> void:
 
 
 func _recipes() -> void:
-	var tip := Kit.label("A line bakes the best recipe whose ingredients all have a hopper on it (wheat comes from the Mixer).", 16, Kit.MUTED, 0, false)
+	var tip := Kit.label("Every recipe needs wheat plus one Bakery silo per ingredient. Choose what each Bakery bakes with its Bake button.", 16, Kit.MUTED, 0, false)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tip.custom_minimum_size.x = 400
 	body.add_child(tip)
@@ -142,7 +142,7 @@ func _recipes() -> void:
 			ings.add_child(ii)
 		var lv := Defs.recipe_level(r["id"])
 		if Game.level < lv:
-			v.add_child(Kit.label("Ingredients unlock at level %d" % lv, 14, Kit.TERRACOTTA_EDGE, 0, false))
+			v.add_child(Kit.label("Ingredients unlock at Cookie Hall %d" % lv, 14, Kit.TERRACOTTA_EDGE, 0, false))
 		if Game.trending == r["id"]:
 			v.add_child(Kit.label("Trending now: sells for more!", 14, Kit.SAGE_EDGE, 0))
 		body.add_child(box)

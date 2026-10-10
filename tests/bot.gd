@@ -20,6 +20,7 @@ var _kind := "?"
 func _ready() -> void:
 	var a := Shot.args()
 	minutes = float(a.get("minutes", "20"))
+	seed(int(a.get("seed", "7")))
 	Game.no_save = true
 	Game.tutorial_step = 99
 	Game.money_changed.connect(func(_v, d):
@@ -286,6 +287,28 @@ func _print_status() -> void:
 	var recipes := []
 	for n in world.buildings_of("bakery"):
 		recipes.append((n as BakeryB).recipe)
+	var off := []
+	for n in world.bnodes.values():
+		if n.has_entrance() and not n is SiteB and not n.on_road():
+			off.append(n.kind)
+	var states := {}
+	for w in world.workers.values():
+		var k: String = Worker.S.keys()[w.state]
+		states[k] = int(states.get(k, 0)) + 1
+	if not off.is_empty() or _t < 1200.0:
+		print("        off-road %s  porters %s" % [off, states])
+	if Game.recent_income() <= 0.0 and _t > 300.0:
+		for w in world.workers.values():
+			print("        worker %s carry %s dst %s" % [Worker.S.keys()[w.state], w.carry.items, w._dst.name if is_instance_valid(w._dst) else "-"])
+		for n in world.bnodes.values():
+			var parts := []
+			for p in n.ports:
+				var h: Holder = p["holder"]
+				parts.append("%s %d/%d" % [p["dir"], h.count(), h.capacity])
+			var extra := ""
+			if n is VehicleB:
+				extra = " state=%s" % VehicleB.S.keys()[(n as VehicleB).state]
+			print("        %s %s%s" % [n.name, parts, extra])
 	print("[%6.0fs] $%s  +%s/min  hall %d  gems %d  cookies %d  bakeries %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
 		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["cookies"]),
 		recipes, world.bnodes.size(), Game.land.size(), Game.workers.size(), Game.jobs.size(), Game.builders(), JSON.stringify(_spent)])

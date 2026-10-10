@@ -733,6 +733,21 @@ def sfx_moo():
 
 
 @seeded
+@seeded
+def sfx_hammer(i):
+    """A builder's hammer on a wooden beam: bright knock + woody body + tiny ring."""
+    d = 0.2
+    t = t_axis(d)
+    f = [520, 470][i]
+    body = (np.sin(2 * np.pi * f * t) * np.exp(-t / 0.03)
+            + 0.5 * np.sin(2 * np.pi * f * 2.3 * t) * np.exp(-t / 0.018)
+            + 0.18 * np.sin(2 * np.pi * f * 5.1 * t) * np.exp(-t / 0.05))
+    knock = bp(noise(0.01), 1500, 6500) * env_exp(0.01, 0.002) * 0.9
+    thud = sine_sweep(d, 180, 90) * env_exp(d, 0.025, 0.001) * 0.5
+    x = mix(body * 0.8 + thud, knock)
+    return write_wav("hammer_%d" % (i + 1), reverb(x, 0.1, 0.4, 5000), fout=0.06, length=0.22)
+
+
 def sfx_step(i):
     """Very soft footstep on grass: muffled thud + tiny rustle."""
     d = 0.1
@@ -991,6 +1006,7 @@ SFX = [
     lambda: [sfx_swoosh(True), sfx_swoosh(False)],
     sfx_deny, sfx_pay_tick, sfx_cluck, sfx_moo,
     lambda: [sfx_step(i) for i in range(2)],
+    lambda: [sfx_hammer(i) for i in range(2)],
 ]
 
 
@@ -1012,8 +1028,8 @@ if __name__ == "__main__":
                 report()
                 continue
             fn = globals()[name]
-            if name in ("sfx_pop", "sfx_step"):
-                [fn(i) for i in range(3 if name == "sfx_pop" else 2)]
+            if name in ("sfx_pop", "sfx_step", "sfx_hammer"):
+                [fn(i) for i in range(3 if name == "sfx_pop" else 2)]  # pop has 3 variants
             elif name in ("sfx_drop", "sfx_coin"):
                 [fn(i) for i in range(2)]
             elif name == "sfx_swoosh":

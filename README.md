@@ -1,46 +1,52 @@
 # Cookie Empire
 
-A premium 3D idle factory game made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
+A premium 3D idle base-builder about cookies, made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
 
-Start at the kitchen table: one wheat field, a short production line (Dough Mixer, two glass tubes, an Oven) and a delivery van on four plots of endless meadow. Carry wheat to the mixer, cookies to the van, and your first money comes in seconds. Then build anything, anywhere: farms, kitchens, more lines, shops, a rail depot, an airship mast, decorations. Buy more land as you grow, unlock 17 cookie recipes, and after about two weeks of play crown your empire with the **Grand Cookie Palace**.
+You start with a cozy Cookie Hall, a Bakery, a Wheat Field, a Delivery Van and two Builder's Huts on four plots of endless meadow. Porters carry wheat along the roads to the Bakery, it bakes cookies, the van sells them. You decide what to build, where, and what to upgrade next. Every building gets a cobbled road to its entrance on its own. Upgrade the Cookie Hall to unlock farms, kitchens, more bakeries, shops, trains and airships. After about two weeks, crown your empire with the **Grand Cookie Palace**.
 
-**Look:** muted, grown-up production site (steel silos, glass tubes, brick and tiled ovens, dry-stone farm walls, copper kitchens) on a soft endless meadow with four biomes, staffed by cute toy farmers and factory workers. Every building has **five looks** as it levels up: a wooden fence becomes a brick wall with a windmill and a brass gate arch; a brick dome oven becomes a tiled bakery oven, a stainless deck oven, then a royal copper tunnel oven with a crown. UI: chunky wooden and coloured game buttons, ribbon-titled panels, Lilita One.
+**Look:** a muted, grown-up production village (cream timber halls, brick and copper ovens, glass tubes, dry-stone farm walls, cobbled lanes) on a soft endless meadow with four biomes, staffed by cute toy porters, farmers, chefs and builders. The Cookie Hall changes look at levels 3, 6, 9 and 12 (cottage, townhouse, guild hall with a clock tower, grand hall with a dome, royal palace with gold domes) and gets a pennant on the roof for every level. Every other building has five looks as it levels up.
 
-All 3D art is procedural low-poly (`world/mesh_kit.gd`). The 2D icons, app icon and logo were generated for this game with the OpenAI Images API (`tools/gen_icons.py`), and all sound and music is synthesized in code (`tools/gen_audio.py`). No third-party art or audio.
+All 3D art is procedural low-poly (`world/mesh_kit.gd`, `world/town_art.gd`). The 2D icons, app icon and logo were generated for this game with the OpenAI Images API (`tools/gen_icons.py`). All sound and music is synthesized in code (`tools/gen_audio.py`). No third-party art or audio.
 
 ## How to play
 
 | | |
 |---|---|
-| Move | drag anywhere (floating joystick); WASD / arrows on desktop |
-| Pick up / drop off | stand on a pad: items fly onto or off your stack |
-| Build | **Build**, pick a card, slide the land under the ghost, **Rotate**, **Place** |
-| A building | tap it: what it's doing, staff, upgrade (and its next look), Move, Sell |
+| Look around | drag to slide the land, pinch (or mouse wheel) to zoom |
+| A building | tap it: it lights up and its actions appear (Info, Upgrade, Bake, Staff, Move, Finish) |
+| Build | **Build**, pick a card. The building appears on the nearest free spot with its road previewed. Slide the land to move it, **Rotate**, **Place** |
+| Timers | the floating timer over anything being built. Under 30 seconds it says FREE: tap it |
+| Obstacles | tap a bush, stump or boulder to clear it. Many hide gems |
 | Land | tap a **For Sale** sign beyond the dashed line |
-| Drop | the red button whenever you carry something: empties your hands |
-| Zoom | pinch, or the mouse wheel |
 
-### Production lines must connect
-A line is a straight row, end to end, all facing the same way: **Dough Mixer -> glass tubes / Hoppers -> Oven**.
-- The Mixer takes wheat and pushes dough balls into the tube.
-- Each **Hopper** holds one ingredient and doses every ball that needs it. A hopper can replace a tube.
-- The **Oven** bakes the balls into cookies on its output bench.
-- A line bakes the **most valuable recipe** whose ingredients all have a hopper on it. The recipe book (Research > Recipes) shows them all.
-- Unconnected ends show a red-striped cap. A lone oven says *Connect to a Mixer*.
+### The Cookie Hall
+Its level is your progress (15 levels, from Kitchen Table to Legendary Empire). Each level unlocks:
+- **new buildings**;
+- **more copies** of the ones you have (the build menu shows "built 1 / 2" and when the next one comes);
+- **higher levels** for everything else.
 
-### Chutes: placement matters
-Buildings that **touch** hand items over by a little roller chute, no worker needed:
-- a wheat field next to a mixer feeds it;
-- a dairy beside a butter churn keeps it busy;
-- an oven beside a van, shop or packer loads it.
+Upgrading the Hall also pays gems.
 
-Chutes get faster with the *Faster Chutes* research.
+### Builders and timers
+Building and upgrading take a builder and some time: seconds at first, up to about eight hours for the top levels. Builders keep working while you're away. You start with two Builder's Huts; up to three more cost gems. Finish a job early with gems; jobs with 30 seconds or less left finish for free.
+
+### Roads
+Every building has an entrance: the middle of its front edge, marked by an arrow while you place it. A cobbled road builds itself from there to the nearest road, going around buildings (never through them), turning as little as it can. Porters only walk on roads.
+- You can't build on an entrance.
+- You can't build somewhere that would cut another building off from the Hall: the game tells you which one.
+
+### The Bakery
+One building with the whole line inside: a Mixer, a glass tube, ingredient silos and an Oven.
+- Porters fill the wheat bin and the silos.
+- Dough balls roll down the tube, stop under each silo for a dose, and the oven puts a batch of cookies on the bench.
+- **Bake** picks the recipe. **Auto** always bakes the best recipe your farms and kitchens can supply.
+- Every 3 levels adds a silo (up to 7), so richer recipes need a bigger bakery. More bakeries unlock at Hall 4, 7, 10 and 13.
 
 ### Recipes and ingredients
 - **17 cookies**: Shortbread, Sugar Cookie, Cocoa Crinkle, Milk Biscuit, Butter Ring, Chocolate Chip, Oat Crumble, Double Chocolate, Jam Thumbprint, Hazelnut Crunch, Honey Oat, Caramel Stroopwafel, Vanilla Sablé, Praline Dream, Cinnamon Swirl, Orange Florentine, Royal Empire.
 - **12 farms**: wheat, sugar cane, cocoa, hens, dairy, oats, strawberries, hazelnuts, bees, vanilla orchids, cinnamon, oranges.
 - **6 kitchens** turn ingredients into better ones: Butter Churn, Chocolatier, Jam Kettle, Caramel Pot, Praline Roaster, Candy Kitchen.
-- **Packing**: the Box Packer packs 6 cookies into a box (+25%), and the Gift Wrapper wraps a box into a gift (+60%).
+- **Packing**: the Box Packer packs 6 cookies into a box (+25%); the Gift Wrapper wraps a box into a gift (+60%).
 
 ### Selling
 - **Delivery Van**: drives into its garage and sells the load.
@@ -51,60 +57,61 @@ Chutes get faster with the *Faster Chutes* research.
 - **Trending cookies**: one recipe sells for more every 15 minutes.
 
 ### Staff
-Build a **Staff Cabin** to hire. Each role has its own outfit, ring and badge:
-
 | Role | Look | Job |
 |---|---|---|
-| Farmer | plaid shirt, overalls, straw hat | works one farm faster (assign on the farm) |
-| Chef | chef whites, toque, whisk | runs one oven or kitchen faster (assign on it) |
-| Gatherer | field vest, cap, basket | farm crates -> kitchens, pantry, hoppers |
-| Feeder | hi-vis, hard hat, scoop | pantry, kitchens -> mixers, hoppers, kitchens |
-| Collector | mauve pastry apron, tray | ovens -> packers, racks, sales |
-| Loader | work jacket, beanie, hand truck | racks, packers -> vans, shops, trains, orders |
+| Porter | work jacket, beanie, hand truck | carries everything along the roads: harvests, ingredients, cookies, orders |
+| Farmer | plaid shirt, overalls, straw hat | works one farm faster |
+| Chef | chef whites, toque, whisk | works one bakery or kitchen faster |
+| Builder | orange overalls, hard hat, hammer | builds and upgrades (one per Builder's Hut) |
 
-Haulers ask a logistics broker for the most useful job and walk A* paths around your buildings.
+Everyone you hire starts as a porter. On a farm, bakery or kitchen, **Staff > +** turns a porter into its farmer or chef. One porter always stays a porter. The Hall and Staff Cabins decide how many people you can house.
 
-### Land, biomes and decor
-The world is an endless meadow in 16 m chunks. Chunks next to your land are for sale, and each costs more than the last. Biomes give farms +40%:
-- **Meadow**: wheat, oats, eggs.
-- **Orchard Hills**: berries, hazelnuts, honey, oranges.
-- **Tropical Lowland**: sugar cane, cocoa, vanilla, cinnamon.
-- **Highland**: milk, oats, hazelnuts.
-
-Decor has area effects:
-- **Wells**: farms nearby work faster.
-- **Fountains**: workers nearby walk faster.
-- **Flower beds, lamps, trees, benches**: shops nearby get more customers. Flower beds also make Bee Meadows busier.
-- **Golden Cookie Statue**: +5% on every sale.
+### Land, biomes, obstacles and decor
+- **Land**: the world is an endless meadow in 16 m plots. Plots next to yours are for sale, and each costs more than the last.
+- **Obstacles**: new land comes with brambles, stumps, pines, old oaks and boulders to clear. Many hide gems.
+- **Biomes** give farms +40%:
+  - **Meadow**: wheat, oats, eggs.
+  - **Orchard Hills**: berries, hazelnuts, honey, oranges.
+  - **Tropical Lowland**: sugar cane, cocoa, vanilla, cinnamon.
+  - **Highland**: milk, oats, hazelnuts.
+- **Decor** is instant (no builder) and has area effects:
+  - wells, ponds and windmills: farms work faster;
+  - fountains: staff walk faster;
+  - flowers, lamps, trees, benches, banners, topiaries, gazebos: shops get more customers;
+  - the Golden Cookie Statue: +5% on every sale.
 
 ### Progression
-- **Empire level** (XP = money earned) unlocks buildings: 60 levels from Kitchen Table to Legendary Empire.
-- **Building levels** (up to 60): speed, capacity, yield, and a new look at five milestones.
-- **Research** (money): carry, speed, recipes (+10% per level), worker boots and baskets, hiring, roads, marketing, night shift (offline hours), rush.
-- **Perks** (gems from orders): Golden Touch, Fertile Soil, Swift Staff, Big Batches, Busy Board, Second Wind.
-- **Cookie Rush**: everything runs at 2x for a while.
-- **Offline earnings** from your automation.
-- **The Grand Cookie Palace** (level 35): five stages (Foundations, Biscuit Walls, Cream Towers, Golden Domes, The Crown). Each stage needs Royal Empire cookies delivered and a big payment. Finishing it wins the game.
+- **Research** (money): recipes sell for more, porter boots and baskets, the Builder's Toolkit (faster builds), hiring, roads for vans, marketing, night shift (offline hours), rush.
+- **Perks** (gems): Golden Touch, Fertile Soil, Swift Staff, Big Batches, Busy Board, Second Wind.
+- **Boost**: everything runs at 2x for a while.
+- **Offline**: builders keep building, and your staff keep earning for a few hours.
+- **The Grand Cookie Palace** (Hall 12): five stages (Foundations, Biscuit Walls, Cream Towers, Golden Domes, The Crown). Each stage needs Royal Empire cookies delivered, a big payment and many hours of building. Finishing The Crown wins the game.
 
 ## Project layout
 
 ```
 boot.gd/.tscn        crest + loading bar, then fades into the game
-main.gd/.tscn        World + HUD; dev flags (--demo, --showcase, --bot, --shot ...)
-autoload/game.gd     state: money, gems, level, placed buildings, land, research, perks, workers, orders, save/load
-core/defs.gd         items, recipes, cookie looks, buildings, roles, biomes, palace stages
-core/bal.gd          every number: building effects per level, prices, research, perks, land, xp
+main.gd/.tscn        World + HUD; dev flags (--demo, --showcase, --bot, --shot, --tour ...)
+autoload/game.gd     state: money, gems, the Hall level, game clock, buildings, builder jobs, land, obstacles,
+                     research, perks, staff, orders, save/load and time away
+core/defs.gd         items, recipes, cookie looks, buildings (Hall gating, copies), Hall levels, roles, biomes,
+                     obstacles, palace stages
+core/bal.gd          every number: building effects per level, prices, build and upgrade times, gems to finish,
+                     research, perks, land
 world/
-  world.gd           spawns buildings, connects lines, logistics broker, workers, save state
-  grid.gd            2 m building grid, occupancy, A* walking paths
-  terrain.gd         endless ground (biomes, land overlay), streamed decor, For Sale signs
-  building.gd        base for everything placeable (footprint, ports, zones, tiers, save)
-  b_farm.gd  b_mixer.gd  b_tube.gd  b_hopper.gd  b_oven.gd  b_line.gd
-  b_machine.gd  b_storage.gd  b_vehicle.gd  b_shop.gd  b_board.gd  b_cabin.gd  b_decor.gd  b_palace.gd
-  line.gd            a connected line at work: recipe, dough balls, dosing, baking
-  farm_art.gd  line_art.gd  kitchen_art.gd  sales_art.gd  previews.gd   (five looks per building)
-  holder.gd  zone.gd  items.gd  crops.gd  animal.gd  character.gd  player.gd  worker.gd  farm_worker.gd  customer.gd
-ui/                  title menu, HUD, placement mode, build / building / staff / research / settings panels, goals
+  world.gd           spawns buildings, construction sites and scaffolding, roads, obstacles, logistics broker,
+                     staff and builders
+  roads.gd           the self-building road network (cheapest paths, few turns) and porter routes
+  grid.gd            2 m building grid, occupancy, obstacles, A* walking paths
+  terrain.gd         endless ground (biomes, land, cobbled roads), streamed decor, For Sale signs
+  camera_rig.gd      free pan / zoom camera with a little glide
+  building.gd        base for everything placeable (footprint, entrance, ports, tiers, save)
+  b_hall.gd  b_bakery.gd  b_hut.gd  b_site.gd  b_farm.gd  b_machine.gd  b_storage.gd
+  b_vehicle.gd  b_shop.gd  b_board.gd  b_cabin.gd  b_decor.gd  b_palace.gd
+  town_art.gd  farm_art.gd  line_art.gd  kitchen_art.gd  sales_art.gd  previews.gd   (the looks)
+  holder.gd  items.gd  crops.gd  animal.gd  character.gd  worker.gd  builder.gd  farm_worker.gd  customer.gd
+ui/                  title menu, HUD, action bar, job timers, placement, build / building / recipe / staff /
+                     research / settings panels, goals (tutorial)
 render/              toon, ground (biomes + land), glass, belt, pad shaders
 assets/              icons (generated), UI skins, audio (synthesized), fonts (OFL)
 tests/               headless logic tests + the autopilot bot
@@ -113,7 +120,7 @@ dev/                 art bench (every building x 5 tiers), screenshot helper, pe
 ```
 
 **Adding content is mostly data:**
-- **A building** is a row in `Defs.BUILDINGS`, plus a `Building` subclass (or an existing one) and its art in the matching `*_art.gd`.
+- **A building** is a row in `Defs.BUILDINGS` (with its Hall level, copies and build time), plus a `Building` subclass (or an existing one) and its art in the matching `*_art.gd`.
 - **A recipe** is a row in `Defs.RECIPES` and `Defs.COOKIE_LOOK`, plus an icon `ck_<id>`.
 - **An ingredient** is a row in `Defs.ITEMS`, a mesh in `Items`, and a farm or kitchen that makes it.
 - **Research or a perk** is a row in `Bal.RESEARCH` / `Bal.PERKS`, read with `Game.research(id)` / `Game.perk(id)`.
@@ -123,48 +130,48 @@ dev/                 art bench (every building x 5 tiers), screenshot helper, pe
 ```bash
 godot --path .                   # play (desktop window 450x800, mouse = touch)
 tools/check.sh                   # parse every script
-tools/test.sh                    # headless tests (data, balance, game state, grid, a real world baking)
+tools/test.sh                    # headless tests (data, balance, game state, builders, roads, a real world)
 tools/bot.sh 60                  # the autopilot plays 60 game-minutes (fixed-step, faster than real time)
 tools/shot.sh res://main.tscn out.png -- --demo
-tools/shot.sh res://dev/bench.tscn out.png -- --kinds=oven,mixer --spacing=7   # five tiers side by side
+tools/shot.sh res://dev/bench.tscn out.png -- --kinds=hall,bakery --spacing=12   # five looks side by side
 ```
 
 Dev flags (after `--`):
 - `--fresh` starts a new game.
 - `--demo` loads a mid-game empire.
 - `--showcase` places every building, `--showcase --tier=4` at its top look.
-- `--place=hopper:sugar` opens the placement mode.
-- `--select=oven` opens a building panel.
+- `--place=farm_cocoa` opens the placement mode.
+- `--select=bakery` selects a building (`--info` also opens its card); `--recipes` opens the recipe picker.
 - `--panel=build|staff|research|settings` opens a panel.
+- `--tut=N` jumps to a tutorial step; `--tour=<dir>` plays the opening and saves a screenshot per step.
 - `--title` shows the title menu in screenshots.
 - `--perf` prints render stats.
 - `--wdbg` prints worker and building states.
 
 ## Pacing
 
-The game is tuned for about **two weeks**: a few sessions a day, with Night Shift research earning while you are away.
+The game is tuned for about **two weeks**, base-builder style: money paces the first hours, then builder timers do. Timers keep running while you're away.
 
-Early game, measured by the autopilot bot (`tools/bot.sh`), which plays at roughly a careful human's pace:
+The first hour, measured by the autopilot bot (`tools/bot.sh`, a careful player who never spends gems on timers):
 
 | Milestone | Play time |
 |---|---|
-| First cookie / first sale | 10 s / 20 s |
-| First worker | about 1 min |
-| Level 5 | about 2 min |
-| Level 10 | 11 to 16 min |
-| Second production line | 25 to 65 min |
-| Level 15 | 55 to 70 min |
+| First sale | about 1 min |
+| Cookie Hall 2 | about 1.5 min |
+| Cookie Hall 3 | about 5 min |
+| Cookie Hall 4 | about 30 min |
+| Cookie Hall 5 | about 55 min |
+| Cookie Hall 6 | about 80 min |
 
-The long game, from the model in `tools/pacing.py` (active hours; offline earnings add on top):
+After that the Hall's build time is the gate:
 
-| Milestone | Active play |
-|---|---|
-| Level 35, Palace foundations | 3.5 to 5.5 h |
-| Palace stage 3 (Cream Towers) | 10 to 16 h |
-| Palace stage 4 (Golden Domes) | 27 to 44 h |
-| The Crown (win) | 64 to 106 h |
+| Hall level | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|---|---|
+| Build time | 1 h | 2 h | 4 h | 6 h | 8 h | 12 h | 16 h | 20 h | 24 h |
 
-Re-run `python3 tools/pacing.py --logistics 0.2` after changing numbers in `core/bal.gd` or `core/defs.gd`.
+The Grand Cookie Palace (Hall 12) then takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Royal Empire cookie deliveries.
+
+That makes about 7 days of building at the very least. With a few check-ins a day, nights, and the money and cookies each stage needs, finishing takes roughly 10 to 14 days. Gems can shave some of it off.
 
 ## Export
 
@@ -178,5 +185,5 @@ Older phones fall back to the OpenGL renderer and step quality down automaticall
 ## Performance notes
 - **Few materials.** Most meshes are merged per prop and share one toon material through vertex colours.
 - **Cheap stacks and decor.** Crates, trays and racks draw one MultiMesh per item type. The streamed decor (trees, shrubs, rocks, flowers, grass) is one MultiMesh per kind around the camera.
-- **One ground plane.** It follows the camera; a shader colours the biomes and the land you own.
-- **Grid pathfinding.** Workers walk an `AStarGrid2D` over owned land, rebuilt only when land is bought.
+- **One ground plane.** It follows the camera; a shader colours the biomes and the land you own and draws the cobbled roads from a one-texel-per-cell texture.
+- **Cheap pathfinding.** Porters walk an `AStarGrid2D` over road cells. Roads are rebuilt only when something is built, moved, sold or cleared.

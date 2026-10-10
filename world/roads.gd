@@ -63,6 +63,21 @@ func build(entries: Array, blocked: Callable, owned: Callable, bounds: Rect2i) -
 			network[c] = true
 	for c in network:
 		cells[c] = 1
+	# a lone grass cell boxed in by road reads as a hole: pave it
+	var holes := []
+	for c in cells:
+		for d in DIRS:
+			var h: Vector2i = c + d
+			if cells.has(h) or blocked.call(h) or not owned.call(h):
+				continue
+			var n := 0
+			for d2 in DIRS:
+				if cells.has(h + d2):
+					n += 1
+			if n == 4 and not holes.has(h):
+				holes.append(h)
+	for h2 in holes:
+		cells[h2] = 1
 	for e in entries:
 		if not connected.has(e["uid"]):
 			continue
