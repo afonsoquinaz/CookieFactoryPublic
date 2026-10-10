@@ -126,6 +126,14 @@ static func free_spot(w: World, k: String, near: Vector2i, prefer_rot := 0) -> V
 				for q in [Vector2i(dx, dy), Vector2i(dy, dx)]:
 					for rot in [prefer_rot, (prefer_rot + 2) % 4]:
 						var o: Vector2i = near + q - Grid.rotated(sz, rot) / 2
+						# prefer spots off the roads (and they're cheaper to check)
+						var on_road := false
+						for c in Grid.cells(o, sz, rot):
+							if w.roads.is_road(c) or w.grid.blocked(c):
+								on_road = true
+								break
+						if on_road:
+							continue
 						var s := w.check_spot(k, o, rot)
 						if not s["ok"]:
 							continue

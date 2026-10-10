@@ -16,8 +16,20 @@ func _ready() -> void:
 	Game.money = 60
 	await _shot("0_welcome")
 	var bakery: BakeryB = world.buildings_of("bakery")[0]
-	hud.select(bakery)
+	# a real tap on the bakery
+	var cam := get_viewport().get_camera_3d()
+	var sp := cam.unproject_position(bakery.global_position + Vector3(0, 0.5, 0))
+	for pressed in [true, false]:
+		var e := InputEventScreenTouch.new()
+		e.index = 0
+		e.position = sp
+		e.pressed = pressed
+		Input.parse_input_event(e)
+		await get_tree().process_frame
 	await _wait(0.6)
+	print("tour tap selected: ", hud.selected == bakery)
+	if hud.selected != bakery:
+		hud.select(bakery)
 	await _shot("1_selected")
 	Game.money = 200
 	await _wait(0.6)

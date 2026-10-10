@@ -43,6 +43,8 @@ var _inited := false
 var _recheck := 0.0
 var _starve := 0.0
 var _blocked := {}             # recipe -> game time until Auto won't pick it
+var _avail := 1.0              # how often the inputs were there lately (0..1)
+var _on_recipe := 0.0          # seconds on the current recipe
 var _want: Node3D
 var _want_icon := ""
 var _built_slots := 0
@@ -180,7 +182,7 @@ func auto_recipe() -> String:
 func _in_stock(i: String) -> bool:
 	if silos.has(i) and (silos[i] as Holder).count() > 0:
 		return true
-	return world != null and world.stock(i) >= 2
+	return world != null and world.stock(i) >= 6
 
 
 func chosen() -> String:
@@ -200,6 +202,9 @@ func _pick_recipe() -> void:
 		want = auto_recipe()
 	if want != recipe or not _inited or _built_slots != slots():
 		_inited = true
+		if want != recipe:
+			_on_recipe = 0.0
+			_avail = 1.0
 		recipe = want
 		_rebuild_silo_holders()
 		_build_silos()
@@ -304,7 +309,10 @@ func _process(dt: float) -> void:
 		_consume()
 		_spawn_dough()
 	_starve = 0.0 if has else _starve + dt
-	if _starve > 90.0 and chosen() == "" and recipe != "shortbread":
+	_on_recipe += dt
+	var ready := has or tray.space() < batch() or doughs.size() >= 3
+	_avail = lerpf(_avail, 1.0 if ready else 0.0, clampf(dt / 45.0, 0.0, 1.0))
+	if chosen() == "" and recipe != "shortbread" and _on_recipe > 60.0 and (_avail < 0.35 or _starve > 90.0):
 		# Auto: this recipe's supply can't keep up; bake something else for a while
 		_blocked[recipe] = Game.clock + 300.0
 		_starve = 0.0
