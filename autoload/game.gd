@@ -20,6 +20,7 @@ signal orders_changed
 signal trend_changed(recipe: String)
 signal discovered(recipe: String)
 signal toast(text: String, icon: String)
+signal victory
 
 const SAVE_PATH := "user://cookie_empire_v3.json"
 const VERSION := 3

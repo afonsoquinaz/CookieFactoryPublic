@@ -147,6 +147,8 @@ func _process(dt: float) -> void:
 	_layout()
 	var c := _screen_ground(get_viewport_rect().size * Vector2(0.5, 0.46))
 	var o := Grid.origin_for(c, Defs.size_of(kind), rot)
+	if Defs.LINE_KINDS.has(kind):
+		o = _snap(c, o)
 	if o != origin or _dirty:
 		origin = o
 		_dirty = false
@@ -235,8 +237,61 @@ func _evaluate() -> void:
 	_ok.set_colors(Kit.SAGE if valid else Kit.GREY, Kit.SAGE_EDGE if valid else Kit.GREY_EDGE)
 
 
+## Line parts snap onto a nearby tube (hoppers) or to an open line end.
+func _snap(c: Vector3, o: Vector2i) -> Vector2i:
+	var best := o
+	var best_d := 3.2
+	for n in world.bnodes.values():
+		if not n is LineModule or n.uid == move_uid:
+			continue
+		var m := n as LineModule
+		if kind == "hopper" and m is TubeB:
+			var d := Vector2(m.global_position.x - c.x, m.global_position.z - c.z).length()
+			if d < best_d:
+				best_d = d
+				best = m.cell()
+				rot = m.rot()
+		# the open end of a line (no neighbour after it)
+		if not m is OvenB and world.next_module(m) == null and kind != "mixer":
+			var r := m.rot()
+			var sz := Defs.size_of(kind)
+			var half := sz.x * Grid.CELL * 0.5
+			var center := m.tube_end() + m.flow_dir() * half
+			center = center - Basis(Vector3.UP, Grid.yaw(r)) * Vector3(0, LineModule.TUBE_Y, LineModule.TUBE_Z)
+			var d2 := Vector2(center.x - c.x, center.z - c.z).length()
+			if d2 < best_d:
+				best_d = d2
+				best = Grid.origin_for(center, sz, r)
+				rot = r
+	return best
+
+
+## Buildings the ghost would touch (they'll pass things along by chute).
+func _neighbours() -> Array[String]:
+	var out: Array[String] = []
+	var sz := Grid.rotated(Defs.size_of(kind), rot)
+	var seen := {}
+	for x in range(-1, sz.x + 1):
+		for y in range(-1, sz.y + 1):
+			var u := world.grid.at(origin + Vector2i(x, y))
+			if u != 0 and u != move_uid and u != _replace_uid and not seen.has(u):
+				seen[u] = true
+				var n := world.building(u)
+				if n and not n is LineModule or n is OvenB:
+					out.append(n.def["name"])
+	return out
+
+
 ## How this spot fits: line joins, biome bonuses, auras.
 func _advice() -> String:
+	var nb := _neighbours()
+	var chute := ""
+	if not nb.is_empty() and not Defs.LINE_KINDS.has(kind) or (kind == "oven" and not nb.is_empty()):
+		chute = "  Touching %s: they hand things over by chute." % ", ".join(nb.slice(0, 2))
+	return _advice_base() + chute
+
+
+func _advice_base() -> String:
 	var center := Grid.center_of(origin, Defs.size_of(kind), rot)
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	if Defs.LINE_KINDS.has(kind):
@@ -282,6 +337,18 @@ func _connect_score(r: int) -> int:
 
 func _paint_tiles(cells: Array[Vector2i], blockers: Array[int]) -> void:
 	var k := MeshKit.new()
+	# decor shows the area its effect reaches
+	var aura: Dictionary = Defs.BUILDINGS[kind].get("aura", {})
+	if int(aura.get("r", 0)) > 0:
+		var r := int(aura["r"])
+		var s0 := Grid.rotated(Defs.size_of(kind), rot)
+		for x in range(-r, s0.x + r):
+			for y in range(-r, s0.y + r):
+				var ac := origin + Vector2i(x, y)
+				if x >= 0 and y >= 0 and x < s0.x and y < s0.y:
+					continue
+				var ap := Grid.cell_center(ac)
+				k.rbox(Vector3(Grid.CELL - 0.5, 0.02, Grid.CELL - 0.5), 0.2, Color(1.0, 0.9, 0.55, 0.22), MeshKit.at(ap.x, 0.04, ap.z))
 	for c in cells:
 		var col := Color(0.55, 0.85, 0.5, 0.55)
 		if not Game.owns_cell(c):

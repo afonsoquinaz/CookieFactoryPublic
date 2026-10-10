@@ -142,16 +142,15 @@ func _nothing_to_pick(t: String) -> bool:
 func _manage() -> void:
 	_palace()
 	_staff()
+	_upgrade()
+	_research()
 	if _improve_lines():
 		return
 	if _ensure_basics():
 		return
 	if _ensure_line():
 		return
-	if _ensure_producers():
-		return
-	_upgrade()
-	_research()
+	_ensure_producers()
 
 
 ## Best recipe we can bake with the producers we already have.
@@ -316,6 +315,8 @@ func _ensure_basics() -> bool:
 		["packer", 9, 1], ["well", 3, 1], ["dock", 7, 2], ["shop", 12, 2], ["train", 14, 1], ["fountain", 10, 1],
 		["dock", 16, 3], ["wrapper", 20, 1], ["airship", 30, 1], ["statue", 25, 1], ["train", 26, 2],
 	]
+	# sales keep up with the lines
+	plan.push_front(["dock", 3, maxi(1, (world.lines.size() + 1) / 2)])
 	# more cabins as the staff grows
 	if Game.workers.size() >= Game.cabin_capacity() and Game.count_of("cabin") > 0:
 		plan.push_front(["cabin", 2, Game.count_of("cabin") + 1])
@@ -393,35 +394,49 @@ func _buy_land() -> void:
 func _staff() -> void:
 	if Game.count_of("cabin") == 0:
 		return
-	if Game.can_hire() and Game.money > Game.hire_price() * 1.5:
-		Game.hire()
 	var farms := 0
 	var machines := 0
 	for n in world.bnodes.values():
 		if n is FarmB:
 			farms += 1
-		elif n is MachineB:
+		elif n is MachineB and n.def["cat"] == "kitchen":
 			machines += 1
 	var lines := maxi(1, world.lines.size())
+	var sellers := Game.count_of("rack") + Game.count_of("packer") > 0
 	var want := {
-		"gatherer": ceili(farms * 0.6),
-		"collector": ceili(lines * 0.8),
-		"loader": ceili(lines * 0.6) if Game.count_of("rack") + Game.count_of("packer") > 0 else 0,
-		"feeder": ceili((lines + machines) * 0.6) if Game.count_of("pantry") > 0 or machines > 0 else 0,
+		"gatherer": maxf(1.0, farms * 0.5),
+		"collector": lines * 1.0,
+		"loader": lines * 1.0 if sellers else 0.0,
+		"feeder": (lines * 0.7 + machines * 0.5) if Game.count_of("pantry") > 0 or machines > 0 else 0.0,
 	}
-	for r in ["gatherer", "collector", "feeder", "loader"]:
-		if Game.workers_with(r) < int(want[r]) and Game.idle_workers() > 0:
-			Game.assign_idle(r)
-			return
-	# spare hands: farmers on the busiest farms, chefs on ovens
+	var short := 0.0
+	for r in want:
+		short += maxf(0.0, ceilf(float(want[r])) - Game.workers_with(r))
+	var spare := Game.workers_with("farmer") < farms and Game.workers_with("chef") < world.lines.size()
+	if (short > Game.idle_workers() or (spare and Game.idle_workers() == 0)) and Game.can_hire() and Game.money > Game.hire_price() * 1.5:
+		Game.hire()
 	if Game.idle_workers() > 0:
+		# the role furthest behind its target
+		var best := ""
+		var best_r := 1.0
+		for r in want:
+			if float(want[r]) <= 0.0:
+				continue
+			var ratio := Game.workers_with(r) / float(want[r])
+			if ratio < best_r:
+				best_r = ratio
+				best = r
+		if best != "":
+			Game.assign_idle(best)
+			return
+		# spare hands: farmers on farms, chefs on ovens
 		for n in world.bnodes.values():
-			if n is FarmB and Game.workers_with("farmer", n.uid) < 2:
-				Game.assign_idle("farmer", n.uid)
+			if n is OvenB and Game.workers_with("chef", n.uid) < 1:
+				Game.assign_idle("chef", n.uid)
 				return
 		for n2 in world.bnodes.values():
-			if n2 is OvenB and Game.workers_with("chef", n2.uid) < 1:
-				Game.assign_idle("chef", n2.uid)
+			if n2 is FarmB and Game.workers_with("farmer", n2.uid) < 1:
+				Game.assign_idle("farmer", n2.uid)
 				return
 
 
@@ -441,7 +456,7 @@ func _upgrade() -> void:
 		if c < best_c:
 			best_c = c
 			best = b
-	if best and Game.money > Bal.upgrade_cost(best.kind, best.level) * 2.0:
+	if best and Game.money > Bal.upgrade_cost(best.kind, best.level) * 1.5:
 		Game.upgrade(best.uid)
 
 

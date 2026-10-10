@@ -296,7 +296,8 @@ static func fly(from: Holder, to: Holder, t := "", dur := 0.32, on_land := Calla
 		var sc := 1.0 + sin(f * PI) * 0.25
 		flyer.scale = Vector3(sc, sc, sc)
 	var land := func() -> void:
-		flyer.queue_free()
+		if is_instance_valid(flyer):
+			flyer.queue_free()
 		if is_instance_valid(to):
 			to.incoming -= 1
 			to.add(t)

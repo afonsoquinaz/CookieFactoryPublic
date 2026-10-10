@@ -188,6 +188,18 @@ const BUILDINGS := {
 		"aura": {"what": "charm", "r": 1, "v": 0.01}, "desc": "A neat hedge."},
 	"bench": {"name": "Bench", "cat": "decor", "icon": "bench", "size": Vector2i(1, 1), "lvl": 3, "cost": 40, "growth": 1.06, "up": 0, "max": 1,
 		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Shops nearby get more customers."},
+	"picnic": {"name": "Picnic Table", "cat": "decor", "icon": "picnic", "size": Vector2i(1, 1), "lvl": 4, "cost": 60, "growth": 1.08, "up": 0, "max": 1,
+		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Shops nearby get more customers."},
+	"banner": {"name": "Banner", "cat": "decor", "icon": "banner", "size": Vector2i(1, 1), "lvl": 5, "cost": 90, "growth": 1.08, "up": 0, "max": 1,
+		"aura": {"what": "charm", "r": 3, "v": 0.04}, "desc": "Your colours. Shops nearby get more customers."},
+	"topiary": {"name": "Topiary", "cat": "decor", "icon": "topiary", "size": Vector2i(1, 1), "lvl": 6, "cost": 140, "growth": 1.08, "up": 0, "max": 1,
+		"aura": {"what": "charm", "r": 2, "v": 0.04}, "desc": "A tidy round bush. Shops nearby get more customers."},
+	"pond": {"name": "Pond", "cat": "decor", "icon": "pond", "size": Vector2i(2, 2), "lvl": 8, "cost": 900, "growth": 1.5, "up": 0, "max": 1,
+		"aura": {"what": "farm", "r": 3, "v": 0.12}, "desc": "Farms within 3 tiles work 12% faster."},
+	"gazebo": {"name": "Gazebo", "cat": "decor", "icon": "gazebo", "size": Vector2i(2, 2), "lvl": 9, "cost": 2500, "growth": 1.6, "up": 0, "max": 1,
+		"aura": {"what": "charm", "r": 5, "v": 0.12}, "desc": "Shops within 5 tiles get 12% more customers."},
+	"windmill": {"name": "Windmill", "cat": "decor", "icon": "windmill", "size": Vector2i(2, 2), "lvl": 12, "cost": 15000, "growth": 1.9, "up": 0, "max": 1,
+		"aura": {"what": "farm", "r": 5, "v": 0.25}, "desc": "Farms within 5 tiles work 25% faster."},
 	"well": {"name": "Well", "cat": "decor", "icon": "well", "size": Vector2i(1, 1), "lvl": 3, "cost": 90, "growth": 1.8, "up": 0, "max": 1,
 		"aura": {"what": "farm", "r": 3, "v": 0.2}, "desc": "Farms within 3 tiles work 20% faster."},
 	"fountain": {"name": "Fountain", "cat": "decor", "icon": "fountain", "size": Vector2i(2, 2), "lvl": 10, "cost": 1800, "growth": 2.0, "up": 0, "max": 1,
@@ -208,7 +220,7 @@ const BUILD_ORDER: Array[String] = [
 	"pantry", "rack", "packer", "wrapper",
 	"dock", "shop", "board", "train", "airship",
 	"cabin",
-	"flowers", "lamp", "tree", "hedge", "bench", "well", "fountain", "statue", "palace",
+	"flowers", "lamp", "tree", "hedge", "bench", "picnic", "banner", "topiary", "well", "pond", "gazebo", "windmill", "fountain", "statue", "palace",
 ]
 
 ## Building kinds a line is made of.

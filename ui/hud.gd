@@ -78,6 +78,13 @@ func _ready() -> void:
 	Game.trend_changed.connect(_on_trend)
 	Game.land_bought.connect(func(_c): toast("New land! Build on it.", "land"))
 	world.sold.connect(_on_sold)
+	Game.victory.connect(func():
+		Sfx.play("levelup")
+		for i in 3:
+			Fx.burst(get_tree().current_scene, world.player.global_position + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
+		_popup("Cookie Empire!", "The Grand Cookie Palace is complete. Your cookies are a legend from coast to coast.",
+			"%s cookies sold  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["cookies"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
+			"palace", "Keep baking"))
 	_update_level()
 	_on_trend(Game.trending)
 	_gem_label.text = str(Game.gems)

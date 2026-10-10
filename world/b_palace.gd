@@ -63,7 +63,7 @@ func advance() -> bool:
 	Game.save_game()
 	if complete():
 		Game.won = true
-		Game.toast.emit("The Grand Cookie Palace is complete!", "palace")
+		Game.victory.emit()
 	return true
 
 

@@ -155,6 +155,12 @@ ICONS = [
     ("greenhouse", "a small glass greenhouse with a walnut frame and green plants inside"),
     ("market", "a small elegant cookie shop front with a terracotta awning and a display window"),
     ("deliver", "a kraft parcel with twine and a small brass bell"),
+    ("pond", "a small round garden pond with lily pads, a few reeds and a stone rim"),
+    ("gazebo", "a small elegant white wooden garden gazebo with a terracotta roof"),
+    ("topiary", "a neat round topiary bush in a terracotta pot"),
+    ("banner", "a tall cream and terracotta fabric banner on a wooden pole with a small cookie emblem"),
+    ("picnic", "a small walnut picnic table with a checked cloth and a plate of cookies"),
+    ("windmill", "a small cream stone windmill with wooden sails and a terracotta cap"),
     # ---- v3: cookies (one per recipe)
     ("ck_shortbread", "one pale golden rectangular shortbread biscuit with fork pricks"),
     ("ck_sugar", "one round sugar cookie sparkling with coarse sugar crystals"),

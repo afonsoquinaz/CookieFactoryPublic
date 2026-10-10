@@ -15,6 +15,8 @@ func _ready() -> void:
 		Game.level = int(a["level"])
 	if a.has("demo"):
 		_demo_state()
+	if a.has("showcase"):
+		_showcase(int(a.get("tier", "-1")))
 	world = World.new()
 	add_child(world)
 	var layer := CanvasLayer.new()
@@ -127,3 +129,42 @@ func _demo_state() -> void:
 	Game.next_worker_id = i
 	Game.hired = i - 1
 	Game.player_state = {"x": 2.0, "z": 3.0, "carry": ["c:choc", "c:choc", "c:choc", "c:choc", "c:choc", "c:choc"]}
+
+
+## Every building kind laid out in rows (--showcase[=tier]) for art reviews.
+func _showcase(tier: int) -> void:
+	Game.reset_state()
+	Game.no_save = true
+	Game.buildings.clear()
+	Game.money = 1e12
+	Game.level = 60
+	Game.tutorial_step = 99
+	for x in range(-3, 3):
+		for y in range(-3, 3):
+			Game.land[Game.chunk_key(Vector2i(x, y))] = true
+	var lv := [1, 5, 12, 25, 40]
+	var x0 := -22
+	var cx := x0
+	var cy := -22
+	var row_h := 0
+	var i := 0
+	for kind in Defs.BUILD_ORDER:
+		if kind == "tube":
+			continue
+		var sz: Vector2i = Defs.BUILDINGS[kind]["size"]
+		if cx + sz.x > 22:
+			cx = x0
+			cy += row_h + 1
+			row_h = 0
+		var t := tier if tier >= 0 else i % 5
+		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "farm" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
+		var extra := {"lvl": l}
+		if kind == "hopper":
+			extra["ing"] = "chocolate"
+		if kind == "palace":
+			extra["stage"] = 4
+		Game.place(kind, Vector2i(cx, cy), 0, extra, false)
+		cx += sz.x + 1
+		row_h = maxi(row_h, sz.y)
+		i += 1
+	Game.player_state = {"x": 0.0, "z": -20.0}

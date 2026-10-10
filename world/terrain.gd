@@ -7,7 +7,7 @@ extends Node3D
 ## calls). Chunks next to your land show a "For sale" sign you can tap.
 
 const TEX_N := 128
-const RADIUS := 3                       # decor chunks around the focus
+const RADIUS := 2                       # decor chunks around the focus
 const CHUNK_M := Bal.CHUNK * Grid.CELL  # 16 m
 
 var world: World

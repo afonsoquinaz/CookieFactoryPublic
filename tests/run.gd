@@ -297,6 +297,30 @@ func _test_world() -> void:
 		t += get_process_delta_time()
 	Engine.time_scale = 1.0
 	ok(mixer.wheat.count() > 0 or not line.doughs.is_empty(), "a gatherer brought wheat to the mixer (%.1fs)" % t)
+	# touching buildings hand things over by chute
+	var mixer_cell := mixer.cell()
+	Game.place("farm_wheat", mixer_cell + Vector2i(0, 2), 0, {}, false)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var nf: FarmB = null
+	for n in w.buildings_of("farm_wheat"):
+		if n.cell() == mixer_cell + Vector2i(0, 2):
+			nf = n
+	var linked := false
+	for l in w.links:
+		if l["a"] == nf and l["b"] == mixer:
+			linked = true
+	ok(linked, "a farm touching a mixer is linked by a chute")
+	mixer.wheat.clear_all()
+	for i in 4:
+		nf.crate.add("wheat", false)
+	Engine.time_scale = 4.0
+	t = 0.0
+	while nf.crate.count() == 4 and t < 20.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	Engine.time_scale = 1.0
+	ok(nf.crate.count() < 4, "the chute moved wheat from the farm to the mixer (%.1fs)" % t)
 	# you can always empty your hands
 	var p := w.player
 	for it in ["wheat", "egg", "c:sugar"]:

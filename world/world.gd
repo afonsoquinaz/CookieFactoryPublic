@@ -22,6 +22,8 @@ var _decor: Array[Building] = []
 var _synced_once := false
 var _store_cd := 0.0
 var reserved := {}                # holder instance id -> items reserved by workers
+var links: Array[Dictionary] = [] # touching buildings: {a, b, cd, node}
+var _links_dirty := true
 
 
 func _ready() -> void:
@@ -74,6 +76,10 @@ func _on_quality(lv: int) -> void:
 
 
 func _process(dt: float) -> void:
+	if _links_dirty:
+		_links_dirty = false
+		rebuild_links()
+	_run_links(dt)
 	_store_cd -= dt
 	if _store_cd <= 0.0:
 		_store_cd = 2.0
@@ -106,6 +112,7 @@ func buildings_of(kind: String) -> Array[Building]:
 
 
 func _on_added(b: Dictionary) -> void:
+	_links_dirty = true
 	var n := _spawn(b)
 	grid.set_solids(n.uid, n.world_solids())
 	n.appear()
@@ -118,6 +125,7 @@ func _on_added(b: Dictionary) -> void:
 
 
 func _on_removed(uid: int) -> void:
+	_links_dirty = true
 	var n: Building = bnodes.get(uid)
 	if n == null:
 		return
@@ -135,6 +143,7 @@ func _on_removed(uid: int) -> void:
 
 
 func _on_moved(uid: int) -> void:
+	_links_dirty = true
 	var n: Building = bnodes.get(uid)
 	if n == null:
 		return
@@ -242,6 +251,110 @@ func rebuild_lines() -> void:
 	for m in mods:
 		m.set_links(prev_module(m) != null and not m is MixerB, next_module(m) != null and not m is OvenB)
 	lines_changed.emit()
+
+
+# ---------------------------------------------------------------- chutes
+
+## Buildings whose footprints touch hand items over directly: a farm next to
+## a mixer feeds it, an oven next to a van loads it.
+static func can_link(a: Building, b: Building) -> bool:
+	if a == b or a.out_ports().is_empty() or b.in_ports().is_empty():
+		return false
+	if a is StorageB and b is StorageB:
+		return false
+	if a is LineModule and not a is OvenB:
+		return false
+	return true
+
+
+static func touching(a_origin: Vector2i, a_size: Vector2i, b_origin: Vector2i, b_size: Vector2i) -> bool:
+	var ra := Rect2i(a_origin - Vector2i.ONE, a_size + Vector2i(2, 2))
+	var rb := Rect2i(b_origin, b_size)
+	return ra.intersects(rb) and not Rect2i(a_origin, a_size).intersects(rb)
+
+
+func rebuild_links() -> void:
+	for l in links:
+		if is_instance_valid(l["node"]):
+			l["node"].queue_free()
+	links.clear()
+	var all := bnodes.values()
+	for a in all:
+		for b in all:
+			if not can_link(a, b):
+				continue
+			if not World.touching(a.cell(), Grid.rotated(a.size(), a.rot()), b.cell(), Grid.rotated(b.size(), b.rot())):
+				continue
+			links.append({"a": a, "b": b, "cd": randf(), "node": _chute(a, b)})
+
+
+## A little roller chute from a's output pad to b's input pad.
+func _chute(a: Building, b: Building) -> Node3D:
+	var p0: Vector3 = (a.out_ports()[0]["zone"] as Zone).global_position
+	var p1: Vector3 = (b.in_ports()[0]["zone"] as Zone).global_position
+	var n := Node3D.new()
+	add_child(n)
+	var d := p1 - p0
+	d.y = 0
+	var len := d.length()
+	if len < 0.1:
+		return n
+	var k := MeshKit.new()
+	var ang := rad_to_deg(atan2(d.x, d.z))
+	var mid := (p0 + p1) * 0.5
+	k.rbox(Vector3(0.5, 0.06, len), 0.03, Pal.STEEL_DARK, MeshKit.xf(Vector3(mid.x, 0.12, mid.z), Vector3(0, ang, 0)))
+	var steps := int(len / 0.35)
+	for i in steps:
+		var q := p0 + d * ((i + 0.5) / steps)
+		k.cyl(0.05, 0.42, Pal.STEEL, MeshKit.xf(Vector3(q.x, 0.18, q.z), Vector3(0, ang, 90)) * MeshKit.at(0, -0.21, 0), 6)
+	k.cone(0.22, 0.3, Pal.BRASS, MeshKit.xf(Vector3(p1.x, 0.2, p1.z) - d.normalized() * 0.5, Vector3(90, ang, 0)), 6)
+	var mi := Mats.inst(k.commit(), n, Transform3D.IDENTITY, false)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return n
+
+
+func link_interval() -> float:
+	return 1.2 / (1.0 + 0.25 * Game.research("chutes"))
+
+
+func _run_links(dt: float) -> void:
+	var iv := link_interval() / Game.speed_mult()
+	for l in links:
+		var a: Building = l["a"]
+		var b: Building = l["b"]
+		if not is_instance_valid(a) or not is_instance_valid(b):
+			continue
+		l["cd"] = float(l["cd"]) - dt
+		if l["cd"] > 0.0:
+			continue
+		l["cd"] = iv
+		for p in a.out_ports():
+			var h: Holder = p["holder"]
+			if h.count() == 0:
+				continue
+			var t := h.items[h.items.size() - 1]
+			if available(h, t) <= 0 or b.need(t) <= 0.0:
+				# try another kind of item in the holder
+				t = ""
+				for it in h.items:
+					if available(h, it) > 0 and b.need(it) > 0.0:
+						t = it
+						break
+				if t == "":
+					continue
+			for q in b.in_ports():
+				var dst: Holder = q["holder"]
+				if dst.can_accept(t) and Holder.fly(h, dst, t, 0.45):
+					break
+			break
+
+
+func links_of(n: Building) -> Array[Building]:
+	var out: Array[Building] = []
+	for l in links:
+		if l["a"] == n:
+			out.append(l["b"])
+	return out
 
 
 # ---------------------------------------------------------------- logistics broker

@@ -112,9 +112,9 @@ const TRUCK_IDLE_DEPART := 3.0      # a vehicle leaves this long after its last 
 
 # staff
 static func cabin_cap(l: int) -> int: return 4 + (l - 1)
-static func hire_cost(hired: int) -> float: return snap_price(30.0 * pow(1.33, hired) * pow(0.93, Game.research("hiring")))
+static func hire_cost(hired: int) -> float: return snap_price(30.0 * pow(1.22, hired) * pow(0.93, Game.research("hiring")))
 static func worker_speed() -> float: return (3.0 + Game.research("wspeed") * 0.22) * (1.0 + Game.perk("swift") * 0.1)
-static func worker_carry() -> int: return 4 + Game.research("wcarry") * 2
+static func worker_carry() -> int: return 6 + Game.research("wcarry") * 2
 static func chef_boost(n: int) -> float: return 1.0 + 0.5 * n   # speed multiplier with n chefs
 
 # player
@@ -131,12 +131,13 @@ const RESEARCH := {
 	"wcarry": {"name": "Worker Baskets", "icon": "gatherer", "base": 300, "growth": 1.72, "max": 25, "desc": "Workers carry 2 more items"},
 	"hiring": {"name": "Good Reputation", "icon": "hire", "base": 400, "growth": 1.9, "max": 15, "desc": "Hiring costs 7% less"},
 	"vehicles": {"name": "Better Roads", "icon": "truck", "base": 600, "growth": 1.85, "max": 20, "desc": "Vans, trains and airships return 5% sooner"},
+	"chutes": {"name": "Faster Chutes", "icon": "conveyor", "base": 500, "growth": 1.9, "max": 20, "desc": "Chutes between touching buildings move 25% faster"},
 	"market": {"name": "Marketing", "icon": "price", "base": 2000, "growth": 2.0, "max": 10, "desc": "Trending cookies sell for 10% more"},
 	"offline": {"name": "Night Shift", "icon": "clock", "base": 1500, "growth": 2.1, "max": 22, "desc": "Earn offline for 1 more hour"},
 	"rush": {"name": "Rush Hour", "icon": "boost", "base": 800, "growth": 1.9, "max": 15, "desc": "Cookie Rush lasts 5 s longer"},
 	"land": {"name": "Land Surveyor", "icon": "land", "base": 1200, "growth": 2.0, "max": 12, "desc": "Land costs 6% less"},
 }
-const RESEARCH_ORDER: Array[String] = ["carry", "speed", "recipe", "wspeed", "wcarry", "hiring", "vehicles", "market", "rush", "offline", "land"]
+const RESEARCH_ORDER: Array[String] = ["carry", "speed", "recipe", "wspeed", "wcarry", "chutes", "hiring", "vehicles", "market", "rush", "offline", "land"]
 
 
 static func research_cost(id: String, l: int) -> float:
