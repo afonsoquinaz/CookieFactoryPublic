@@ -15,6 +15,8 @@ enum Layout { COLUMN, GRID, NONE }
 
 var capacity := 10
 var accepts: Array = []          # item types allowed (empty = anything)
+var accept_cat: Array = []       # item categories allowed (Defs.cat), empty = any
+var accept_fn := Callable()      # optional extra test: func(t) -> bool
 var items: Array[String] = []
 var incoming := 0
 var layout := Layout.COLUMN
@@ -59,7 +61,16 @@ func is_full() -> bool:
 
 
 func can_accept(t: String) -> bool:
-	return space() > 0 and (accepts.is_empty() or accepts.has(t))
+	return space() > 0 and wants(t)
+
+
+## Would take this item type if there were room.
+func wants(t: String) -> bool:
+	if not accepts.is_empty() and not accepts.has(t):
+		return false
+	if not accept_cat.is_empty() and not accept_cat.has(Defs.cat(t)):
+		return false
+	return not accept_fn.is_valid() or accept_fn.call(t)
 
 
 func has(t: String) -> bool:

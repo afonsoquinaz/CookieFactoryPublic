@@ -11,9 +11,17 @@ var _play: JuicyButton
 var _t := 0.0
 var _cam_t := 0.0
 var _leaving := false
+var _center := Vector3.ZERO
 
 
 func _ready() -> void:
+	# drift over the middle of your empire
+	var n := 0
+	for b in world.bnodes.values():
+		_center += b.global_position
+		n += 1
+	if n > 0:
+		_center /= float(n)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var shade := ColorRect.new()
@@ -30,18 +38,18 @@ func _ready() -> void:
 	em.texture = load("res://assets/emblem.png")
 	em.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	em.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	em.custom_minimum_size = Vector2(230, 230)
+	em.custom_minimum_size = Vector2(150, 150)
 	em.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_crest.add_child(em)
-	var t1 := Kit.game("COOKIE", 92, Color(1.0, 0.93, 0.78), 14)
+	var t1 := Kit.game("COOKIE", 62, Color(1.0, 0.93, 0.78), 11)
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_crest.add_child(t1)
 	var ribbon := PanelContainer.new()
-	ribbon.add_theme_stylebox_override("panel", Kit.skin("ribbon", 70, Vector4(100, 10, 100, 30)))
+	ribbon.add_theme_stylebox_override("panel", Kit.skin("ribbon", 52, Vector4(70, 6, 70, 22)))
 	ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_crest.add_child(ribbon)
-	var t2 := Kit.game("EMPIRE", 54, Kit.WHITE, 9)
+	var t2 := Kit.game("EMPIRE", 36, Kit.WHITE, 7)
 	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ribbon.add_child(t2)
 	_play = Kit.juicy("PLAY", Kit.SAGE, Kit.SAGE_EDGE, 46, Vector2(320, 120))
@@ -55,7 +63,7 @@ func _process(dt: float) -> void:
 	_t += dt
 	var vs := get_viewport_rect().size
 	var cs := _crest.get_combined_minimum_size()
-	var sc := minf(1.0, (vs.x - 40.0) / maxf(cs.x, 1.0))
+	var sc := minf(1.0, minf(vs.x * 0.6 / maxf(cs.x, 1.0), vs.y * 0.36 / maxf(cs.y, 1.0)))
 	_crest.size = cs
 	_crest.pivot_offset = cs * 0.5
 	if not _leaving:
@@ -70,7 +78,7 @@ func _process(dt: float) -> void:
 		_cam_t += dt
 		world.cam.free_focus = true
 		world.cam.zoom = 1.45
-		world.cam.global_position = Vector3(6.0 + sin(_cam_t * 0.12) * 5.0, 0, -4.0 + cos(_cam_t * 0.09) * 3.0)
+		world.cam.global_position = _center + Vector3(sin(_cam_t * 0.12) * 5.0, 0, cos(_cam_t * 0.09) * 3.0 + 4.0)
 
 
 func _go() -> void:

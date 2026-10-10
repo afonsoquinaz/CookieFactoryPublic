@@ -18,6 +18,18 @@ func _ready() -> void:
 	add_child(_body)
 	_head = Node3D.new()
 	_body.add_child(_head)
+	if kind == "bee":
+		Mats.inst(MeshKit.cached("bee", func():
+			var k := MeshKit.new()
+			k.ellipsoid(Vector3(0.05, 0.045, 0.07), Color(0.95, 0.72, 0.2), MeshKit.at(0, 0, 0), 8, 5)
+			for i in 2:
+				k.torus(0.045, 0.012, Color(0.18, 0.14, 0.1), MeshKit.xf(Vector3(0, 0, -0.01 - i * 0.035), Vector3(90, 0, 0)), 8, 3)
+			for sx in [-1.0, 1.0]:
+				k.ellipsoid(Vector3(0.05, 0.008, 0.03), Color(0.95, 0.97, 1.0, 0.6), MeshKit.xf(Vector3(sx * 0.05, 0.05, 0), Vector3(0, 0, sx * 20)), 6, 3)
+			return k.commit()), _body, Transform3D.IDENTITY, false)
+		position.y = randf_range(0.5, 1.1)
+		_pick()
+		return
 	if kind == "chicken":
 		Mats.inst(MeshKit.cached("chicken_body", _chicken_body), _body)
 		_head.position = Vector3(0, 0.3, 0.1)
@@ -46,6 +58,15 @@ func animate(dt: float) -> void:
 	_t += dt
 	var to := _target - position
 	to.y = 0
+	if kind == "bee":
+		if to.length() > 0.08:
+			position += to.normalized() * 1.6 * dt
+			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), dt * 10.0)
+		else:
+			_pick()
+			_target.y = randf_range(0.4, 1.2)
+		_body.position.y = sin(_t * 9.0) * 0.06
+		return
 	var spd := 0.7 if kind == "chicken" else 0.25
 	if _wait > 0.0:
 		_wait -= dt

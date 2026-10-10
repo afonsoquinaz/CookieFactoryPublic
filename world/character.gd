@@ -47,6 +47,15 @@ var _t := 0.0
 var _squash := 0.0
 var _blink := 2.0
 
+## hat + tool per look
+const LOOKS := {
+	"farmer": ["straw", "hoe"], "gatherer": ["cap", "basket"], "feeder": ["hardhat", "scoop"],
+	"collector": ["bandana", "tray"], "loader": ["redcap", "dolly"], "chef": ["chef", "whisk"],
+	"customer": ["none", ""], "player": ["baker", ""],
+}
+const CASUAL := [Color(0.42, 0.55, 0.68), Color(0.78, 0.5, 0.42), Color(0.55, 0.62, 0.45), Color(0.86, 0.76, 0.5),
+	Color(0.62, 0.48, 0.62), Color(0.92, 0.9, 0.84), Color(0.36, 0.42, 0.5), Color(0.82, 0.62, 0.62)]
+
 const SKINS := [Color(0.98, 0.84, 0.72), Color(0.92, 0.74, 0.6), Color(0.78, 0.58, 0.44), Color(0.6, 0.42, 0.31)]
 const HAIRS := [Color(0.3, 0.2, 0.14), Color(0.16, 0.13, 0.12), Color(0.82, 0.62, 0.34), Color(0.6, 0.32, 0.2), Color(0.5, 0.42, 0.36)]
 
@@ -85,12 +94,23 @@ func setup(p_look: String, p_seed := 0) -> void:
 			outfit_col = Color(0.96, 0.6, 0.22)
 			pants = Color(0.26, 0.29, 0.34)
 			hands = Color(0.9, 0.78, 0.36)
-		"collector":
+		"chef":
 			shirt = Color(0.98, 0.98, 0.97)
 			outfit = "chef"
 			outfit_col = Color(0.98, 0.98, 0.97)
 			pants = Color(0.3, 0.3, 0.32)
 			boots = Color(0.92, 0.92, 0.9)
+		"collector":
+			shirt = Color(0.95, 0.92, 0.86)
+			outfit = "apron"
+			outfit_col = Color(0.62, 0.44, 0.58)    # pastry apron, mauve
+			pants = Color(0.32, 0.3, 0.34)
+		"customer":
+			shirt = CASUAL[rng.randi() % CASUAL.size()]
+			pants = [Color(0.3, 0.34, 0.44), Color(0.52, 0.46, 0.38), Color(0.24, 0.24, 0.26), Color(0.6, 0.56, 0.5)][rng.randi() % 4]
+			outfit = "jacket" if rng.randf() < 0.35 else ""
+			outfit_col = CASUAL[rng.randi() % CASUAL.size()].darkened(0.15)
+			boots = [Color(0.34, 0.24, 0.18), Color(0.86, 0.84, 0.8), Color(0.2, 0.2, 0.22)][rng.randi() % 3]
 		"loader":
 			shirt = Color(0.88, 0.86, 0.8)
 			outfit = "jacket"
@@ -271,9 +291,7 @@ func _limb(parent: Node3D, pos: Vector3, upper_mesh: Mesh, lower_mesh: Mesh, upp
 
 
 func _hat_mesh() -> Mesh:
-	var hat := "baker" if look == "player" else "none"
-	if Defs.ROLES.has(look):
-		hat = Defs.ROLES[look]["hat"]
+	var hat: String = LOOKS[look][0] if LOOKS.has(look) else "none"
 	return MeshKit.cached("dg_hat_" + hat, func(): return Character.build_hat(hat))
 
 
@@ -305,6 +323,10 @@ static func build_hat(hat: String) -> Mesh:
 			var w := Color(0.98, 0.98, 0.97)
 			k.cyl(0.25, 0.2, w, MeshKit.at(0, 0.22, 0), 16, 0.03, 0.27)
 			k.ellipsoid(Vector3(0.31, 0.13, 0.31), w, MeshKit.at(0, 0.48, 0), 16, 7)
+		"bandana":
+			var m := Color(0.62, 0.44, 0.58)
+			k.ellipsoid(Vector3(0.29, 0.12, 0.28), m, MeshKit.at(0, 0.2, -0.02), 14, 6)
+			k.ellipsoid(Vector3(0.08, 0.05, 0.12), m.darkened(0.12), MeshKit.xf(Vector3(0, 0.1, -0.29), Vector3(30, 0, 0)), 8, 4)
 		"baker":
 			# the founder's soft baker's beret
 			var b := Color(0.45, 0.28, 0.19)
@@ -316,9 +338,9 @@ static func build_hat(hat: String) -> Mesh:
 
 
 func _build_tool() -> void:
-	if not Defs.ROLES.has(look):
+	if not LOOKS.has(look) or LOOKS[look][1] == "":
 		return
-	var tool: String = Defs.ROLES[look]["tool"]
+	var tool: String = LOOKS[look][1]
 	var mesh := MeshKit.cached("dg_tool_" + tool, func(): return Character.build_tool(tool))
 	match tool:
 		"basket":
@@ -345,7 +367,11 @@ static func build_tool(tool: String) -> Mesh:
 		"tray":
 			k.rbox(Vector3(0.46, 0.025, 0.32), 0.01, Pal.STEEL_DARK, MeshKit.at(0, -0.01, 0.16))
 			for x in [-0.13, 0.0, 0.13]:
-				Items.cookie_into(k, 0.055, 0.03, MeshKit.at(x, 0.005, 0.16))
+				Items.cookie_into(k, "choc", 0.055, 0.03, MeshKit.at(x, 0.005, 0.16))
+		"whisk":
+			k.cyl(0.022, 0.2, Pal.WOOD, MeshKit.at(0, -0.05, 0.02), 6)
+			for i in 4:
+				k.torus(0.05, 0.008, Pal.STEEL, MeshKit.xf(Vector3(0, 0.2, 0.02), Vector3(0, i * 45, 0), Vector3(1, 1.8, 1)), 10, 3)
 		"dolly":
 			var r := Pal.STEEL_DARK
 			for sx in [-0.2, 0.2]:
@@ -457,7 +483,7 @@ func _process(dt: float) -> void:
 	arm_r.rotation = Vector3(ar, 0, arz)
 	elbow_l.rotation.x = el
 	elbow_r.rotation.x = er
-	if tool_node and Defs.ROLES.has(look) and Defs.ROLES[look]["tool"] == "dolly":
+	if tool_node and LOOKS.has(look) and LOOKS[look][1] == "dolly":
 		tool_node.rotation.x = -0.3 if (moving or carrying) else 0.0
 	# blink
 	_blink -= dt

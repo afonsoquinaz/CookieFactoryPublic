@@ -41,11 +41,7 @@ func snap() -> void:
 
 
 func _focus() -> Vector3:
-	var p := target.global_position
-	# keep the view on the island: clamp the focus a little inside its edges
-	p.x = clampf(p.x, Lay.ISLAND_MIN.x + 4.0, Lay.ISLAND_MAX.x + 1.0)
-	p.z = clampf(p.z + 1.0, Lay.FARM_Z + 3.5, Lay.ISLAND_MAX.y - 5.0)
-	return p
+	return target.global_position + Vector3(0, 0, 1.0)
 
 
 func _process(dt: float) -> void:
