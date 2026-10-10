@@ -80,6 +80,12 @@ func _ready() -> void:
 		add_child(load("res://dev/dbg.gd").new())
 	if a.has("tour"):
 		add_child(load("res://dev/tour.gd").new())
+	if a.has("roadbench"):
+		add_child(load("res://dev/roadbench.gd").new())
+	if a.has("panelbench"):
+		add_child(load("res://dev/panelbench.gd").new())
+	if a.has("hitch"):
+		add_child(load("res://dev/hitch.gd").new())
 	if a.has("film"):
 		add_child(load("res://dev/film.gd").new())
 	if a.has("wdbg"):

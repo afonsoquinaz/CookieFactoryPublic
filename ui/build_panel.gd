@@ -62,9 +62,11 @@ func _select(tab: String) -> void:
 		_tabs[k].set_colors(Kit.BRASS if k == tab else Kit.PAPER_DARK, Kit.BRASS_EDGE if k == tab else Kit.LINE)
 	for c in _grid.get_children():
 		c.queue_free()
+	_queue.clear()
 	for kind in Defs.BUILD_ORDER:
 		if Defs.BUILDINGS[kind]["tab"] == tab:
-			_grid.add_child(_card(kind))
+			later(_grid, _card.bind(kind))
+	flush(4.0)
 	scroll.scroll_vertical = 0
 
 

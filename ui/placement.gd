@@ -83,13 +83,7 @@ func _ready() -> void:
 	add_child(_ok)
 	_ghost = Node3D.new()
 	world.add_child(_ghost)
-	_gmat = StandardMaterial3D.new()
-	_gmat.vertex_color_use_as_albedo = true
-	_gmat.vertex_color_is_srgb = true
-	_gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_gmat.albedo_color = Color(1, 1, 1, 0.85)
-	_gmat.emission_enabled = true
-	_gmat.emission = Color(0.25, 0.22, 0.15)
+	_gmat = Mats.ghost()
 	_ghost_mi = MeshInstance3D.new()
 	_ghost_mi.mesh = Previews.mesh(kind, "", 0)
 	_ghost_mi.material_override = _gmat
@@ -97,12 +91,7 @@ func _ready() -> void:
 	_ghost.add_child(_ghost_mi)
 	_tiles = MeshInstance3D.new()
 	_tiles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.render_priority = 1
-	_tiles.material_override = m
+	_tiles.material_override = Mats.tiles()
 	world.add_child(_tiles)
 	if move_uid and world.building(move_uid):
 		world.cam.fly_to(world.building(move_uid).global_position, -1.0, 0.3)

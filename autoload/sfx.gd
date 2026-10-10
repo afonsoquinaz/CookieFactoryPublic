@@ -20,6 +20,8 @@ var _last := {}
 var _music: AudioStreamPlayer
 var _amb: AudioStreamPlayer
 var _t := 0.0
+## Silences effects (while the loading screen warms everything up).
+var hush := false
 
 
 func _ready() -> void:
@@ -100,7 +102,7 @@ func _pick(name: String) -> AudioStream:
 
 
 func play(name: String, vol := 0.0, pitch := 1.0, jitter := 0.06) -> void:
-	if not Game.settings.get("sfx", true):
+	if hush or not Game.settings.get("sfx", true):
 		return
 	if _t - float(_last.get(name, -1.0)) < MIN_GAP:
 		return

@@ -15,6 +15,7 @@ var _dim: ColorRect
 var _closing := false
 var _ribbon: Control
 var _close: Control
+var _queue: Array = []          # [parent, make: Callable] rows still to build
 
 
 func _ready() -> void:
@@ -80,7 +81,26 @@ func _ready() -> void:
 	Sfx.play("open")
 
 
+## Builds a row a little later (a few per frame while the sheet slides up),
+## so opening a long panel never stalls a frame.
+func later(parent: Control, make: Callable) -> void:
+	_queue.append([parent, make])
+
+
+## Builds every queued row now.
+func flush(budget_ms := INF) -> void:
+	var t0 := Time.get_ticks_usec()
+	while not _queue.is_empty():
+		var e: Array = _queue.pop_front()
+		if is_instance_valid(e[0]):
+			(e[0] as Control).add_child((e[1] as Callable).call())
+		if (Time.get_ticks_usec() - t0) / 1000.0 >= budget_ms:
+			break
+
+
 func _process(_dt: float) -> void:
+	if not _queue.is_empty():
+		flush(3.0)
 	# ribbon and close button float over the frame's top edge
 	if _ribbon:
 		var rs := _ribbon.get_combined_minimum_size()
