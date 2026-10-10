@@ -42,6 +42,7 @@ var _bar: HBoxContainer
 var _vignette: ColorRect
 var _rush_glow := 0.0
 var _sel_mark: MeshInstance3D
+var _route_mark: MeshInstance3D
 var _sel_t := 0.0
 var playing := false
 
@@ -82,6 +83,11 @@ func _ready() -> void:
 	_sel_mark.material_override = Mats.flat(Color(1.0, 0.86, 0.42, 0.95))
 	_sel_mark.visible = false
 	world.add_child(_sel_mark)
+	_route_mark = MeshInstance3D.new()
+	_route_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_route_mark.material_override = Mats.flat(Color(1.0, 0.92, 0.6, 0.85))
+	_route_mark.visible = false
+	world.add_child(_route_mark)
 	_shown_money = Game.money
 	Game.money_changed.connect(_on_money)
 	Game.gems_changed.connect(func(g):
@@ -446,6 +452,7 @@ func deselect() -> void:
 	selected = null
 	selected_ob = ""
 	_sel_mark.visible = false
+	_route_mark.visible = false
 
 
 func _refresh_actions() -> void:
@@ -501,11 +508,35 @@ func _refresh_actions() -> void:
 		b.append(["move", "move", "Move", Kit.CHARCOAL])
 	actions.set_buttons(b, "b%d" % n.uid)
 	_mark_cells(Grid.cells(n.cell(), n.size(), n.rot()))
+	_mark_route(n)
 
 
 func _finish_label(j: Dictionary) -> String:
 	var g := Bal.finish_gems(Game.job_left(j))
 	return "Free!" if g == 0 else "%d gems" % g
+
+
+## Little glowing stones along the selected building's road to the Hall.
+func _mark_route(n: Building) -> void:
+	var h := world.hall()
+	if h == null or n == h or not n.has_entrance() or not n.on_road():
+		_route_mark.visible = false
+		return
+	var key := "%d_%d" % [n.uid, world.roads.cells.size()]
+	if _route_mark.get_meta("key", "") == key:
+		_route_mark.visible = true
+		return
+	_route_mark.set_meta("key", key)
+	var r := world.roads.route(n.entrance_cells()[0], h.entrance_cells()[0])
+	var k := MeshKit.new()
+	for i in r.size():
+		var p := Grid.cell_center(r[i])
+		k.cyl(0.16, 0.04, Color.WHITE, MeshKit.at(p.x, 0.07, p.z), 10)
+		if i + 1 < r.size():
+			var q := (p + Grid.cell_center(r[i + 1])) * 0.5
+			k.cyl(0.11, 0.04, Color.WHITE, MeshKit.at(q.x, 0.07, q.z), 8)
+	_route_mark.mesh = k.commit()
+	_route_mark.visible = true
 
 
 ## A glowing outline around the selected footprint.
@@ -698,6 +729,8 @@ func _process(dt: float) -> void:
 		_sel_t += dt
 		var m := _sel_mark.material_override as StandardMaterial3D
 		m.albedo_color.a = 0.6 + sin(_sel_t * 5.0) * 0.3
+		var m2 := _route_mark.material_override as StandardMaterial3D
+		m2.albedo_color.a = 0.45 + sin(_sel_t * 4.0 - 1.0) * 0.3
 		if int(_sel_t * 2.0) != int((_sel_t - dt) * 2.0):
 			_refresh_actions()
 	_rush_glow = move_toward(_rush_glow, 1.0 if Game.rush_active() else 0.0, dt * 2.0)

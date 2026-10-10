@@ -42,6 +42,7 @@ var _silo_x := {}              # ingredient -> local x
 var _inited := false
 var _recheck := 0.0
 var _starve := 0.0
+var _blocked := {}             # recipe -> game time until Auto won't pick it
 var _want: Node3D
 var _want_icon := ""
 var _built_slots := 0
@@ -153,21 +154,33 @@ func choices() -> Array[String]:
 	return out
 
 
-## The best recipe whose ingredients the empire makes right now.
+## The best recipe whose ingredients the empire makes right now and has
+## in stock (Auto steps back down for a while if a recipe starves it).
 func auto_recipe() -> String:
 	var best := "shortbread"
 	var best_p := 0.0
+	var now := Game.clock
 	for id in choices():
 		var r := Defs.recipe(id)
+		if float(_blocked.get(id, 0.0)) > now:
+			continue
 		var ok := true
 		for i in r["ings"]:
-			if not Game.can_make(i):
+			# stick with the current recipe; only move up when the stock is there
+			if not Game.can_make(i) or (id != recipe and not _in_stock(i)):
 				ok = false
 				break
 		if ok and float(r["price"]) > best_p:
 			best_p = float(r["price"])
 			best = id
 	return best
+
+
+## Some of this ingredient is around (in our silo, or anywhere in the empire).
+func _in_stock(i: String) -> bool:
+	if silos.has(i) and (silos[i] as Holder).count() > 0:
+		return true
+	return world != null and world.stock(i) >= 2
 
 
 func chosen() -> String:
@@ -291,6 +304,11 @@ func _process(dt: float) -> void:
 		_consume()
 		_spawn_dough()
 	_starve = 0.0 if has else _starve + dt
+	if _starve > 90.0 and chosen() == "" and recipe != "shortbread":
+		# Auto: this recipe's supply can't keep up; bake something else for a while
+		_blocked[recipe] = Game.clock + 300.0
+		_starve = 0.0
+		_pick_recipe()
 	_show_want(_missing_input() if _starve > 3.0 and doughs.is_empty() else "")
 	for i in doughs.size():
 		var d: Dictionary = doughs[i]

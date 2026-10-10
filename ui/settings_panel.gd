@@ -15,13 +15,34 @@ func _build() -> void:
 	body.add_child(_toggle("Music", "music", func(on): Sfx.set_music(on)))
 	body.add_child(_toggle("Sound effects", "sfx", func(on): Sfx.set_sfx(on)))
 	body.add_child(_toggle("Vibration", "haptics", func(_on): pass))
+	var hp := Sheet.row_box()
+	var hv := Kit.vbox(6)
+	hp.add_child(hv)
+	hv.add_child(Kit.game("How to play", 30, Kit.INK, 0))
+	for line in [
+		["hall", "Upgrade the Cookie Hall to unlock new buildings, more of each, and higher levels."],
+		["builder", "Builders build and upgrade over time, even while you're away. Under 30 s left? Tap the timer: it's free."],
+		["porter", "Porters carry everything along the roads. Every building's road builds itself to its entrance."],
+		["bakery", "A Bakery bakes the recipe you choose (Bake). Upgrades add silos for richer recipes."],
+		["gem", "Gems come from orders, obstacles and Hall upgrades. Spend them on builders or to finish jobs."],
+	]:
+		var row := Kit.hbox(10)
+		row.add_child(Kit.icon(line[0], 44))
+		var t := Kit.label(line[1], 16, Kit.MUTED, 0, false)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		t.custom_minimum_size.x = 300
+		row.add_child(t)
+		hv.add_child(row)
+	body.add_child(hp)
 	var st := Sheet.row_box()
 	var v := Kit.vbox(4)
 	st.add_child(v)
 	v.add_child(Kit.game("Your empire", 30, Kit.INK, 0))
 	var s: Dictionary = Game.stats
 	for line in ["Cookies sold: %s" % Fmt.num(int(s["cookies"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
-			"Dough balls baked: %s" % Fmt.num(int(s["batches"])), "Workers: %d" % Game.workers.size(),
+			"Batches baked: %s" % Fmt.num(int(s["batches"])), "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
+			"Cookie Hall: level %d" % Game.level,
 			"Time played: %s" % Fmt.time(float(s["play_time"]))]:
 		v.add_child(Kit.label(line, 18, Kit.MUTED, 0, false))
 	body.add_child(st)

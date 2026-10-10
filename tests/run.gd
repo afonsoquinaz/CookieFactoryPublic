@@ -346,8 +346,8 @@ func _test_world() -> void:
 	await get_tree().process_frame
 	var built := w.building(int(sb["uid"]))
 	ok(built is FarmB, "the site turned into the farm")
-	t = await _wait_until(func(): return bakery.recipe == "sugar", 5.0, 1.0)
-	ok(bakery.recipe == "sugar", "Auto switched the bakery to sugar cookies")
+	t = await _wait_until(func(): return bakery.recipe == "sugar", 40.0, 4.0)
+	ok(bakery.recipe == "sugar", "Auto switched the bakery to sugar cookies once sugar was harvested (%.1fs)" % t)
 	ok(bakery.silos.has("sugar"), "a sugar silo")
 	bakery.choose("shortbread")
 	ok(bakery.recipe == "shortbread" and not bakery.silos.has("sugar"), "choosing a recipe changes the silos")

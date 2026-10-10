@@ -19,6 +19,11 @@ uniform vec2 road_origin = vec2(-128.0, -128.0);
 uniform float road_n = 256.0;
 uniform float cell_m = 2.0;
 uniform float road_w = 0.37;   // half width, in cells
+uniform vec4 stone_a : source_color = vec4(0.79, 0.74, 0.65, 1.0);
+uniform vec4 stone_b : source_color = vec4(0.86, 0.82, 0.74, 1.0);
+uniform vec4 stone_c : source_color = vec4(0.72, 0.68, 0.6, 1.0);
+uniform vec4 grout_col : source_color = vec4(0.55, 0.51, 0.45, 1.0);
+uniform vec4 kerb_col : source_color = vec4(0.6, 0.57, 0.52, 1.0);
 
 varying vec3 v_wpos;
 
@@ -115,15 +120,15 @@ void fragment() {
 		// worn grass right beside the path
 		c *= 1.0 - (1.0 - smoothstep(road_w, road_w + 0.12, d)) * (1.0 - edge) * 0.18;
 		vec2 cb = cobble(p * 2.3);
-		vec3 stone = mix(vec3(0.79, 0.74, 0.65), vec3(0.86, 0.82, 0.74), cb.y);
-		stone = mix(stone, vec3(0.72, 0.68, 0.6), step(0.82, cb.y) * 0.6);
+		vec3 stone = mix(stone_a.rgb, stone_b.rgb, cb.y);
+		stone = mix(stone, stone_c.rgb, step(0.82, cb.y) * 0.6);
 		stone *= mix(0.9, 1.03, vnoise(p * 1.7));
 		float grout = 1.0 - smoothstep(0.03, 0.09, cb.x);
-		stone = mix(stone, vec3(0.55, 0.51, 0.45), grout * 0.75);
+		stone = mix(stone, grout_col.rgb, grout * 0.75);
 		// a darker kerb along the edge
 		float kerb = smoothstep(road_w - 0.075, road_w - 0.045, d);
-		stone = mix(stone, vec3(0.6, 0.57, 0.52), kerb * 0.8);
-		c = mix(c, toon_to_linear(stone), edge);
+		stone = mix(stone, kerb_col.rgb, kerb * 0.8);
+		c = mix(c, stone, edge);
 	}
 	// slow drifting cloud shadows
 	float cl = vnoise(p * 0.045 + vec2(TIME * 0.035, TIME * 0.012)) * 0.65 + vnoise(p * 0.11 - vec2(TIME * 0.05, 0.0)) * 0.35;

@@ -589,6 +589,16 @@ func unreserve(h: Holder, t: String, n: int) -> void:
 		reserved[id][t] = maxi(0, int(reserved[id].get(t, 0)) - n)
 
 
+## How many of an item sit in crates, benches and storage across the empire.
+func stock(t: String) -> int:
+	var n := 0
+	for b in bnodes.values():
+		for p in b.ports:
+			if p["dir"] == "out":
+				n += (p["holder"] as Holder).count_of(t)
+	return n
+
+
 static func is_store(n: Building) -> bool:
 	return n is StorageB
 

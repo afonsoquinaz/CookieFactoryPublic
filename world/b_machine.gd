@@ -17,6 +17,9 @@ var _anim: Node3D
 var _labels := {}
 var _out_label: Label3D
 var _steam_t := 0.0
+var _starve := 0.0
+var _want: Node3D
+var _want_icon := ""
 
 
 func _build() -> void:
@@ -170,6 +173,8 @@ func _process(dt: float) -> void:
 			_pending.clear()
 			bump(0.04)
 			Sfx.play("pop", -10.0, 1.2)
+	_starve = 0.0 if crafting else _starve + dt
+	_show_want(_missing() if _starve > 4.0 else "")
 	if _anim:
 		KitchenArt.animate(kind, _anim, _t, crafting)
 	if crafting and kind in ["kettle", "caramel_pot", "chocolatier", "candy"]:
@@ -177,6 +182,34 @@ func _process(dt: float) -> void:
 		if _steam_t <= 0.0:
 			_steam_t = 0.5
 			Fx.puff(get_tree().current_scene, _anim.global_position + Vector3(0, 0.5, 0), Color(0.95, 0.95, 0.95), 1)
+
+
+## The input it's short of ("" if none or it's just full).
+func _missing() -> String:
+	if output.space() <= 0:
+		return ""
+	if kind == "packer" or kind == "wrapper":
+		return ""
+	for t in def["in"]:
+		if inputs[t].count() < int(def["in"][t]):
+			return t
+	return ""
+
+
+func _show_want(icon: String) -> void:
+	if icon == _want_icon:
+		if _want:
+			_want.position.y = 4.4 + sin(_t * 3.0) * 0.12
+		return
+	_want_icon = icon
+	if _want:
+		_want.queue_free()
+		_want = null
+	if icon == "":
+		return
+	_want = UI3D.badge(icon, Pal.TERRACOTTA, 0.8)
+	_want.position = Vector3(0, 4.4, -0.9)
+	add_child(_want)
 
 
 ## Needs whatever its recipe takes, more when nearly out.
