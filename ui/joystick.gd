@@ -1,15 +1,22 @@
 class_name Joystick
 extends Control
 ## Floating joystick: touch anywhere (that isn't a button) and drag. The base
-## appears under your thumb; the knob follows within its radius.
+## appears under your thumb; the knob follows within its radius. A quick
+## touch without dragging is a tap (select a building, a land sign...).
+
+signal tapped(pos: Vector2)
 
 const RADIUS := 110.0
+const TAP_MOVE := 18.0
+const TAP_TIME := 0.35
 
 var _active := false
 var _index := -1
 var _origin := Vector2.ZERO
 var _knob := Vector2.ZERO
 var _fade := 0.0
+var _down_t := 0.0
+var _moved := 0.0
 
 
 func _ready() -> void:
@@ -24,11 +31,20 @@ func _gui_input(e: InputEvent) -> void:
 			_index = e.index
 			_origin = e.position
 			_knob = e.position
+			_down_t = Time.get_ticks_msec() / 1000.0
+			_moved = 0.0
 			accept_event()
 		elif not e.pressed and e.index == _index:
+			var quick := Time.get_ticks_msec() / 1000.0 - _down_t < TAP_TIME
+			var still := _moved < TAP_MOVE
 			_release()
+			if quick and still:
+				tapped.emit(e.position)
 	elif e is InputEventScreenDrag and _active and e.index == _index:
 		var d: Vector2 = e.position - _origin
+		_moved = maxf(_moved, d.length())
+		if _moved < TAP_MOVE:
+			return
 		if d.length() > RADIUS:
 			# drag the base along so direction changes stay responsive
 			_origin += d.normalized() * (d.length() - RADIUS)

@@ -1,92 +1,72 @@
 class_name World
 extends Node3D
-## Builds the island and everything on it, keeps it in sync with Game state
-## (buildings, upgrades, workers), and answers the questions workers ask
-## ("which farm crate is fullest?", "which hopper needs wheat most?").
+## The world: endless land, every building the player placed, the
+## production lines that connect them, the player, workers and the camera.
+## Keeps the scene in sync with Game state (placed / moved / sold / upgraded
+## buildings, land, workers) and runs the logistics broker workers ask for
+## jobs ("which crate has wheat, and who needs it most?").
 
-signal sold(amount: int, count: int, where: Vector3)
+signal sold(amount: float, count: int, where: Vector3)
+signal lines_changed
 
-var region: NavigationRegion3D
+var grid := Grid.new()
+var terrain: Terrain
 var actors: Node3D
-var farms := {}                 # ing -> Farm
+var bnodes := {}                  # uid -> Building
 var lines: Array[Line] = []
-var docks: Array[Dock] = []
-var pantry: Storage
-var shelf: Storage
-var cabin: Cabin
-var pads := {}                  # id -> BuildPad
 var player: Player
-var workers := {}               # id -> Worker
+var workers := {}                 # id -> Worker
 var cam: CameraRig
-var nav_ready := false
-var _bake_pending := false
-var _bake_cd := 0.0
-var _floors := {}
-var _synced_once := false
-
-
 var sun: DirectionalLight3D
+var _decor: Array[Building] = []
+var _synced_once := false
+var _store_cd := 0.0
+var reserved := {}                # holder instance id -> items reserved by workers
+var links: Array[Dictionary] = [] # touching buildings: {a, b, cd, node}
+var _links_dirty := true
 
 
 func _ready() -> void:
 	sun = Env.build(self)
 	Quality.changed.connect(_on_quality)
 	_on_quality.call_deferred(Quality.level)
-	region = NavigationRegion3D.new()
-	var nm := NavigationMesh.new()
-	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	nm.geometry_collision_mask = 1
-	nm.cell_size = 0.25
-	nm.cell_height = 0.25
-	nm.agent_radius = 0.25
-	nm.agent_height = 1.25
-	nm.agent_max_climb = 0.25
-	nm.region_min_size = 4.0
-	region.navigation_mesh = nm
-	region.bake_finished.connect(func(): nav_ready = true)
-	add_child(region)
+	terrain = Terrain.new()
+	terrain.world = self
+	add_child(terrain)
 	actors = Node3D.new()
 	actors.name = "Actors"
 	add_child(actors)
-	Island.build(self, region)
-	for ing in Defs.INGREDIENTS:
-		if Game.ingredient_unlocked(ing):
-			_spawn_farm(ing)
-	_spawn_line(0)
-	_spawn_dock(0)
-	for id in Defs.BUILD_ORDER:
-		if Game.has_building(id):
-			if not id.begins_with("plot_"):
-				_spawn_building(id, false)
-		elif Game.level >= int(Defs.BUILDINGS[id]["lvl"]):
-			_spawn_pad(id)
+	for b in Game.buildings:
+		_spawn(b)
+	grid.rebuild(Game.owned_chunks())
+	rebuild_lines()
 	player = Player.new()
 	actors.add_child(player)
-	player.global_position = Lay.PLAYER_START
+	var ps: Dictionary = Game.player_state
+	player.global_position = Vector3(float(ps.get("x", -1.0)), 0, float(ps.get("z", -6.5)))
 	cam = CameraRig.new()
 	add_child(cam)
 	cam.target = player
 	cam.snap()
-	_restore_state()
+	for t in ps.get("carry", []):
+		if player.carry.space() > 0:
+			player.carry.add(str(t), false)
 	_sync_workers()
-	Game.built.connect(_on_built)
-	Game.upgraded.connect(_on_upgraded)
+	Game.building_added.connect(_on_added)
+	Game.building_removed.connect(_on_removed)
+	Game.building_moved.connect(_on_moved)
+	Game.building_upgraded.connect(_on_upgraded)
+	Game.land_bought.connect(_on_land)
 	Game.workers_changed.connect(_sync_workers)
-	Game.level_up.connect(func(_l, _r): _refresh_pads())
-	# a brand-new game: a few sheaves are already waiting in the wheat crate
-	if Game.world_state.is_empty() and int(Game.stats["cookies"]) == 0:
-		for i in 4:
-			farms["wheat"].crate.add("wheat", false)
-	_request_bake()
-
-
-func _process(dt: float) -> void:
-	if _bake_pending:
-		_bake_cd -= dt
-		if _bake_cd <= 0.0 and not region.is_baking():
-			_bake_pending = false
-			region.bake_navigation_mesh(true)
-	_store_state()
+	Game.researched.connect(func(_id, _l): _on_research())
+	Game.money_changed.connect(func(_v, _d): terrain.refresh_prices())
+	# a brand-new empire: a few sheaves are already waiting in the wheat crate
+	if int(Game.stats["cookies"]) == 0 and float(Game.stats["earned"]) == 0.0:
+		for n in bnodes.values():
+			if n is FarmB and (n as FarmB).crate.count() == 0:
+				for i in 4:
+					(n as FarmB).crate.add("wheat", false)
+				break
 
 
 func _on_quality(lv: int) -> void:
@@ -95,131 +75,418 @@ func _on_quality(lv: int) -> void:
 		MeshKit.detail = 0.55
 
 
-func _request_bake() -> void:
-	_bake_pending = true
-	_bake_cd = 0.2
+func _process(dt: float) -> void:
+	if _links_dirty:
+		_links_dirty = false
+		rebuild_links()
+	_run_links(dt)
+	_store_cd -= dt
+	if _store_cd <= 0.0:
+		_store_cd = 2.0
+		store_state()
 
 
-# ---------------------------------------------------------------- spawning
+# ---------------------------------------------------------------- buildings
 
-func _spawn_line(i: int) -> void:
-	var l := Line.new()
-	region.add_child(l)
-	l.setup(i)
-	lines.append(l)
-	Island.factory_floor(region, i)
-
-
-func _spawn_dock(i: int) -> void:
-	var d := Dock.new()
-	region.add_child(d)
-	d.setup(i)
-	d.sold.connect(func(a, c, w): sold.emit(a, c, w))
-	docks.append(d)
-	Island.pier(region, i)
+func _spawn(b: Dictionary) -> Building:
+	var n := Building.create(self, b)
+	add_child(n)
+	bnodes[n.uid] = n
+	grid.fill(n.uid, n.cell(), n.size(), n.rot())
+	grid._solids[n.uid] = n.world_solids()
+	if n.def["cat"] == "decor":
+		_decor.append(n)
+	return n
 
 
-func _spawn_pad(id: String) -> void:
-	var p := BuildPad.new()
-	region.add_child(p)
-	p.setup(id)
-	pads[id] = p
+func building(uid: int) -> Building:
+	return bnodes.get(uid)
 
 
-## New level: pads that just became available rise out of the ground.
-func _refresh_pads() -> void:
-	for id in Defs.BUILD_ORDER:
-		if Game.has_building(id) or pads.has(id) or Game.level < int(Defs.BUILDINGS[id]["lvl"]):
-			continue
-		_spawn_pad(id)
-		var p: BuildPad = pads[id]
-		p.scale = Vector3(0.1, 0.1, 0.1)
-		var tw := p.create_tween()
-		tw.tween_property(p, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		Fx.ring(self, p.global_position, Pal.BRASS, 2.0)
+func buildings_of(kind: String) -> Array[Building]:
+	var out: Array[Building] = []
+	for n in bnodes.values():
+		if n.kind == kind:
+			out.append(n)
+	return out
 
 
-func _spawn_farm(ing: String) -> Farm:
-	var f := Farm.new()
-	region.add_child(f)
-	f.setup(ing)
-	farms[ing] = f
-	_farm_colliders(f)
-	return f
-
-
-func _spawn_building(id: String, animate: bool) -> void:
-	var node: Node3D = null
-	if id.begins_with("plot_"):
-		var ing := id.substr(5)
-		node = _spawn_farm(ing)
-		for l in lines:
-			l.unlock(ing)
-		_refresh_cookie_visuals()
-	match id:
-		"cabin":
-			cabin = Cabin.new()
-			region.add_child(cabin)
-			node = cabin
-		"pantry":
-			pantry = Storage.new()
-			region.add_child(pantry)
-			pantry.setup("pantry")
-			node = pantry
-		"shelf":
-			shelf = Storage.new()
-			region.add_child(shelf)
-			shelf.setup("shelf")
-			node = shelf
-		"line2":
-			_spawn_line(1)
-			node = lines[1]
-		"line3":
-			_spawn_line(2)
-			node = lines[2]
-		"dock2":
-			_spawn_dock(1)
-			node = docks[1]
-		"dock3":
-			_spawn_dock(2)
-			node = docks[2]
-	if animate and node:
-		node.scale = Vector3(0.6, 0.05, 0.6)
-		var tw := node.create_tween()
-		tw.tween_property(node, "scale", Vector3.ONE, 0.7).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-
-
-func _on_built(id: String) -> void:
-	pads.erase(id)
-	_spawn_building(id, true)
+func _on_added(b: Dictionary) -> void:
+	_links_dirty = true
+	var n := _spawn(b)
+	grid.set_solids(n.uid, n.world_solids())
+	n.appear()
+	Sfx.play("upgrade", -4.0)
+	if n is LineModule:
+		rebuild_lines()
+	terrain.mark_dirty()
 	_unstick_player.call_deferred()
-	_request_bake()
+	_poke_workers()
+
+
+func _on_removed(uid: int) -> void:
+	_links_dirty = true
+	var n: Building = bnodes.get(uid)
+	if n == null:
+		return
+	bnodes.erase(uid)
+	_decor.erase(n)
+	grid.clear(uid)
+	grid.remove_solids(uid)
+	Fx.puff(get_tree().current_scene, n.global_position + Vector3(0, 0.5, 0), Pal.CREAM, 14)
+	var was_line := n is LineModule
+	n.queue_free()
+	if was_line:
+		rebuild_lines.call_deferred()
+	terrain.mark_dirty()
+	_poke_workers()
+
+
+func _on_moved(uid: int) -> void:
+	_links_dirty = true
+	var n: Building = bnodes.get(uid)
+	if n == null:
+		return
+	n.place_from_data()
+	grid.fill(uid, n.cell(), n.size(), n.rot())
+	grid.set_solids(uid, n.world_solids())
+	n.appear()
+	if n is LineModule:
+		rebuild_lines()
+	terrain.mark_dirty()
+	_unstick_player.call_deferred()
+	_poke_workers()
+
+
+func _on_upgraded(uid: int, _lvl: int) -> void:
+	var n: Building = bnodes.get(uid)
+	if n:
+		n.refresh()
+		n.bump(0.08)
+		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.6, 0), Pal.GOLD, 10, false)
+
+
+func _on_land(_c: Vector2i) -> void:
+	grid.rebuild(Game.owned_chunks())
+	terrain.refresh_land()
+	Sfx.play("levelup", -6.0)
+
+
+func _on_research() -> void:
+	player.refresh()
 	for w in workers.values():
-		w.state = Worker.S.DECIDE
+		w.refresh()
 
 
-func _on_upgraded(id: String, _lvl: int) -> void:
-	if id.begins_with("farm_"):
-		farms[id.substr(5)].refresh()
-	match id:
-		"hopper", "batch":
-			for l in lines:
-				l.refresh()
-		"truck":
-			for d in docks:
-				d.refresh()
-		"recipe":
-			pass
-		"pantry":
-			if pantry:
-				pantry.refresh()
-		"shelf":
-			if shelf:
-				shelf.refresh()
-		"wcarry":
-			for w in workers.values():
-				w.refresh()
+func _poke_workers() -> void:
+	for w in workers.values():
+		if w.state == Worker.S.WAIT or w.state == Worker.S.REST:
+			w.state = Worker.S.DECIDE
 
+
+## Sum of decor auras of a type around a world point.
+func aura(p: Vector3, what: String) -> float:
+	var s := 0.0
+	for n in _decor:
+		var a: Dictionary = n.def.get("aura", {})
+		if a.get("what", "") != what:
+			continue
+		var d := Vector2(n.global_position.x - p.x, n.global_position.z - p.z)
+		var r := (float(a["r"]) + 1.5) * Grid.CELL
+		if absf(d.x) <= r and absf(d.y) <= r:
+			s += float(a["v"])
+	return s
+
+# ---------------------------------------------------------------- lines
+
+## Line modules that touch end to end with the same rotation.
+func next_module(m: LineModule) -> LineModule:
+	var p := m.tube_end() + m.flow_dir() * 0.5
+	var n: Building = bnodes.get(grid.at(Grid.cell_of(p)))
+	if n is LineModule and n.rot() == m.rot() and n != m:
+		var lm := n as LineModule
+		if lm.tube_start().distance_to(m.tube_end()) < 0.3:
+			return lm
+	return null
+
+
+func prev_module(m: LineModule) -> LineModule:
+	var p := m.tube_start() - m.flow_dir() * 0.5
+	var n: Building = bnodes.get(grid.at(Grid.cell_of(p)))
+	if n is LineModule and n.rot() == m.rot() and n != m:
+		var lm := n as LineModule
+		if lm.tube_end().distance_to(m.tube_start()) < 0.3:
+			return lm
+	return null
+
+
+func rebuild_lines() -> void:
+	for l in lines:
+		l.queue_free()
+	lines.clear()
+	var mods: Array[LineModule] = []
+	for n in bnodes.values():
+		if n is LineModule and not n.is_queued_for_deletion():
+			mods.append(n)
+			(n as LineModule).line = null
+	for m in mods:
+		if not m is MixerB:
+			continue
+		var chain: Array[LineModule] = [m]
+		var cur: LineModule = m
+		while true:
+			var nx := next_module(cur)
+			if nx == null or chain.has(nx) or nx is MixerB:
+				break
+			chain.append(nx)
+			cur = nx
+			if nx is OvenB:
+				break
+		if chain.size() >= 2 and chain[chain.size() - 1] is OvenB:
+			var l := Line.new()
+			l.name = "Line_%d" % m.uid
+			l.setup(self, chain)
+			add_child(l)
+			lines.append(l)
+	for m in mods:
+		m.set_links(prev_module(m) != null and not m is MixerB, next_module(m) != null and not m is OvenB)
+	lines_changed.emit()
+
+
+# ---------------------------------------------------------------- chutes
+
+## Buildings whose footprints touch hand items over directly: a farm next to
+## a mixer feeds it, an oven next to a van loads it.
+static func can_link(a: Building, b: Building) -> bool:
+	if a == b or a.out_ports().is_empty() or b.in_ports().is_empty():
+		return false
+	if a is StorageB and b is StorageB:
+		return false
+	if a is LineModule and not a is OvenB:
+		return false
+	return true
+
+
+static func touching(a_origin: Vector2i, a_size: Vector2i, b_origin: Vector2i, b_size: Vector2i) -> bool:
+	var ra := Rect2i(a_origin - Vector2i.ONE, a_size + Vector2i(2, 2))
+	var rb := Rect2i(b_origin, b_size)
+	return ra.intersects(rb) and not Rect2i(a_origin, a_size).intersects(rb)
+
+
+func rebuild_links() -> void:
+	for l in links:
+		if is_instance_valid(l["node"]):
+			l["node"].queue_free()
+	links.clear()
+	var all := bnodes.values()
+	for a in all:
+		for b in all:
+			if not can_link(a, b):
+				continue
+			if not World.touching(a.cell(), Grid.rotated(a.size(), a.rot()), b.cell(), Grid.rotated(b.size(), b.rot())):
+				continue
+			links.append({"a": a, "b": b, "cd": randf(), "node": _chute(a, b)})
+
+
+## A little roller chute from a's output pad to b's input pad.
+func _chute(a: Building, b: Building) -> Node3D:
+	var p0: Vector3 = (a.out_ports()[0]["zone"] as Zone).global_position
+	var p1: Vector3 = (b.in_ports()[0]["zone"] as Zone).global_position
+	var n := Node3D.new()
+	add_child(n)
+	var d := p1 - p0
+	d.y = 0
+	var len := d.length()
+	if len < 0.1:
+		return n
+	var k := MeshKit.new()
+	var ang := rad_to_deg(atan2(d.x, d.z))
+	var mid := (p0 + p1) * 0.5
+	k.rbox(Vector3(0.5, 0.06, len), 0.03, Pal.STEEL_DARK, MeshKit.xf(Vector3(mid.x, 0.12, mid.z), Vector3(0, ang, 0)))
+	var steps := int(len / 0.35)
+	for i in steps:
+		var q := p0 + d * ((i + 0.5) / steps)
+		k.cyl(0.05, 0.42, Pal.STEEL, MeshKit.xf(Vector3(q.x, 0.18, q.z), Vector3(0, ang, 90)) * MeshKit.at(0, -0.21, 0), 6)
+	k.cone(0.22, 0.3, Pal.BRASS, MeshKit.xf(Vector3(p1.x, 0.2, p1.z) - d.normalized() * 0.5, Vector3(90, ang, 0)), 6)
+	var mi := Mats.inst(k.commit(), n, Transform3D.IDENTITY, false)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return n
+
+
+func link_interval() -> float:
+	return 1.2 / (1.0 + 0.25 * Game.research("chutes"))
+
+
+func _run_links(dt: float) -> void:
+	var iv := link_interval() / Game.speed_mult()
+	for l in links:
+		var a: Building = l["a"]
+		var b: Building = l["b"]
+		if not is_instance_valid(a) or not is_instance_valid(b):
+			continue
+		l["cd"] = float(l["cd"]) - dt
+		if l["cd"] > 0.0:
+			continue
+		l["cd"] = iv
+		for p in a.out_ports():
+			var h: Holder = p["holder"]
+			if h.count() == 0:
+				continue
+			var t := h.items[h.items.size() - 1]
+			if available(h, t) <= 0 or b.need(t) <= 0.0:
+				# try another kind of item in the holder
+				t = ""
+				for it in h.items:
+					if available(h, it) > 0 and b.need(it) > 0.0:
+						t = it
+						break
+				if t == "":
+					continue
+			for q in b.in_ports():
+				var dst: Holder = q["holder"]
+				if dst.can_accept(t) and Holder.fly(h, dst, t, 0.45):
+					break
+			break
+
+
+func links_of(n: Building) -> Array[Building]:
+	var out: Array[Building] = []
+	for l in links:
+		if l["a"] == n:
+			out.append(l["b"])
+	return out
+
+
+# ---------------------------------------------------------------- logistics broker
+
+## Which buildings a role may take from / bring to.
+static func role_sources(role: String, n: Building) -> bool:
+	match role:
+		"gatherer": return n is FarmB
+		"feeder": return (n is StorageB and n.kind == "pantry") or (n is MachineB and n.def["cat"] == "kitchen")
+		"collector": return n is OvenB
+		"loader": return (n is StorageB and n.kind == "rack") or (n is MachineB and n.def["cat"] == "pack")
+	return false
+
+
+func role_dest(role: String, n: Building) -> bool:
+	match role:
+		"gatherer":
+			if n is MachineB and n.def["cat"] == "kitchen":
+				return true
+			if n is StorageB and n.kind == "pantry":
+				return true
+			return n is MixerB or n is HopperB
+		"feeder":
+			return n is MixerB or n is HopperB or (n is MachineB and n.def["cat"] == "kitchen")
+		"collector":
+			if n is MachineB and n.kind == "packer":
+				return true
+			if n is StorageB and n.kind == "rack":
+				return true
+			return n is VehicleB or n is ShopB or n is BoardB or n is PalaceB
+		"loader":
+			return n is VehicleB or n is ShopB or n is BoardB or n is PalaceB or (n is MachineB and n.kind == "wrapper")
+	return false
+
+
+func available(h: Holder, t: String) -> int:
+	return h.count_of(t) - int(reserved.get(h.get_instance_id(), {}).get(t, 0))
+
+
+func reserve(h: Holder, t: String, n: int) -> void:
+	var id := h.get_instance_id()
+	if not reserved.has(id):
+		reserved[id] = {}
+	reserved[id][t] = int(reserved[id].get(t, 0)) + n
+
+
+func unreserve(h: Holder, t: String, n: int) -> void:
+	if h == null or not is_instance_valid(h):
+		return
+	var id := h.get_instance_id()
+	if reserved.has(id):
+		reserved[id][t] = maxi(0, int(reserved[id].get(t, 0)) - n)
+
+
+## How much a role should care about a destination's need: gatherers leave
+## the line to feeders and collectors leave sales to loaders, unless it's
+## starving or nobody does that job.
+func _weigh(role: String, d: Building, nd: float) -> float:
+	if role == "gatherer" and (d is MixerB or d is HopperB) and Game.workers_with("feeder") > 0:
+		return nd if nd > 0.8 else nd * 0.35
+	if role == "collector" and (d is VehicleB or d is ShopB or d is BoardB or d is PalaceB) and Game.workers_with("loader") > 0:
+		return nd * 0.3
+	return nd
+
+
+## Best job for a role: {src: Building, src_holder, src_zone, dst: Building, item, count} or {}.
+func find_job(role: String, from: Vector3, cap: int) -> Dictionary:
+	var best := {}
+	var best_score := -INF
+	var srcs: Array[Building] = []
+	var dsts: Array[Building] = []
+	for n in bnodes.values():
+		if role_sources(role, n):
+			srcs.append(n)
+		if role_dest(role, n):
+			dsts.append(n)
+	if srcs.is_empty() or dsts.is_empty():
+		return {}
+	for s in srcs:
+		for p in s.out_ports():
+			var h: Holder = p["holder"]
+			if h.count() == 0:
+				continue
+			var kinds := {}
+			for t in h.items:
+				kinds[t] = true
+			for t in kinds:
+				var avail := available(h, t)
+				if avail <= 0:
+					continue
+				for d in dsts:
+					if d == s:
+						continue
+					var nd := _weigh(role, d, d.need(t))
+					if nd <= 0.0:
+						continue
+					var dist_sd := s.global_position.distance_to(d.global_position)
+					var dist_w := from.distance_to(s.global_position)
+					var score := nd * 3.0 + float(h.count()) / maxf(1.0, h.capacity) - dist_sd / 30.0 - dist_w / 45.0
+					if score > best_score:
+						best_score = score
+						best = {"src": s, "src_holder": h, "src_zone": p["zone"], "dst": d, "item": t, "count": mini(cap, avail)}
+	return best
+
+
+## Best place to deliver an item a worker is already carrying.
+func find_dest(role: String, t: String, from: Vector3) -> Building:
+	var best: Building = null
+	var best_score := -INF
+	for n in bnodes.values():
+		if not role_dest(role, n):
+			continue
+		var nd: float = _weigh(role, n, n.need(t))
+		if nd <= 0.0:
+			continue
+		var score := nd * 3.0 - from.distance_to(n.global_position) / 30.0
+		if score > best_score:
+			best_score = score
+			best = n
+	if best == null:
+		# nobody wants it right now: park it in the nearest storage
+		var bd := INF
+		for n in bnodes.values():
+			if n is StorageB and (n as StorageB).store.can_accept(t):
+				var dd := from.distance_to(n.global_position)
+				if dd < bd:
+					bd = dd
+					best = n
+	return best
+
+
+# ---------------------------------------------------------------- workers
 
 func _sync_workers() -> void:
 	var seen := {}
@@ -230,7 +497,7 @@ func _sync_workers() -> void:
 		seen[id] = true
 		if workers.has(id):
 			var w: Worker = workers[id]
-			if w.role != d["role"]:
+			if w.role != d["role"] or int(w.data.get("target", 0)) != int(d.get("target", 0)):
 				w.data = d
 				w.apply_role()
 			else:
@@ -239,7 +506,8 @@ func _sync_workers() -> void:
 			var w2 := Worker.new()
 			w2.setup(self, d)
 			actors.add_child(w2)
-			w2.global_position = cabin.global_position + Vector3(randf_range(-1, 1), 0, 2.5) if cabin else Lay.PLAYER_START
+			var cabins := buildings_of("cabin")
+			w2.global_position = cabins[0].to_world(0, 1.2) if not cabins.is_empty() else player.global_position + Vector3(1, 0, 1)
 			workers[id] = w2
 			if _synced_once:
 				w2.greet()
@@ -247,156 +515,35 @@ func _sync_workers() -> void:
 		if not seen.has(id):
 			var w3: Worker = workers[id]
 			Fx.ring(self, w3.global_position, Color(0.42, 0.78, 0.3), 1.5)
+			w3.release()
 			w3.queue_free()
 			workers.erase(id)
-	for f in farms.values():
-		f.refresh()
+	for n in bnodes.values():
+		if n is FarmB:
+			(n as FarmB).sync_farmers()
 	_synced_once = true
 
 
-func idle_seat_index(w: Worker) -> int:
+## Seat for a resting worker at the nearest cabin.
+func rest_seat(w: Worker) -> Vector3:
+	var cabins := buildings_of("cabin")
+	if cabins.is_empty():
+		return player.global_position + Vector3(2, 0, 2)
 	var i := 0
 	for id in workers:
 		if workers[id] == w:
-			return i
+			break
 		if workers[id].role == "":
 			i += 1
-	return i
-
-
-# ---------------------------------------------------------------- queries
-
-func pick_farm_for_gatherer(target: String) -> Farm:
-	if pantry == null:
-		return null
-	if target != "" and farms.has(target):
-		var f: Farm = farms[target]
-		return f if f.crate.count() > 0 and pantry.bins[target].space() > 0 else null
-	var best: Farm = null
-	var best_score := 0.0
-	for ing in farms:
-		var f2: Farm = farms[ing]
-		if f2.crate.count() == 0 or pantry.bins[ing].space() <= 0:
-			continue
-		# fuller crates and emptier pantry bins first
-		var score: float = float(f2.crate.count()) / f2.crate.capacity + (1.0 - float(pantry.bins[ing].count()) / pantry.bins[ing].capacity) + randf() * 0.15
-		if score > best_score:
-			best_score = score
-			best = f2
-	return best
-
-
-## [ingredient, amount] the feeders should bring next, or [].
-func pick_feeder_job() -> Array:
-	if pantry == null:
-		return []
-	var best := []
-	var best_need := 0.0
-	for l in lines:
-		for ing in Defs.INGREDIENTS:
-			var h: Holder = l.hoppers[ing]
-			var need := h.space()
-			var have: int = pantry.bins[ing].count()
-			if need <= 0 or have <= 0:
-				continue
-			var score := float(need) / h.capacity + randf() * 0.1
-			if score > best_need:
-				best_need = score
-				best = [ing, mini(need, have)]
-	return best
-
-
-func neediest_hopper_zone(ing: String) -> Zone:
-	var best: Zone = null
-	var best_space := 0
-	for l in lines:
-		var h: Holder = l.hoppers[ing]
-		if h.space() > best_space:
-			best_space = h.space()
-			best = l.zones[ing]
-	return best
-
-
-func fullest_tray_zone() -> Zone:
-	var best: Zone = null
-	var most := 0
-	for l in lines:
-		if l.tray.count() > most:
-			most = l.tray.count()
-			best = l.tray_zone
-	return best
-
-
-func parked_dock() -> Dock:
-	var best: Dock = null
-	for d in docks:
-		if d.state == Dock.S.PARKED and d.cargo.space() > 0:
-			if best == null or d.cargo.count() > best.cargo.count():
-				best = d
-	return best
-
+	var c: CabinB = cabins[i / 8 % cabins.size()]
+	return c.seat(i % 8)
 
 # ---------------------------------------------------------------- save state
 
-var _store_cd := 0.0
-
-func _store_state() -> void:
-	_store_cd -= get_process_delta_time()
-	if _store_cd > 0.0:
-		return
-	_store_cd = 2.0
-	var s := {}
-	for ing in farms:
-		s["farm_" + ing] = farms[ing].crate.count()
-	for i in lines.size():
-		for ing in Defs.INGREDIENTS:
-			s["hop%d_%s" % [i, ing]] = lines[i].hoppers[ing].count()
-		s["tray%d" % i] = lines[i].tray.count()
-	for i in docks.size():
-		s["dock%d" % i] = docks[i].cargo.count() if docks[i].state == Dock.S.PARKED else 0
-	if pantry:
-		for ing in Defs.INGREDIENTS:
-			s["pantry_" + ing] = pantry.bins[ing].count()
-	if shelf:
-		s["shelf"] = shelf.bins["cookie"].count()
-	s["carry"] = player.carry.items.duplicate()
-	Game.world_state = s
-
-
-func _restore_state() -> void:
-	var s: Dictionary = Game.world_state
-	if s.is_empty():
-		return
-	var fill := func(h: Holder, t: String, n: int) -> void:
-		for k in mini(n, h.capacity):
-			h.add(t, false)
-	for ing in farms:
-		fill.call(farms[ing].crate, ing, int(s.get("farm_" + ing, 0)))
-	for i in lines.size():
-		for ing in Defs.INGREDIENTS:
-			fill.call(lines[i].hoppers[ing], ing, int(s.get("hop%d_%s" % [i, ing], 0)))
-		fill.call(lines[i].tray, "cookie", int(s.get("tray%d" % i, 0)))
-	for i in docks.size():
-		fill.call(docks[i].cargo, "cookie", int(s.get("dock%d" % i, 0)))
-	if pantry:
-		for ing in Defs.INGREDIENTS:
-			fill.call(pantry.bins[ing], ing, int(s.get("pantry_" + ing, 0)))
-	if shelf:
-		fill.call(shelf.bins["cookie"], "cookie", int(s.get("shelf", 0)))
-	for t in s.get("carry", []):
-		if player.carry.space() > 0:
-			player.carry.add(str(t), false)
-
-
-## The recipe changed: every visible cookie takes the new look.
-func _refresh_cookie_visuals() -> void:
-	for l in lines:
-		l.tray.refresh_visuals()
-	for d in docks:
-		d.cargo.refresh_visuals()
-	if shelf:
-		shelf.bins["cookie"].refresh_visuals()
-	player.carry.refresh_visuals()
+func store_state() -> void:
+	for n in bnodes.values():
+		n.persist()
+	Game.player_state = {"x": player.global_position.x, "z": player.global_position.z, "carry": player.carry.items.duplicate()}
 
 
 ## After something is built where you stand, step out of its walls.
@@ -410,7 +557,7 @@ func _unstick_player() -> void:
 	q.shape = cap
 	q.collision_mask = 1
 	var start := player.global_position
-	for r in [0.0, 0.8, 1.4, 2.0, 2.8, 3.6]:
+	for r in [0.0, 0.8, 1.4, 2.0, 2.8, 3.6, 4.6, 6.0]:
 		for a in 12:
 			var p: Vector3 = start + Vector3(sin(a * TAU / 12.0), 0, cos(a * TAU / 12.0)) * r
 			q.transform = Transform3D(Basis.IDENTITY, p + Vector3(0, 0.62, 0))
@@ -423,101 +570,35 @@ func _unstick_player() -> void:
 				break
 
 
-func _farm_colliders(f: Farm) -> void:
-	var body := StaticBody3D.new()
-	f.add_child(body)
-	var w := Lay.FARM_SIZE.x + 0.3
-	var d := Lay.FARM_SIZE.y + 0.3
-	var gate := 1.3
-	var segs := [
-		[Vector3(0, 0.4, -d * 0.5), Vector3(w, 0.8, 0.2)],
-		[Vector3(-w * 0.5, 0.4, 0), Vector3(0.2, 0.8, d)],
-		[Vector3(w * 0.5, 0.4, 0), Vector3(0.2, 0.8, d)],
-		[Vector3(-(w + gate) * 0.25, 0.4, d * 0.5), Vector3((w - gate) * 0.5, 0.8, 0.2)],
-		[Vector3((w + gate) * 0.25, 0.4, d * 0.5), Vector3((w - gate) * 0.5, 0.8, 0.2)],
-		# the crate
-		[Vector3(0, 0.3, Lay.CRATE_Z - Lay.FARM_Z), Vector3(1.5, 0.6, 1.0)],
-	]
-	for sg in segs:
-		var cs := CollisionShape3D.new()
-		var sh := BoxShape3D.new()
-		sh.size = sg[1]
-		cs.shape = sh
-		cs.position = sg[0]
-		body.add_child(cs)
+# ---------------------------------------------------------------- picking
+
+## The building under a world point (on the ground), or null.
+func building_at(p: Vector3) -> Building:
+	return bnodes.get(grid.at(Grid.cell_of(p)))
 
 
 # ---------------------------------------------------------------- route preview
 
 var _route: Node3D
 
-## Shows where a role walks (dashed arrows between its pads), "" hides it.
+## Shows the buildings a role works between, "" hides it.
 func show_route(role: String) -> void:
 	if _route:
 		_route.queue_free()
 		_route = null
-	if role == "":
+	if role == "" or not Defs.ROLES.has(role):
 		return
 	_route = Node3D.new()
 	add_child(_route)
 	var col: Color = Defs.ROLES[role]["color"]
-	if role == "collector":
-		col = Color(1.0, 0.85, 0.55)
-	var pairs := []
-	var rings := []
-	match role:
-		"farmer":
-			for f in farms.values():
-				rings.append(f.global_position)
-		"gatherer":
-			for f in farms.values():
-				pairs.append([f.zone.global_position, pantry.give_zone.global_position if pantry else Lay.pad_pos("pantry")])
-		"feeder":
-			var src: Vector3 = pantry.take_zone.global_position if pantry else Lay.pad_pos("pantry")
-			for l in lines:
-				for ing in Defs.INGREDIENTS:
-					pairs.append([src, l.zones[ing].global_position])
-		"collector":
-			for l in lines:
-				pairs.append([l.tray_zone.global_position, shelf.give_zone.global_position if shelf else Lay.pad_pos("shelf")])
-		"loader":
-			var s2: Vector3 = shelf.take_zone.global_position if shelf else Lay.pad_pos("shelf")
-			for d in docks:
-				pairs.append([s2, d.zone.global_position])
-	var mat := Mats.flat(Color(col.r, col.g, col.b, 0.95))
-	for pr in pairs:
-		var a: Vector3 = pr[0]
-		var b: Vector3 = pr[1]
-		var k := MeshKit.new()
-		var len := a.distance_to(b)
-		var dir := (b - a).normalized()
-		var ang := rad_to_deg(atan2(dir.x, dir.z))
-		var n := int(len / 0.6)
-		for i in n:
-			var p := a.lerp(b, (i + 0.5) / n)
-			k.rbox(Vector3(0.14, 0.03, 0.32), 0.05, Color(1, 1, 1), MeshKit.xf(p + Vector3(0, 0.1, 0), Vector3(0, ang, 0)))
-		k.cone(0.32, 0.6, Color(1, 1, 1), MeshKit.xf(b - dir * 0.9 + Vector3(0, 0.12, 0), Vector3(90, ang, 0)), 10)
-		var mi := MeshInstance3D.new()
-		mi.mesh = k.commit()
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_route.add_child(mi)
-		rings.append(a)
-		rings.append(b)
-	var uniq := []
-	for r in rings:
-		var dup := false
-		for u in uniq:
-			if (u as Vector3).distance_to(r) < 0.5:
-				dup = true
-		if not dup:
-			uniq.append(r)
-	rings = uniq
-	for r in rings:
-		Fx.ring(_route, r, col, 1.3)
-	# keep the rings pulsing while the preview is up
+	var pts := []
+	for n in bnodes.values():
+		if role_sources(role, n) or role_dest(role, n):
+			pts.append(n.global_position)
+	for p in pts:
+		Fx.ring(_route, p, col, 2.0)
 	var tw := _route.create_tween().set_loops()
 	tw.tween_interval(0.9)
 	tw.tween_callback(func():
-		for r2 in rings:
-			Fx.ring(_route, r2, col, 1.3))
+		for p2 in pts:
+			Fx.ring(_route, p2, col, 2.0))

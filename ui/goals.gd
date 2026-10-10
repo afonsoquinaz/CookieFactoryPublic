@@ -1,12 +1,12 @@
 class_name Goals
 extends Control
 ## Guides the player: a goal card under the top bar ("Grab wheat from the
-## Wheat Field"), a bouncing arrow in the world over the place to go, an
-## edge pointer when that place is off screen, and a pulsing pointer over a
-## HUD button when the goal is a button. The first steps are a tutorial;
-## afterwards it keeps suggesting the next building / job.
+## Wheat Field"), a bouncing pin in the world over the place to go, an edge
+## pointer when that place is off screen, and a pulsing pointer over a HUD
+## button when the goal is a button. The first steps are a tutorial;
+## afterwards it keeps pointing at the next thing worth doing.
 
-var hud: Control
+var hud
 var world: World
 var _card: PanelContainer
 var _icon: TextureRect
@@ -18,6 +18,7 @@ var _target_ui: Control
 var _t := 0.0
 var _last_text := ""
 var _done_flash := 0.0
+var _tip_t := 0.0
 
 
 func _ready() -> void:
@@ -86,95 +87,147 @@ func _advance() -> void:
 	Game.save_game()
 
 
+func _first(kind: String) -> Building:
+	var l := world.buildings_of(kind)
+	return l[0] if not l.is_empty() else null
+
+
+func _zone_pos(kind: String) -> Variant:
+	var b := _first(kind)
+	if b == null or b.ports.is_empty():
+		return null
+	for p in b.ports:
+		if p["dir"] == "in":
+			return (p["zone"] as Zone).global_position
+	return (b.ports[0]["zone"] as Zone).global_position
+
+
 func _evaluate() -> void:
 	var p := world.player
-	var line := world.lines[0]
+	if hud.placement != null:
+		_goal("", "")
+		return
 	match Game.tutorial_step:
 		0:
-			if p.carry.count_of("wheat") > 0 or line.hoppers["wheat"].count() > 0:
+			var mixer := _first("mixer") as MixerB
+			if p.carry.count_of("wheat") > 0 or (mixer and mixer.wheat.count() > 0):
 				_advance()
 				return
-			_goal("Walk to the wheat field and pick up the wheat", "wheat", world.farms["wheat"].zone.global_position)
+			var farm := _first("farm_wheat") as FarmB
+			_goal("Walk to the Wheat Field and pick up wheat", "wheat", farm.zone.global_position if farm else null)
 		1:
-			if line.hoppers["wheat"].count() > 0 or line.doughs.size() > 0:
+			var m := _first("mixer") as MixerB
+			if m and (m.wheat.count() > 0 or int(Game.stats["batches"]) > 0 or (m.line and not m.line.doughs.is_empty())):
 				_advance()
 				return
-			_goal("Drop the wheat on the pad under the hopper", "hopper", line.zones["wheat"].global_position)
+			_goal("Drop the wheat on the Dough Mixer's pad", "mixer", _zone_pos("mixer"))
 		2:
-			if int(Game.stats["batches"]) > 0 or line.tray.count() > 0:
+			var o := _first("oven") as OvenB
+			if int(Game.stats["batches"]) > 0 or (o and o.tray.count() > 0):
 				_advance()
 				return
-			_goal("The dough is rolling to the oven", "oven", line.tray_zone.global_position)
+			_goal("The dough rolls down the tube into the oven...", "oven", o.tray_zone.global_position if o else null)
 		3:
-			if p.carry.count_of("cookie") > 0 or world.docks[0].cargo.count() > 0 or int(Game.stats["cookies"]) > 0:
+			if p.carry.count() > 0 and Defs.is_product(p.carry.items[p.carry.items.size() - 1]) or int(Game.stats["cookies"]) > 0:
 				_advance()
 				return
-			_goal("Fresh cookies. Pick them up at the oven", "cookie", line.tray_zone.global_position)
+			var o2 := _first("oven") as OvenB
+			_goal("Fresh cookies! Pick them up at the oven", "ck_shortbread", o2.tray_zone.global_position if o2 else null)
 		4:
 			if int(Game.stats["cookies"]) > 0:
 				_advance()
 				return
-			var dock := world.docks[0]
-			if dock.cargo.count() > 0 and p.carry.count_of("cookie") == 0:
-				_goal("The van leaves a moment after loading", "truck", dock.zone.global_position)
-			else:
-				_goal("Load the cookies into the delivery van", "truck", dock.zone.global_position)
+			_goal("Load the cookies into the Delivery Van", "truck", _zone_pos("dock"))
 		5:
-			if Game.has_building("plot_sugar"):
+			if Game.count_of("farm_sugar") > 0:
 				_advance()
 				return
-			_build_goal("plot_sugar", "Sugar makes cookies worth twice as much")
+			if Game.money < Game.price_of("farm_sugar"):
+				_goal("Earn $%s for a Sugar Cane Field" % Fmt.num(Game.price_of("farm_sugar")), "sugar")
+			else:
+				_goal("Tap Build and place a Sugar Cane Field anywhere on your land", "hammer", null, hud.btn_build)
 		6:
-			if Game.has_building("cabin"):
+			if Game.count_of("hopper") > 0:
+				_advance()
+				return
+			if Game.money < Game.price_of("hopper"):
+				_goal("Earn $%s for a Sugar Hopper" % Fmt.num(Game.price_of("hopper")), "hopper")
+			else:
+				_goal("Build > Bakery: place a Sugar Hopper on one of the line's glass tubes", "hopper", null, hud.btn_build)
+		7:
+			if Game.known_recipes.has("sugar"):
+				_advance()
+				return
+			_goal("Fill the Sugar Hopper with sugar cane: Sugar Cookies sell for double!", "sugar", _zone_pos("hopper"))
+		8:
+			if Game.count_of("cabin") > 0:
 				_advance()
 				return
 			if Game.level < 2:
 				_goal("Keep baking: reach Level 2 to unlock staff", "star")
+			elif Game.money < Game.price_of("cabin"):
+				_goal("Earn $%s for a Staff Cabin" % Fmt.num(Game.price_of("cabin")), "cabin")
 			else:
-				_build_goal("cabin", "Build the Staff Cabin to hire help")
-		7:
+				_goal("Build > Staff: place a Staff Cabin", "cabin", null, hud.btn_build)
+		9:
 			if Game.workers.size() > 0:
 				_advance()
 				return
-			_goal("Open Staff and hire your first worker", "hire", null, hud._btn_workers)
-		8:
+			_goal("Open Staff and hire your first worker", "hire", null, hud.btn_staff)
+		10:
 			for w in Game.workers:
 				if w["role"] != "":
 					_advance()
 					return
-			_goal("Give them a job: tap a field on the Farmer card", "farmer", null, hud._btn_workers)
-		9:
-			for id in Bal.all_upgrade_ids():
-				if Game.lvl(id) > (1 if id.begins_with("farm_") else 0):
+			_goal("Give them a job: tap + on Gatherer (or on a farm, + Farmer)", "gatherer", null, hud.btn_staff)
+		11:
+			for b in Game.buildings:
+				if int(b["lvl"]) > 1:
 					_advance()
 					return
-			_goal("Open Upgrades and improve something", "star", null, hud._btn_up)
+			_goal("Tap any building in the world to upgrade it", "star")
+		12:
+			if not world.links.is_empty():
+				_advance()
+				return
+			if Game.level < 4:
+				_free_goal()
+				return
+			_tip_t += get_process_delta_time()
+			if _tip_t > 120.0:
+				_advance()
+				return
+			_goal("Tip: buildings that touch pass things along by chute. Move a field next to a mixer, or a van next to an oven.", "conveyor")
 		_:
 			_free_goal()
 
 
-func _build_goal(id: String, why: String) -> void:
-	var pad: BuildPad = world.pads.get(id)
-	var d: Dictionary = Defs.BUILDINGS[id]
-	var left := int(d["cost"]) - int(Game.pad_paid.get(id, 0))
-	if Game.money < left:
-		_goal("Earn $%s for the %s. %s" % [Fmt.num(left), d["name"], why], d["icon"], pad.global_position if pad else null)
-	else:
-		_goal("Stand on the pad to build the %s" % d["name"], d["icon"], pad.global_position if pad else null)
-
-
 func _free_goal() -> void:
 	if Game.idle_workers() > 0 and Game.workers.size() > 0:
-		_goal("%d worker%s waiting for a job" % [Game.idle_workers(), "s" if Game.idle_workers() > 1 else ""], "hire", null, hud._btn_workers)
+		_goal("%d worker%s resting: give them a job in Staff" % [Game.idle_workers(), "s" if Game.idle_workers() > 1 else ""], "hire", null, hud.btn_staff)
 		return
-	for id in Defs.BUILD_ORDER:
-		if Game.has_building(id):
+	for n in world.bnodes.values():
+		if n is OvenB and (n as OvenB).line == null:
+			_goal("An oven isn't connected to a Mixer", "oven", n.global_position)
+			return
+		if n is MixerB and (n as MixerB).line == null:
+			_goal("A mixer has no oven at the end of its line", "mixer", n.global_position)
+			return
+	for kind in Defs.BUILD_ORDER:
+		if Game.count_of(kind) > 0 or kind == "tube" or Defs.BUILDINGS[kind]["cat"] == "decor":
 			continue
-		var d: Dictionary = Defs.BUILDINGS[id]
+		var d: Dictionary = Defs.BUILDINGS[kind]
 		if Game.level < int(d["lvl"]):
 			_goal("Reach Level %d to unlock the %s" % [int(d["lvl"]), d["name"]], "lock")
 			return
-		_build_goal(id, d["desc"])
+		if Game.can_afford(Game.price_of(kind)):
+			_goal("New: build a %s. %s" % [d["name"], d["desc"]], d["icon"], null, hud.btn_build)
+		else:
+			_goal("Save $%s for a %s" % [Fmt.num(Game.price_of(kind)), d["name"]], d["icon"])
+		return
+	if Game.count_of("palace") > 0 and not Game.won:
+		var pal := _first("palace") as PalaceB
+		_goal(pal.status(), "palace", pal.global_position)
 		return
 	_goal("", "")
 

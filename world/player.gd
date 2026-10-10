@@ -29,7 +29,7 @@ func _ready() -> void:
 	add_child(ch)
 	ch.setup("player")
 	ch.scale = Vector3.ONE * 1.0
-	carry = Holder.new().setup(Bal.carry(Game.lvl("carry")), [], Holder.Layout.COLUMN)
+	carry = Holder.new().setup(Bal.carry(), [], Holder.Layout.COLUMN)
 	carry.sway = 0.06
 	carry.max_visible = 80
 	ch.carry_mount.add_child(carry)
@@ -47,11 +47,10 @@ func _ready() -> void:
 	ring.position.y = 0.05
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
-	Game.upgraded.connect(func(_id, _l): refresh())
 
 
 func refresh() -> void:
-	carry.capacity = Bal.carry(Game.lvl("carry"))
+	carry.capacity = Bal.carry()
 	_on_carry_changed()
 
 
@@ -104,7 +103,7 @@ func _physics_process(dt: float) -> void:
 			dir = kb.normalized()
 		if joy.length() > 0.08:
 			dir = joy
-	var speed := Bal.player_speed(Game.lvl("speed"))
+	var speed := Bal.player_speed()
 	var target := Vector3(dir.x, 0, dir.y) * speed
 	velocity.x = move_toward(velocity.x, target.x, dt * 60.0)
 	velocity.z = move_toward(velocity.z, target.z, dt * 60.0)

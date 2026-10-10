@@ -5,7 +5,7 @@ extends Node3D
 
 enum S { SEEK, TO_SPOT, WORK, TO_CRATE, DROP, WAIT }
 
-var farm: Farm
+var farm: FarmB
 var index := 0
 var ch: Character
 var carry: Holder
@@ -19,7 +19,7 @@ var _bubble: Label3D
 func _ready() -> void:
 	ch = Character.new()
 	add_child(ch)
-	ch.setup("farmer", hash(farm.ing) + index * 31)
+	ch.setup("farmer", farm.uid * 13 + index * 31)
 	ch.scale = Vector3.ONE * 0.92
 	carry = Holder.new().setup(6, [], Holder.Layout.COLUMN)
 	ch.carry_mount.add_child(carry)
@@ -36,15 +36,13 @@ func release() -> void:
 
 
 func _work_anim() -> String:
-	match farm.ing:
-		"wheat", "sugar": return "hoe"
-		"cocoa": return "pick"
-		_: return "milk"
+	return farm.work_anim()
 
 
 func _process(dt: float) -> void:
 	var lvl := farm.level
-	var speed := Bal.farm_walk_speed(lvl) * Game.speed_mult()
+	var mult := farm.speed()
+	var speed := Bal.farm_walk_speed(lvl) * minf(mult, 2.5)
 	_bubble.visible = state == S.WAIT
 	match state:
 		S.SEEK:
@@ -69,7 +67,7 @@ func _process(dt: float) -> void:
 			ch.move_speed = 0.0
 			ch.work = _work_anim()
 			ch.face(Vector3(0, 0, -1), dt, 6.0)
-			_timer -= dt * Game.speed_mult()
+			_timer -= dt * mult
 			if _timer <= 0.0:
 				ch.work = ""
 				farm.harvest(_spot)

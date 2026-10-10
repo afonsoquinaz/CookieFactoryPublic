@@ -80,6 +80,15 @@ func commit() -> ArrayMesh:
 	return m
 
 
+## Appends an existing ArrayMesh (its first surface) at t.
+func add_mesh(m: Mesh, t := Transform3D.IDENTITY) -> MeshKit:
+	if m == null or m.get_surface_count() == 0:
+		return self
+	var arr := m.surface_get_arrays(0)
+	_push(t, arr[Mesh.ARRAY_VERTEX], arr[Mesh.ARRAY_NORMAL], arr[Mesh.ARRAY_COLOR], arr[Mesh.ARRAY_INDEX])
+	return self
+
+
 ## Appends another builder's geometry (already in this space).
 func merge(other: MeshKit, t := Transform3D.IDENTITY) -> void:
 	_push(t, other._v, other._n, other._c, other._i)

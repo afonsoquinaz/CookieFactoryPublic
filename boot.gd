@@ -48,17 +48,17 @@ func _ready() -> void:
 	em.texture = EMBLEM
 	em.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	em.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	em.custom_minimum_size = Vector2(260, 260)
+	em.custom_minimum_size = Vector2(170, 170)
 	em.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_crest.add_child(em)
-	var t1 := Kit.game("COOKIE", 92, Color(1.0, 0.93, 0.78), 14)
+	var t1 := Kit.game("COOKIE", 62, Color(1.0, 0.93, 0.78), 11)
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_crest.add_child(t1)
 	var ribbon := PanelContainer.new()
-	ribbon.add_theme_stylebox_override("panel", Kit.skin("ribbon", 70, Vector4(100, 10, 100, 30)))
+	ribbon.add_theme_stylebox_override("panel", Kit.skin("ribbon", 52, Vector4(70, 6, 70, 22)))
 	ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_crest.add_child(ribbon)
-	var t2 := Kit.game("EMPIRE", 54, Kit.WHITE, 9)
+	var t2 := Kit.game("EMPIRE", 36, Kit.WHITE, 7)
 	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ribbon.add_child(t2)
 	_track = Panel.new()
@@ -82,7 +82,7 @@ func _layout() -> void:
 	var vs := get_viewport().get_visible_rect().size
 	var cs := _crest.get_combined_minimum_size()
 	# shrink the crest on narrow or short screens so it always fits
-	var sc := minf(1.0, minf((vs.x - 48.0) / cs.x, vs.y * 0.6 / cs.y))
+	var sc := minf(1.0, minf(vs.x * 0.62 / cs.x, vs.y * 0.4 / cs.y))
 	_crest.size = cs
 	_crest.pivot_offset = Vector2(cs.x * 0.5, 0)
 	_crest.scale = Vector2.ONE * sc

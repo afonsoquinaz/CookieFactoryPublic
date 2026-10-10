@@ -1,132 +1,210 @@
 class_name Bal
-## Every number in the game. Upgrades are table entries: cost curve + effect.
+## Every number in the game: building effects per level, prices, research,
+## gem perks, land, levels. Tuned for a long game (about two weeks of play to
+## finish the Grand Cookie Palace; see tools/pacing.py).
 
 const START_MONEY := 0
 
-# ---------------------------------------------------------------- upgrades
-## Global upgrades. cost(level) = base * growth^level (level = current level,
-## so the first purchase costs `base`). value(level) via Bal.value(id, level).
-const UPGRADES := {
-	# player
-	"carry": {"name": "Big Arms", "icon": "backpack", "base": 30, "growth": 1.7, "max": 14,
-		"desc": "Carry more items at once", "group": "you"},
-	"speed": {"name": "Running Shoes", "icon": "speed", "base": 40, "growth": 1.75, "max": 10,
-		"desc": "Walk faster", "group": "you"},
-	# production line
-	"belt": {"name": "Fast Belt", "icon": "conveyor", "base": 60, "growth": 1.6, "max": 15,
-		"desc": "Dough moves through the tube faster", "group": "factory"},
-	"oven": {"name": "Hot Oven", "icon": "oven", "base": 80, "growth": 1.6, "max": 15,
-		"desc": "Bake cookies faster", "group": "factory"},
-	"batch": {"name": "Bigger Batches", "icon": "dough", "base": 120, "growth": 1.9, "max": 10,
-		"desc": "More cookies from every dough ball", "group": "factory"},
-	"hopper": {"name": "Big Hoppers", "icon": "hopper", "base": 50, "growth": 1.55, "max": 12,
-		"desc": "Hoppers hold more ingredients", "group": "factory"},
-	"recipe": {"name": "Secret Recipe", "icon": "recipe", "base": 150, "growth": 2.0, "max": 15,
-		"desc": "Every cookie sells for 20% more", "group": "factory"},
-	# storage + logistics
-	"pantry": {"name": "Pantry Shelves", "icon": "storage", "base": 120, "growth": 1.6, "max": 10,
-		"desc": "Pantry stores more of each ingredient", "group": "storage", "needs": "pantry"},
-	"shelf": {"name": "Packing Space", "icon": "storage", "base": 150, "growth": 1.6, "max": 10,
-		"desc": "Packing Shelf holds more cookies", "group": "storage", "needs": "shelf"},
-	"truck": {"name": "Bigger Trucks", "icon": "truck", "base": 90, "growth": 1.65, "max": 15,
-		"desc": "Trucks carry more cookies per trip", "group": "storage"},
-	"route": {"name": "Express Routes", "icon": "clock", "base": 110, "growth": 1.6, "max": 10,
-		"desc": "Trucks come back sooner", "group": "storage"},
-	# staff
-	"cabin": {"name": "Bigger Cabin", "icon": "hire", "base": 120, "growth": 1.8, "max": 8,
-		"desc": "Room for more workers", "group": "staff", "needs": "cabin"},
-	"wspeed": {"name": "Worker Boots", "icon": "speed", "base": 150, "growth": 1.7, "max": 10,
-		"desc": "Workers walk faster", "group": "staff", "needs": "cabin"},
-	"wcarry": {"name": "Worker Baskets", "icon": "backpack", "base": 160, "growth": 1.75, "max": 10,
-		"desc": "Workers carry more", "group": "staff", "needs": "cabin"},
-}
-const UPGRADE_GROUPS := [["farms", "Farms"], ["factory", "Factory"], ["storage", "Logistics"], ["you", "You"], ["staff", "Staff"]]
+# ---------------------------------------------------------------- buildings
 
-# farms: one upgrade per ingredient, "farm_<ingredient>"
-const FARM_BASE := {"wheat": 15, "sugar": 30, "cocoa": 60, "egg": 120, "milk": 220}
-const FARM_GROWTH := 1.42
-const FARM_MAX := 25
-## Farm levels where the farm visibly grows (more crops/animals, better fence).
-const FARM_TIERS: Array[int] = [1, 5, 10, 15, 20]
+## Price of the next building of a kind when you already own `owned`.
+static func build_cost(kind: String, owned: int) -> float:
+	var d: Dictionary = Defs.BUILDINGS[kind]
+	return snap_price(float(d["cost"]) * pow(float(d["growth"]), owned))
 
 
-static func upgrade_def(id: String) -> Dictionary:
-	if id.begins_with("farm_"):
-		var ing := id.substr(5)
-		var d := {"name": Defs.FARM_NAMES[ing], "icon": ing, "base": FARM_BASE[ing], "growth": FARM_GROWTH,
-			"max": FARM_MAX, "desc": "Grow %s faster and store more" % Defs.item_name(ing).to_lower(), "group": "farms"}
-		if ing != "wheat":
-			d["needs"] = "plot_" + ing
-		return d
-	return UPGRADES[id]
+## Cost to take a building from level l to l+1.
+static func upgrade_cost(kind: String, l: int) -> float:
+	var d: Dictionary = Defs.BUILDINGS[kind]
+	var g := 1.3
+	match d["cat"]:
+		"farm": g = 1.28
+		"line": g = 1.3
+		"kitchen": g = 1.3
+		"pack": g = 1.32
+		"sell": g = 1.32
+		"staff": g = 1.6
+	return snap_price(float(d["up"]) * pow(g, l - 1))
 
 
-static func all_upgrade_ids() -> Array[String]:
-	var out: Array[String] = []
-	for ing in Defs.INGREDIENTS:
-		out.append("farm_" + ing)
-	for k in UPGRADES:
-		out.append(k)
-	return out
+static func max_level(kind: String) -> int:
+	return int(Defs.BUILDINGS[kind]["max"])
 
 
-static func cost(id: String, level: int) -> int:
-	var d := upgrade_def(id)
-	return int(round(d["base"] * pow(d["growth"], level) / 5.0)) * 5 if level > 0 else int(d["base"])
-
-
-# ---------------------------------------------------------------- effects
-static func carry(l: int) -> int: return 6 + l * 3
-static func player_speed(l: int) -> float: return 5.0 + l * 0.35
-static func dough_speed(l: int) -> float: return 1.3 * pow(1.12, l)
-static func dough_gap(l: int) -> float: return maxf(0.9, 2.2 * pow(0.93, l))   # metres between dough balls
-static func bake_time(l: int) -> float: return 3.2 * pow(0.88, l)
-static func batch_size(l: int) -> int: return 3 + l
-static func hopper_cap(l: int) -> int: return 8 + l * 4
-## Price per cookie: grows with every ingredient in the recipe and with the
-## Secret Recipe upgrade.
-const GRADE_PRICE := [3, 6, 11, 18, 28]
-static func cookie_price(l: int, grade := 4) -> int: return int(round(GRADE_PRICE[clampi(grade, 0, 4)] * pow(1.2, l)))
-static func pantry_cap(l: int) -> int: return 12 + l * 8
-static func shelf_cap(l: int) -> int: return 24 + l * 16
-static func tray_cap(l: int) -> int: return 16 + batch_size(l) * 4
-static func truck_cap(l: int) -> int: return 8 + l * 6
-static func truck_trip(l: int) -> float: return maxf(3.0, 8.0 * pow(0.88, l))
-static func cabin_cap(l: int) -> int: return 4 + l * 2
-static func worker_speed(l: int) -> float: return 3.0 + l * 0.3
-static func worker_carry(l: int) -> int: return 4 + l * 2
-
-# farms (level starts at 1)
-static func farm_work_time(l: int) -> float: return maxf(0.3, 1.2 * pow(0.9, l - 1))
-static func farm_yield(l: int) -> int: return 1 + int((l - 1) / 4)
-static func farm_crate_cap(l: int) -> int: return 8 + (l - 1) * 2
-static func farm_walk_speed(l: int) -> float: return 2.2 + (l - 1) * 0.08
-static func farm_tier(l: int) -> int:
+## Visual tier (0..4) for a building at level l.
+static func tier(kind: String, l: int) -> int:
+	var tiers: Array[int] = Defs.FARM_TIERS if Defs.BUILDINGS[kind]["cat"] == "farm" else Defs.MACHINE_TIERS
+	if kind == "hopper":
+		tiers = [1, 8, 20, 40, 99]
 	var t := 0
-	for k in FARM_TIERS.size():
-		if l >= FARM_TIERS[k]:
+	for k in tiers.size():
+		if l >= tiers[k]:
 			t = k
 	return t
 
-# ---------------------------------------------------------------- staff
-static func hire_cost(hired: int) -> int:
-	return int(round(30.0 * pow(1.45, hired) / 5.0)) * 5
 
-const MAX_FARMERS_PER_FARM := 3
+static func next_tier_level(kind: String, l: int) -> int:
+	var tiers: Array[int] = Defs.FARM_TIERS if Defs.BUILDINGS[kind]["cat"] == "farm" else Defs.MACHINE_TIERS
+	if kind == "hopper":
+		tiers = [1, 8, 20, 40, 99]
+	for t in tiers:
+		if t > l and t <= max_level(kind):
+			return t
+	return -1
+
+
+## Prices are rounded to friendly numbers.
+static func snap_price(v: float) -> float:
+	if v < 100.0:
+		return roundf(v)
+	var mag := pow(10.0, floorf(log(v) / log(10.0)) - 1.0)
+	return roundf(v / mag) * mag
+
+# farms
+static func farm_work_time(l: int) -> float: return maxf(0.25, 1.3 * pow(0.94, l - 1))
+static func farm_regrow(l: int) -> float: return maxf(1.0, 6.0 * pow(0.95, l - 1))
+static func farm_yield(l: int) -> int: return 1 + (l - 1) / 6
+static func farm_crate_cap(l: int) -> int: return 10 + (l - 1) * 3
+static func farm_walk_speed(l: int) -> float: return 2.2 + (l - 1) * 0.05
+const MAX_FARMERS := 4          # hired farmers per farm (plus the one it comes with)
+const BIOME_BONUS := 0.4        # farms on their favourite land grow this much faster
+
+# line
+static func mixer_interval(l: int) -> float: return maxf(0.45, 2.4 * pow(0.95, l - 1))
+static func belt_speed(l: int) -> float: return 1.4 * pow(1.04, l - 1)
+static func mixer_cap(l: int) -> int: return 12 + (l - 1) * 3
+static func hopper_cap(l: int) -> int: return 10 + (l - 1) * 4
+static func bake_time(l: int) -> float: return maxf(0.8, 3.0 * pow(0.95, l - 1))
+static func batch_size(l: int) -> int: return 3 + (l - 1) / 3
+static func tray_cap(l: int) -> int: return 18 + (l - 1) * 4
+const DOUGH_GAP := 0.9          # metres between dough balls
+
+# kitchen machines
+static func craft_time(kind: String, l: int) -> float: return maxf(0.5, float(Defs.BUILDINGS[kind]["time"]) * pow(0.95, l - 1))
+static func machine_in_cap(l: int) -> int: return 10 + (l - 1) * 3
+static func machine_out_cap(l: int) -> int: return 10 + (l - 1) * 3
+
+# storage + packing
+static func pantry_cap(l: int) -> int: return 30 + (l - 1) * 15
+static func rack_cap(l: int) -> int: return 40 + (l - 1) * 20
+static func pack_time(l: int) -> float: return maxf(0.4, 2.6 * pow(0.95, l - 1))
+static func wrap_time(l: int) -> float: return maxf(0.5, 3.2 * pow(0.95, l - 1))
+static func packer_in_cap(l: int) -> int: return 24 + (l - 1) * 6
+static func packer_out_cap(l: int) -> int: return 8 + (l - 1) * 2
+const BOX_SIZE := 6
+const BOX_MULT := 1.25          # a box is worth this much more than its 6 cookies
+const GIFT_MULT := 1.6          # a gift is worth this much more than its box
+
+# sales
+static func truck_cap(l: int) -> int: return 10 + (l - 1) * 6
+static func truck_trip(l: int) -> float: return maxf(3.0, 9.0 * pow(0.95, l - 1)) * pow(0.95, Game.research("vehicles"))
+static func shop_rate(l: int) -> float: return 10.0 * pow(1.07, l - 1)        # customers / minute
+static func shop_cap(l: int) -> int: return 20 + (l - 1) * 8
+static func shop_buy(l: int) -> int: return 3 + (l - 1) / 3
+static func train_cap(l: int) -> int: return 80 + (l - 1) * 40
+static func train_trip(l: int) -> float: return maxf(12.0, 40.0 * pow(0.96, l - 1)) * pow(0.95, Game.research("vehicles"))
+static func airship_cap(l: int) -> int: return 60 + (l - 1) * 30
+static func airship_trip(l: int) -> float: return maxf(20.0, 60.0 * pow(0.96, l - 1)) * pow(0.95, Game.research("vehicles"))
+const SHOP_MULT := 1.3
+const TRAIN_MULT := 1.15
+const AIRSHIP_GIFT_MULT := 2.0
+const TRUCK_IDLE_DEPART := 3.0      # a vehicle leaves this long after its last load
+
+# staff
+static func cabin_cap(l: int) -> int: return 4 + (l - 1)
+static func hire_cost(hired: int) -> float: return snap_price(30.0 * pow(1.22, hired) * pow(0.93, Game.research("hiring")))
+static func worker_speed() -> float: return (3.0 + Game.research("wspeed") * 0.22) * (1.0 + Game.perk("swift") * 0.1)
+static func worker_carry() -> int: return 6 + Game.research("wcarry") * 2
+static func chef_boost(n: int) -> float: return 1.0 + 0.5 * n   # speed multiplier with n chefs
+
+# player
+static func carry() -> int: return 6 + Game.research("carry") * 3
+static func player_speed() -> float: return 5.0 + Game.research("speed") * 0.3
+
+# ---------------------------------------------------------------- research
+## Global upgrades bought in the Research panel. cost = base * growth^level.
+const RESEARCH := {
+	"carry": {"name": "Big Arms", "icon": "backpack", "base": 25, "growth": 1.62, "max": 30, "desc": "You carry 3 more items"},
+	"speed": {"name": "Running Shoes", "icon": "speed", "base": 40, "growth": 1.8, "max": 15, "desc": "You walk faster"},
+	"recipe": {"name": "Secret Recipes", "icon": "recipe", "base": 200, "growth": 1.72, "max": 40, "desc": "Every cookie sells for 10% more"},
+	"wspeed": {"name": "Worker Boots", "icon": "speed", "base": 250, "growth": 1.7, "max": 25, "desc": "Workers walk faster"},
+	"wcarry": {"name": "Worker Baskets", "icon": "gatherer", "base": 300, "growth": 1.72, "max": 25, "desc": "Workers carry 2 more items"},
+	"hiring": {"name": "Good Reputation", "icon": "hire", "base": 400, "growth": 1.9, "max": 15, "desc": "Hiring costs 7% less"},
+	"vehicles": {"name": "Better Roads", "icon": "truck", "base": 600, "growth": 1.85, "max": 20, "desc": "Vans, trains and airships return 5% sooner"},
+	"chutes": {"name": "Faster Chutes", "icon": "conveyor", "base": 500, "growth": 1.9, "max": 20, "desc": "Chutes between touching buildings move 25% faster"},
+	"market": {"name": "Marketing", "icon": "price", "base": 2000, "growth": 2.0, "max": 10, "desc": "Trending cookies sell for 10% more"},
+	"offline": {"name": "Night Shift", "icon": "clock", "base": 1500, "growth": 2.1, "max": 22, "desc": "Earn offline for 1 more hour"},
+	"rush": {"name": "Rush Hour", "icon": "boost", "base": 800, "growth": 1.9, "max": 15, "desc": "Cookie Rush lasts 5 s longer"},
+	"land": {"name": "Land Surveyor", "icon": "land", "base": 1200, "growth": 2.0, "max": 12, "desc": "Land costs 6% less"},
+}
+const RESEARCH_ORDER: Array[String] = ["carry", "speed", "recipe", "wspeed", "wcarry", "chutes", "hiring", "vehicles", "market", "rush", "offline", "land"]
+
+
+static func research_cost(id: String, l: int) -> float:
+	var d: Dictionary = RESEARCH[id]
+	return snap_price(float(d["base"]) * pow(float(d["growth"]), l))
+
+
+## Gem perks (gems come from special orders).
+const PERKS := {
+	"golden": {"name": "Golden Touch", "icon": "coin", "base": 3, "growth": 1.6, "max": 15, "desc": "All cookies sell for 10% more"},
+	"fertile": {"name": "Fertile Soil", "icon": "farm", "base": 3, "growth": 1.6, "max": 15, "desc": "Farms work 10% faster"},
+	"swift": {"name": "Swift Staff", "icon": "speed", "base": 3, "growth": 1.6, "max": 10, "desc": "Workers move 10% faster"},
+	"bigbatch": {"name": "Big Batches", "icon": "oven", "base": 5, "growth": 1.7, "max": 10, "desc": "Every oven bakes 1 more cookie per batch"},
+	"orders": {"name": "Busy Board", "icon": "board", "base": 8, "growth": 2.5, "max": 2, "desc": "One more order slot"},
+	"rush": {"name": "Second Wind", "icon": "boost", "base": 4, "growth": 1.8, "max": 8, "desc": "Cookie Rush recharges 15% sooner"},
+}
+const PERK_ORDER: Array[String] = ["golden", "fertile", "swift", "bigbatch", "orders", "rush"]
+
+
+static func perk_cost(id: String, l: int) -> int:
+	var d: Dictionary = PERKS[id]
+	return int(round(float(d["base"]) * pow(float(d["growth"]), l)))
+
+# ---------------------------------------------------------------- prices
+
+## Base sale price of an item (before channel multipliers).
+static func item_value(t: String) -> float:
+	var c := Defs.cat(t)
+	if c == "raw" or c == "proc":
+		return 0.0
+	var r := Defs.recipe(Defs.recipe_of(t))
+	var v: float = float(r.get("price", 1.0)) * price_mult()
+	if Game.trending == Defs.recipe_of(t):
+		v *= 1.5 + 0.1 * Game.research("market")
+	match c:
+		"box": v *= BOX_SIZE * BOX_MULT
+		"gift": v *= BOX_SIZE * BOX_MULT * GIFT_MULT
+	return v
+
+
+static func price_mult() -> float:
+	return pow(1.1, Game.research("recipe")) * (1.0 + 0.1 * Game.perk("golden")) * (1.0 + 0.05 * Game.count_of("statue"))
+
+# ---------------------------------------------------------------- land
+const CHUNK := 8                    # cells per land chunk side
+static func land_cost(bought: int) -> float:
+	return snap_price(120.0 * pow(1.68, bought) * pow(0.94, Game.research("land")))
 
 # ---------------------------------------------------------------- empire level
-## XP to go from level l to l+1 (1 xp per cookie sold).
-static func xp_needed(l: int) -> int:
-	return int(round(20.0 * pow(1.5, l - 1)))
+## XP = money earned. XP to go from level l to l+1.
+static func xp_needed(l: int) -> float:
+	return roundf(50.0 * pow(1.55, l - 1))
 
-static func level_reward(l: int) -> int:
-	return int(round(50.0 * pow(1.6, l - 2)))
+static func level_reward(l: int) -> float:
+	return snap_price(xp_needed(l - 1) * 0.15)
 
-const MAX_LEVEL := 40
+const MAX_LEVEL := 60
+
+# ---------------------------------------------------------------- orders
+const ORDER_SLOTS := 2
+static func order_count(price: float) -> int:
+	# cheaper cookies come in bigger orders
+	return clampi(int(round(90.0 / sqrt(maxf(price, 1.0)))), 6, 40)
 
 # ---------------------------------------------------------------- misc
-const TRUCK_IDLE_DEPART := 3.0      # a van leaves this long after its last load
-const OFFLINE_CAP_HOURS := 3.0
 const OFFLINE_FACTOR := 0.35
-const RUSH_DURATION := 45.0         # Cookie Rush: everything 2x
-const RUSH_COOLDOWN := 240.0
+static func offline_cap_hours() -> float: return 2.0 + Game.research("offline")
+static func rush_duration() -> float: return 45.0 + Game.research("rush") * 5.0
+static func rush_cooldown() -> float: return 300.0 * pow(0.85, Game.perk("rush"))
+const TREND_PERIOD := 900.0         # a new trending cookie every 15 minutes
