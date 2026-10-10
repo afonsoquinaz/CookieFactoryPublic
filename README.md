@@ -140,7 +140,33 @@ Dev flags (after `--`):
 - `--perf` prints render stats.
 - `--wdbg` prints worker and building states.
 
-PACING_TABLE
+## Pacing
+
+The game is tuned for about **two weeks**: a few sessions a day, with Night Shift research earning while you are away.
+
+Early game, measured by the autopilot bot (`tools/bot.sh`), which plays at roughly a careful human's pace:
+
+| Milestone | Play time |
+|---|---|
+| First cookie / first sale | 10 s / 20 s |
+| First worker | about 1 min |
+| Level 5 | about 2 min |
+| Level 10 | 11 to 16 min |
+| Second production line | 25 to 65 min |
+| Level 15 | 55 to 70 min |
+
+The long game, from the model in `tools/pacing.py` (active hours; offline earnings add on top):
+
+| Milestone | Active play |
+|---|---|
+| Level 35, Palace foundations | 3.5 to 5.5 h |
+| Palace stage 3 (Cream Towers) | 10 to 16 h |
+| Palace stage 4 (Golden Domes) | 27 to 44 h |
+| The Crown (win) | 64 to 106 h |
+
+Re-run `python3 tools/pacing.py --logistics 0.2` after changing numbers in `core/bal.gd` or `core/defs.gd`.
+
+## Export
 
 Export presets:
 - **Android**: arm64 APK.

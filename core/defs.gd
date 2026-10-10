@@ -232,7 +232,7 @@ const PALACE_STAGES := [
 	{"name": "Biscuit Walls", "cost": 1.5e9, "need": 200},
 	{"name": "Cream Towers", "cost": 9.0e9, "need": 600},
 	{"name": "Golden Domes", "cost": 5.0e10, "need": 1500},
-	{"name": "The Crown", "cost": 2.5e11, "need": 4000},
+	{"name": "The Crown", "cost": 1.6e11, "need": 4000},
 ]
 
 # ---------------------------------------------------------------- staff

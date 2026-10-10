@@ -146,6 +146,8 @@ func _nothing_to_pick(t: String) -> bool:
 
 var _saving := 0.0
 var _reserve := 0.0
+var _goal_cost := 0.0
+var _goal_since := 0.0
 var _spent := {}
 var _last_money := 0.0
 
@@ -161,7 +163,11 @@ func _manage() -> void:
 	# spend the surplus on upgrades unless the next purchase is minutes away
 	var inc := maxf(Game.recent_income(), 0.05)
 	var eta := (_saving - Game.money) / inc
-	_reserve = _saving if (acted and eta <= 180.0) else 0.0
+	if absf(_saving - _goal_cost) > 1.0:
+		_goal_cost = _saving
+		_goal_since = _t
+	# upgrades get the income at first, then the reserve ramps up to the goal
+	_reserve = 0.0
 	if true:
 		_goal_kind = "upgrade"
 		_upgrade()
@@ -172,6 +178,9 @@ func _manage() -> void:
 
 ## Remember what we're saving for (returns true so the planner waits).
 func _save_for(cost: float) -> bool:
+	# goals more than 15 minutes of income away aren't worth freezing for
+	if cost > 5000.0 and cost > maxf(Game.recent_income(), 1.0) * 900.0:
+		return false
 	_saving = maxf(_saving, cost)
 	return true
 
@@ -278,17 +287,22 @@ func _ensure_line() -> bool:
 		return _save_for(cost) if _recipe_rank(target) > best_rank else false
 	var ings: Array = Defs.recipe(target)["ings"]
 	var w := 1 + ings.size() + 2
-	var spot = _find_spot(Vector2i(w, 2), 0, world.player.global_position, true)
+	# a compact cell: wheat field | mixer, hoppers, oven | van, joined by chutes
+	var spot = _find_spot(Vector2i(3 + w + 2, 3), 0, world.player.global_position, true)
 	if spot == null:
 		_buy_land()
 		return true
-	var o: Vector2i = spot
+	var o: Vector2i = spot + Vector2i(3, 1)
+	if Game.can_afford(Game.price_of("farm_wheat") + cost):
+		Game.place("farm_wheat", spot, 0)
 	Game.place("mixer", o, 0)
 	var x := 1
 	for i in ings:
 		Game.place("hopper", o + Vector2i(x, 0), 0, {"ing": i})
 		x += 1
 	Game.place("oven", o + Vector2i(x, 0), 0)
+	if Game.can_afford(Game.price_of("dock")):
+		Game.place("dock", o + Vector2i(x + 2, -1), 0)
 	print("[%5.0fs] built a line for %s at %s" % [_t, target, o])
 	return true
 
