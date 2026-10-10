@@ -114,7 +114,7 @@ func load_contents(d: Dictionary) -> void:
 
 
 func status() -> String:
-	return "Pays 30% more than vans. %d%% more customers from decor nearby." % roundi(charm() * 100)
+	return "Pays 30%% more than vans. %d%% more customers from decor nearby." % roundi(charm() * 100)
 
 
 func info() -> Array:

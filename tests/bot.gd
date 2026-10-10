@@ -17,6 +17,7 @@ var _pi := 0
 var _path_cd := 0.0
 var _goal := ""
 var _first := {}
+var _goal_kind := "?"
 var _plan_cd := 0.0
 
 
@@ -26,6 +27,10 @@ func _ready() -> void:
 	Engine.time_scale = float(a.get("speed", "4"))
 	Engine.physics_ticks_per_second = 30
 	Game.no_save = true
+	Game.money_changed.connect(func(_v, d):
+		if d < 0:
+			var k := _goal_kind
+			_spent[k] = int(_spent.get(k, 0)) + int(-d))
 
 
 func _physics_process(dt: float) -> void:
@@ -139,18 +144,36 @@ func _nothing_to_pick(t: String) -> bool:
 
 # ---------------------------------------------------------------- planning
 
+var _saving := 0.0
+var _reserve := 0.0
+var _spent := {}
+var _last_money := 0.0
+
+
 func _manage() -> void:
+	_goal_kind = "palace"
 	_palace()
+	_goal_kind = "staff"
 	_staff()
-	_upgrade()
-	_research()
-	if _improve_lines():
-		return
-	if _ensure_basics():
-		return
-	if _ensure_line():
-		return
-	_ensure_producers()
+	_saving = 0.0
+	_goal_kind = "build"
+	var acted := _improve_lines() or _ensure_basics() or _ensure_line() or _ensure_producers()
+	# spend the surplus on upgrades unless the next purchase is minutes away
+	var inc := maxf(Game.recent_income(), 0.05)
+	var eta := (_saving - Game.money) / inc
+	_reserve = _saving if (acted and eta <= 180.0) else 0.0
+	if true:
+		_goal_kind = "upgrade"
+		_upgrade()
+		_goal_kind = "research"
+		_research()
+	_goal_kind = "other"
+
+
+## Remember what we're saving for (returns true so the planner waits).
+func _save_for(cost: float) -> bool:
+	_saving = maxf(_saving, cost)
+	return true
 
 
 ## Best recipe we can bake with the producers we already have.
@@ -187,7 +210,7 @@ func _improve_lines() -> bool:
 		if tubes.size() < need.size():
 			continue
 		if not Game.can_afford(Game.price_of("hopper") * need.size()):
-			return true
+			return _save_for(Game.price_of("hopper") * need.size())
 		for i in need.size():
 			var tb: Building = tubes[i]
 			var c := tb.cell()
@@ -252,7 +275,7 @@ func _ensure_line() -> bool:
 			return false
 	var cost := _line_cost(target)
 	if not Game.can_afford(cost):
-		return want_new and _recipe_rank(target) > best_rank   # save up for it
+		return _save_for(cost) if _recipe_rank(target) > best_rank else false
 	var ings: Array = Defs.recipe(target)["ings"]
 	var w := 1 + ings.size() + 2
 	var spot = _find_spot(Vector2i(w, 2), 0, world.player.global_position, true)
@@ -303,7 +326,7 @@ func _ensure_producers() -> bool:
 		var need := ceili(int(want[i]) * (0.75 if Defs.BUILDINGS[p2]["cat"] == "farm" else 0.5))
 		if Game.count_of(p2) < maxi(1, need):
 			if not Game.can_afford(Game.price_of(p2)):
-				return true
+				return _save_for(Game.price_of(p2))
 			if _place(p2):
 				return true
 	return false
@@ -324,7 +347,9 @@ func _ensure_basics() -> bool:
 		var kind: String = e[0]
 		if Game.level >= int(e[1]) and Game.count_of(kind) < int(e[2]) and Game.unlocked(kind):
 			if not Game.can_afford(Game.price_of(kind)):
-				return Game.price_of(kind) < Game.money * 4.0
+				if Game.price_of(kind) < Game.money * 4.0:
+					return _save_for(Game.price_of(kind))
+				continue
 			if _place(kind):
 				return true
 	return false
@@ -456,13 +481,13 @@ func _upgrade() -> void:
 		if c < best_c:
 			best_c = c
 			best = b
-	if best and Game.money > Bal.upgrade_cost(best.kind, best.level) * 1.5:
+	if best and Game.money - Bal.upgrade_cost(best.kind, best.level) * 1.5 > _reserve:
 		Game.upgrade(best.uid)
 
 
 func _research() -> void:
 	for id in ["recipe", "wcarry", "wspeed", "carry", "vehicles", "market", "hiring", "speed", "offline", "rush", "land"]:
-		if not Game.research_maxed(id) and Game.money > Game.research_cost(id) * 3.0:
+		if not Game.research_maxed(id) and Game.money - Game.research_cost(id) * 3.0 > _reserve:
 			Game.buy_research(id)
 			return
 	for id in Bal.PERK_ORDER:
@@ -511,7 +536,7 @@ func _print_status() -> void:
 	var roles := {}
 	for w in Game.workers:
 		roles[w["role"]] = roles.get(w["role"], 0) + 1
-	print("[%5.0fs] $%s  +%s/min  lvl %d  cookies %d  lines %s  bld %d  land %d  workers %s  goal=%s" % [_t, Fmt.num(Game.money),
+	print("[%5.0fs] save=%s spent=%s  $%s  +%s/min  lvl %d  cookies %d  lines %s  bld %d  land %d  workers %s  goal=%s" % [_t, Fmt.num(_saving), JSON.stringify(_spent), Fmt.num(Game.money),
 		Fmt.num(Game.recent_income() * 60.0), Game.level, int(Game.stats["cookies"]), _line_products(), Game.buildings.size(),
 		Game.owned_chunks().size(), JSON.stringify(roles), _goal])
 	if Shot.args().has("dump"):

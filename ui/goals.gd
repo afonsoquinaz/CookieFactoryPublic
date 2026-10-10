@@ -18,6 +18,7 @@ var _target_ui: Control
 var _t := 0.0
 var _last_text := ""
 var _done_flash := 0.0
+var _tip_t := 0.0
 
 
 func _ready() -> void:
@@ -185,6 +186,18 @@ func _evaluate() -> void:
 					_advance()
 					return
 			_goal("Tap any building in the world to upgrade it", "star")
+		12:
+			if not world.links.is_empty():
+				_advance()
+				return
+			if Game.level < 4:
+				_free_goal()
+				return
+			_tip_t += get_process_delta_time()
+			if _tip_t > 120.0:
+				_advance()
+				return
+			_goal("Tip: buildings that touch pass things along by chute. Move a field next to a mixer, or a van next to an oven.", "conveyor")
 		_:
 			_free_goal()
 

@@ -28,6 +28,14 @@ A line is a straight row, end to end, all facing the same way: **Dough Mixer -> 
 - A line bakes the **most valuable recipe** whose ingredients all have a hopper on it. The recipe book (Research > Recipes) shows them all.
 - Unconnected ends show a red-striped cap. A lone oven says *Connect to a Mixer*.
 
+### Chutes: placement matters
+Buildings that **touch** hand items over by a little roller chute, no worker needed:
+- a wheat field next to a mixer feeds it;
+- a dairy beside a butter churn keeps it busy;
+- an oven beside a van, shop or packer loads it.
+
+Chutes get faster with the *Faster Chutes* research.
+
 ### Recipes and ingredients
 - **17 cookies**: Shortbread, Sugar Cookie, Cocoa Crinkle, Milk Biscuit, Butter Ring, Chocolate Chip, Oat Crumble, Double Chocolate, Jam Thumbprint, Hazelnut Crunch, Honey Oat, Caramel Stroopwafel, Vanilla Sablé, Praline Dream, Cinnamon Swirl, Orange Florentine, Royal Empire.
 - **12 farms**: wheat, sugar cane, cocoa, hens, dairy, oats, strawberries, hazelnuts, bees, vanilla orchids, cinnamon, oranges.

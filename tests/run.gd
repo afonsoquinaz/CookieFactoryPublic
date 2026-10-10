@@ -321,6 +321,32 @@ func _test_world() -> void:
 		t += get_process_delta_time()
 	Engine.time_scale = 1.0
 	ok(nf.crate.count() < 4, "the chute moved wheat from the farm to the mixer (%.1fs)" % t)
+	# every kind of building spawns, answers the info panel and upgrades
+	Game.money = 1e15
+	for c in [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(2, 0), Vector2i(2, 1)]:
+		Game.land[Game.chunk_key(c)] = true
+	var cx := 2
+	var cy := 2
+	for kind in Defs.BUILD_ORDER:
+		var sz: Vector2i = Defs.BUILDINGS[kind]["size"]
+		if cx + sz.x > 40:
+			cx = 2
+			cy += 6
+		var extra := {"ing": "butter"} if kind == "hopper" else {}
+		var b := Game.place(kind, Vector2i(cx, cy), 1, extra, false)
+		cx += sz.y + 1
+		await get_tree().process_frame
+		var n := w.building(int(b["uid"]))
+		ok(n != null, "spawned " + kind)
+		if n == null:
+			continue
+		ok(n.status() is String and n.info() is Array and n.upgrade_info() is Array, "info for " + kind)
+		for lv in [5, 12, 25, 40]:
+			if lv <= Bal.max_level(kind):
+				b["lvl"] = lv
+				n.refresh()
+		ok(n.visual != null and is_instance_valid(n.visual), "top look for " + kind)
+	await get_tree().process_frame
 	# you can always empty your hands
 	var p := w.player
 	for it in ["wheat", "egg", "c:sugar"]:

@@ -141,7 +141,8 @@ func _finish() -> void:
 		tw.parallel().tween_property(c, "scale", Vector3.ONE, 0.14)
 		tw.tween_property(c, "global_position", tray.next_slot_global(), 0.22).set_trans(Tween.TRANS_QUAD)
 		tw.tween_callback(func():
-			c.queue_free()
+			if is_instance_valid(c):
+				c.queue_free()
 			if is_instance_valid(tray):
 				tray.incoming -= 1
 				tray.add(item))

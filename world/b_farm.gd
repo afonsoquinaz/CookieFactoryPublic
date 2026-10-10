@@ -233,7 +233,7 @@ func load_contents(d: Dictionary) -> void:
 func status() -> String:
 	var bits := []
 	if Defs.BIOMES[Terrain.biome_at(global_position)]["bonus"].has(ing):
-		bits.append("+40% on %s" % Defs.BIOMES[Terrain.biome_at(global_position)]["name"])
+		bits.append("+40%% on %s" % Defs.BIOMES[Terrain.biome_at(global_position)]["name"])
 	var a := world.aura(global_position, "farm") if world else 0.0
 	if a > 0.0:
 		bits.append("+%d%% from wells" % roundi(a * 100))
