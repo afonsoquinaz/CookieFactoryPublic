@@ -349,8 +349,16 @@ func _test_world() -> void:
 	t = await _wait_until(func(): return bakery.recipe == "sugar", 40.0, 4.0)
 	ok(bakery.recipe == "sugar", "Auto switched the bakery to sugar cookies once sugar was harvested (%.1fs)" % t)
 	ok(bakery.silos.has("sugar"), "a sugar silo")
+	# switch recipe with dough already rolling down the tube
+	for i in 4:
+		bakery.flour.add("wheat", false)
+		bakery.silos["sugar"].add("sugar", false)
+	await _wait_until(func(): return not bakery.doughs.is_empty(), 10.0, 2.0)
 	bakery.choose("shortbread")
 	ok(bakery.recipe == "shortbread" and not bakery.silos.has("sugar"), "choosing a recipe changes the silos")
+	var baked0 := int(Game.stats["batches"])
+	t = await _wait_until(func(): return int(Game.stats["batches"]) > baked0, 20.0, 4.0)
+	ok(int(Game.stats["batches"]) > baked0, "dough already in the tube still gets baked after a switch (%.1fs)" % t)
 	bakery.choose("")
 	# a building on top of a road: the road goes around
 	var before := w.roads.connected.size()

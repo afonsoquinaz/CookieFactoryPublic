@@ -429,6 +429,9 @@ func _spawn_dough() -> void:
 ## Distance along the tube of the next silo this ball stops under (-1 = none).
 func _next_stop(d: Dictionary) -> float:
 	var stops: Array = d["stops"]
+	# the recipe may have changed since this ball left the mixer
+	while not stops.is_empty() and not _silo_x.has(stops[0]):
+		stops.pop_front()
 	if stops.is_empty():
 		return -1.0
 	return float(_silo_x[stops[0]]) - TUBE_X0
