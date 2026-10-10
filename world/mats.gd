@@ -7,6 +7,8 @@ static var _ground: ShaderMaterial
 static var _glow: ShaderMaterial
 static var _flat := {}
 static var _ink: ShaderMaterial
+static var _ghost: StandardMaterial3D
+static var _tiles: StandardMaterial3D
 
 
 ## Toon material with an inverted-hull ink outline (characters only).
@@ -66,6 +68,31 @@ static func flat(c: Color, no_depth := false) -> StandardMaterial3D:
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_flat[key] = m
 	return _flat[key]
+
+
+## The see-through placement ghost (vertex colours, a little glow). Shared:
+## placement tints it red when the spot doesn't work.
+static func ghost() -> StandardMaterial3D:
+	if _ghost == null:
+		_ghost = StandardMaterial3D.new()
+		_ghost.vertex_color_use_as_albedo = true
+		_ghost.vertex_color_is_srgb = true
+		_ghost.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ghost.albedo_color = Color(1, 1, 1, 0.88)
+		_ghost.emission_enabled = true
+		_ghost.emission = Color(0.25, 0.22, 0.15)
+	return _ghost
+
+
+## Unshaded see-through vertex colours on top (placement tiles, arrows).
+static func tiles() -> StandardMaterial3D:
+	if _tiles == null:
+		_tiles = StandardMaterial3D.new()
+		_tiles.vertex_color_use_as_albedo = true
+		_tiles.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_tiles.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_tiles.render_priority = 1
+	return _tiles
 
 
 ## MeshInstance3D with the toon material.

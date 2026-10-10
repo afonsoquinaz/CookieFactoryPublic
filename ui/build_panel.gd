@@ -1,8 +1,8 @@
 class_name BuildPanel
 extends Sheet
-## The build menu: everything you can place, by tab. Each card shows how
-## many you have of how many the Cookie Hall allows, the price, how long a
-## builder needs, and what unlocks the next one.
+## The build menu: everything you can place, by tab. Everything is
+## available from the start; each card shows the price, how long a builder
+## needs, how many you have, and what a kitchen needs to be useful.
 
 signal chosen(kind: String)
 
@@ -62,9 +62,11 @@ func _select(tab: String) -> void:
 		_tabs[k].set_colors(Kit.BRASS if k == tab else Kit.PAPER_DARK, Kit.BRASS_EDGE if k == tab else Kit.LINE)
 	for c in _grid.get_children():
 		c.queue_free()
+	_queue.clear()
 	for kind in Defs.BUILD_ORDER:
 		if Defs.BUILDINGS[kind]["tab"] == tab:
-			_grid.add_child(_card(kind))
+			later(_grid, _card.bind(kind))
+	flush(4.0)
 	scroll.scroll_vertical = 0
 
 
@@ -72,10 +74,9 @@ func _card(kind: String) -> Control:
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	var box := Sheet.row_box()
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var locked := not Game.unlocked(kind)
-	var mx := Defs.max_count(kind, Game.level)
+	var mx := Defs.limit_of(kind)
 	var own := Game.count_of(kind)
-	var full := mx >= 0 and own >= mx and not locked
+	var full := mx >= 0 and own >= mx
 	var v := Kit.vbox(4)
 	box.add_child(v)
 	var top := Kit.hbox(8)
@@ -90,14 +91,24 @@ func _card(kind: String) -> Control:
 	tv.add_child(name_l)
 	var sz: Vector2i = d["size"]
 	var sub := "%dx%d" % [sz.x, sz.y]
-	if mx >= 0 and not locked:
+	if mx > 1:
 		sub += "  ·  built %d / %d" % [own, mx]
 	elif own > 0:
 		sub += "  ·  have %d" % own
 	tv.add_child(Kit.label(sub, 14, Kit.MUTED, 0, false))
 	var t := Game.build_time_of(kind)
-	if t > 0.0 and not locked and not full:
+	if t > 0.0 and not full:
 		tv.add_child(Kit.label("Build time %s" % Fmt.time(t), 14, Kit.MUTED, 0, false))
+	# a kitchen is only useful once something makes what it needs
+	var missing := []
+	for i in d.get("in", {}):
+		if not Game.can_make(i):
+			missing.append(Defs.item_name(i).to_lower())
+	if not missing.is_empty():
+		var ml := Kit.label("Needs %s" % " and ".join(missing), 14, Kit.TERRACOTTA_EDGE, 0, false)
+		ml.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ml.custom_minimum_size.x = 150
+		tv.add_child(ml)
 	var desc := Kit.label(d["desc"], 14, Kit.MUTED, 0, false)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 260
@@ -107,15 +118,9 @@ func _card(kind: String) -> Control:
 	var b := Kit.juicy("", Kit.SAGE, Kit.SAGE_EDGE, 20, Vector2(0, 56))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.sound = ""
-	if locked:
-		b.set_glyph("lock", 22)
-		b.set_text_value("Cookie Hall %d" % int(d["hall"]))
-		b.set_colors(Kit.GREY, Kit.GREY_EDGE)
-		box.modulate = Color(1, 1, 1, 0.7)
-	elif full:
-		var nh := Defs.next_count_hall(kind, own)
-		b.set_glyph("lock" if nh > 0 else "check", 22)
-		b.set_text_value(("More at Hall %d" % nh) if nh > 0 else "All built")
+	if full:
+		b.set_glyph("check", 22)
+		b.set_text_value("All built" if mx > 1 else "Built")
 		b.set_colors(Kit.PAPER_DARK, Kit.LINE)
 	else:
 		b.set_icon("gem" if gp > 0 else "coin", 26)

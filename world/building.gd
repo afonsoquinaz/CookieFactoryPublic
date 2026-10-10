@@ -21,6 +21,8 @@ var tier := -1
 var ports: Array[Dictionary] = []
 var visual: Node3D
 var _body: StaticBody3D
+var _props: MeshInstance3D       # things it gains as it levels up (LevelArt)
+var _props_n := -1
 var _t := 0.0
 var _flash := 0.0
 
@@ -35,8 +37,6 @@ static func create(w: World, b: Dictionary) -> Building:
 		node = FarmB.new()
 	elif k == "bakery":
 		node = BakeryB.new()
-	elif k == "hall":
-		node = HallB.new()
 	elif k == "hut":
 		node = HutB.new()
 	elif cat == "kitchen" or k == "packer" or k == "wrapper":
@@ -155,8 +155,31 @@ func refresh() -> void:
 		_visual(visual, tier)
 		if not first:
 			celebrate()
+	_update_props()
 	_on_level()
 	changed.emit()
+
+
+## Shows the props this level has earned; a new one arrives with a puff.
+func _update_props() -> void:
+	if self is SiteB:
+		return
+	var a := LevelArt.anchors_for(kind)
+	if a.is_empty():
+		return
+	var n := LevelArt.count(a.size(), level, Bal.max_level(kind))
+	if n == _props_n:
+		return
+	var first := _props_n < 0
+	var t := tier
+	_props_n = n
+	if _props == null:
+		_props = Mats.inst(null, self)
+	_props.mesh = MeshKit.cached("props_%s_%d_%d" % [kind, n, t], func(): return LevelArt.props(a, n, t))
+	if not first and n > 0 and is_inside_tree():
+		var p: Vector3 = a[n - 1][0]
+		Fx.puff(get_tree().current_scene, to_world(p.x, p.z, 0.4), Pal.CREAM, 8)
+		Fx.burst(get_tree().current_scene, to_world(p.x, p.z, 1.0), Pal.GOLD, 10, false)
 
 
 ## Called when the level changes (capacities, timers).

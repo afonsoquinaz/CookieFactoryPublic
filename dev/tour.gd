@@ -61,30 +61,17 @@ func _ready() -> void:
 		Game.finish_now(j)
 	await _wait(2.0)
 	await _shot("5_sugar")
-	Game.money = 500
-	Game.tutorial_step = 6
-	await _wait(1.5)
-	await _shot("6_hall")
-	hud.select(world.hall())
-	await _wait(0.6)
-	await _shot("6b_hall_selected")
-	Game.upgrade(world.hall().uid)
 	hud.deselect()
-	await _wait(0.6)
-	Game.finish_now(Game.jobs[0])
+	world.cam.fly_to(Vector3(2, 0, 6), 1.0)
 	await _wait(1.5)
-	await _shot("6c_hall_popup")
-	for c in hud.get_children():
-		if c is Control and c.mouse_filter == Control.MOUSE_FILTER_STOP and c.get_child_count() > 1 and c.get_child(0) is ColorRect:
-			c.queue_free()
-	await _wait(1.0)
-	await _shot("7_obstacle")
-	Game.tutorial_step = 8
-	await _wait(1.0)
-	await _shot("8_hire")
-	Game.tutorial_step = 99
-	await _wait(1.0)
-	await _shot("9_free")
+	await _shot("6_south_side")
+	var dock: Building = world.buildings_of("dock")[0]
+	for i in 3:
+		(dock as VehicleB).cargo.add("c:shortbread", false)
+	(dock as VehicleB)._depart()
+	await _wait(1.2)
+	await _shot("7_van_out")
+	print("tour step ", Game.tutorial_step)
 	get_tree().quit()
 
 

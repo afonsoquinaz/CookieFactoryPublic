@@ -2,8 +2,8 @@ class_name StaffPanel
 extends Sheet
 ## Your staff. Everyone you hire starts as a porter (they carry everything
 ## along the roads, no setup needed). On a farm, bakery or kitchen, + turns a
-## porter into a farmer or chef who works there. The Cookie Hall and Staff
-## Cabins decide how many people you can house.
+## porter into a farmer or chef who works there. Staff Cabins decide how
+## many people you can house.
 
 var _hire_btn: JuicyButton
 var _staff_label: Label
@@ -94,7 +94,7 @@ func _hire() -> void:
 	if not Game.can_hire():
 		Sfx.play("deny")
 		Kit.shake(_hire_btn)
-		Game.toast.emit("No room: upgrade the Cookie Hall or build a Staff Cabin", "cabin")
+		Game.toast.emit("No room: build or upgrade a Staff Cabin", "cabin")
 		return
 	var w := Game.hire()
 	if w.is_empty():

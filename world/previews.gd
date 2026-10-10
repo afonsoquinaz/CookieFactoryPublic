@@ -32,8 +32,6 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 			k.add_mesh(LineArt.tray(t), MeshKit.at(BakeryB.TRAY_POS.x, 0, BakeryB.TRAY_POS.z))
 			k.add_mesh(TownArt.flour_bin(t), MeshKit.at(BakeryB.BIN_POS.x, 0, BakeryB.BIN_POS.z))
 			k.add_mesh(LineArt.silo(ing if ing != "" else "sugar", t), MeshKit.xf(Vector3(-0.7, LineArt.Y + 0.47, BakeryB.TUBE_Z), Vector3.ZERO, Vector3(0.62, 0.62, 0.62)))
-		"hall":
-			k.add_mesh(TownArt.hall(t, 1))
 		"staff":
 			if kind == "hut":
 				k.add_mesh(TownArt.hut())
@@ -57,7 +55,8 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 			match kind:
 				"dock":
 					k.add_mesh(SalesArt.site("dock", t))
-					k.add_mesh(SalesArt.van(t), MeshKit.xf(Vector3(0, 0.08, -0.15), Vector3(0, 90, 0)))
+					k.add_mesh(SalesArt.turntable(t), MeshKit.at(0, 0.02, SalesArt.BAY_Z))
+					k.add_mesh(SalesArt.van(t), MeshKit.xf(Vector3(0, 0.1, SalesArt.BAY_Z), Vector3(0, -90, 0)))
 				"train":
 					k.add_mesh(SalesArt.site("train", t))
 					k.add_mesh(SalesArt.train(t), MeshKit.at(0.4, 0.12, -1.4))

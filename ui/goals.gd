@@ -1,11 +1,12 @@
 class_name Goals
 extends Control
-## Guides the player. The first steps are a short tutorial (tap the Bakery,
-## upgrade it, finish it for free, build a Sugar Cane Field, upgrade the
-## Cookie Hall, clear an obstacle, hire a porter); after that it always
-## points at the next useful thing. A goal card sits under the top bar, a
-## brass pin bobs over the place to look at in the world (an edge arrow when
-## it's off screen) and a pulsing pointer marks the button to press.
+## Guides the player, lightly. Three first hints (upgrade the Bakery, finish
+## a short job free, open Build); after that it stays out of the way and only
+## speaks up when something is wrong (a building without a road, a Bakery
+## missing an ingredient). What to build and upgrade is the player's call.
+## A goal card sits under the top bar, a brass pin bobs over the place to
+## look at in the world (an edge arrow when it's off screen) and a pulsing
+## pointer marks the button to press.
 
 var hud
 var world: World
@@ -27,6 +28,7 @@ func _ready() -> void:
 	_card = PanelContainer.new()
 	_card.add_theme_stylebox_override("panel", Kit.skin("card_dark", 30, Vector4(16, 10, 22, 16)))
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.visible = false
 	add_child(_card)
 	var h := Kit.hbox(10)
 	_card.add_child(h)
@@ -117,129 +119,51 @@ func _evaluate() -> void:
 		_goal("", "")
 		return
 	var bakery := _first("bakery") as BakeryB
-	var hall := world.hall()
 	match Game.tutorial_step:
 		0:
-			if hud.selected is BakeryB:
+			if bakery == null or bakery.level >= 2 or not Game.job_of(bakery.uid).is_empty():
 				_advance()
 				return
 			_look(bakery)
-			_goal("Welcome! Porters carry wheat along the road to your Bakery. Tap the Bakery.", "bakery", _top(bakery))
-		1:
-			if bakery and (bakery.level >= 2 or not Game.job_of(bakery.uid).is_empty()):
-				_advance()
-				return
 			if not hud.selected is BakeryB:
-				_goal("Tap the Bakery, then Upgrade: a builder makes it faster.", "hammer", _top(bakery))
-				return
-			var up: Control = hud.actions.find("upgrade")
-			if Game.money < Bal.upgrade_cost("bakery", 1):
-				_goal("Wait for the van to sell some cookies...", "truck", null, null)
+				_goal("Porters bring wheat to your Bakery and cookies to the van. Tap the Bakery!", "bakery", _top(bakery))
+			elif Game.money < Bal.upgrade_cost("bakery", 1):
+				_goal("The van is selling your first cookies...", "truck")
 			else:
-				_goal("Tap Upgrade, then Upgrade again to send a builder.", "hammer", null, up)
+				_goal("Upgrade it: a builder makes it faster.", "hammer", null, hud.actions.find("upgrade"))
+		1:
+			if bakery == null or bakery.level >= 2 or Game.job_of(bakery.uid).is_empty():
+				_advance()
+				return
+			_goal("Jobs with 30 s or less left finish free. Tap the timer!", "builder", _top(bakery))
 		2:
-			if bakery and bakery.level >= 2:
+			if hud.get("_sheet") is BuildPanel or Game.buildings.size() > 7:
 				_advance()
 				return
-			_goal("Short jobs are free to finish. Tap the timer over the Bakery!", "builder", _top(bakery))
-		3:
-			if Game.count_of("farm_sugar") > 0:
-				_advance()
-				return
-			if Game.money < Game.price_of("farm_sugar"):
-				_goal("Cookies are selling! Earn $%s for a Sugar Cane Field." % Fmt.num(Game.price_of("farm_sugar")), "sugar")
-			else:
-				_goal("Tap Build > Farms and place a Sugar Cane Field. Its road builds itself.", "hammer", null, hud.btn_build)
-		4:
-			if Game.count_ready("farm_sugar") > 0:
-				_advance()
-				return
-			_goal("A builder is on it. Tap the timer to finish it free!", "builder", _top(_site("farm_sugar")))
-		5:
-			if Game.known_recipes.has("sugar"):
-				_advance()
-				return
-			_goal("The Bakery switches to Sugar Cookies (worth double) when sugar arrives. Tap Bake on it to choose recipes.", "ck_sugar", _top(bakery))
-		6:
-			if Game.level >= 2 or (hall and not Game.job_of(hall.uid).is_empty()):
-				_advance()
-				return
-			_look(hall)
-			if Game.money < Bal.upgrade_cost("hall", 1):
-				_goal("Save $%s to upgrade the Cookie Hall: it unlocks everything else." % Fmt.num(Bal.upgrade_cost("hall", 1)), "hall", _top(hall))
-			else:
-				_goal("Tap the Cookie Hall and upgrade it: it unlocks new buildings.", "hall", _top(hall), hud.actions.find("upgrade"))
-		7:
-			if Game.cleared > 0 or Game.obstacles.is_empty():
-				_advance()
-				return
-			if Game.free_builders() <= 0:
-				_goal("Builders are busy. Meanwhile: bushes, stumps and rocks hide gems!", "gem")
-				return
-			var key := _nearest_obstacle()
-			var on: Node3D = world.obst_nodes.get(key)
-			if on and _flown != Game.tutorial_step and hud.selected_ob == "":
-				_flown = Game.tutorial_step
-				world.cam.fly_to(on.global_position + Vector3(0, 0, 2), 1.0)
-			_goal("Tap a bush, stump or rock and clear it: many hide gems!", "gem", on.global_position + Vector3(0, 2.4, 0) if on else null, hud.actions.find("clear"))
-		8:
-			if Game.workers.size() >= 3:
-				_advance()
-				return
-			_goal("Hire another porter (Staff > Hire): more deliveries, more cookies.", "porter", null, hud.btn_staff)
+			_goal("Build whatever you like: farms, kitchens, shops... You decide where to invest!", "hammer", null, hud.btn_build)
 		_:
 			_free_goal()
 
 
-func _nearest_obstacle() -> String:
-	var best := ""
-	var bd := INF
-	var h := world.hall()
-	var c := h.global_position if h else Vector3.ZERO
-	for k in world.obst_nodes:
-		var d: float = (world.obst_nodes[k] as Node3D).global_position.distance_to(c)
-		if d < bd:
-			bd = d
-			best = k
-	return best
-
-
+## Only problems: a building without a road, a Bakery missing an ingredient,
+## and the Palace while it's being built.
 func _free_goal() -> void:
-	# something can't be reached by road
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
 			_goal("%s has no road: clear the space in front of its entrance." % n.def["name"], "lock", _top(n))
 			return
 	for n2 in world.bnodes.values():
-		if n2 is BakeryB:
+		if n2 is BakeryB and (n2 as BakeryB).chosen() != "":
 			var m := (n2 as BakeryB).missing()
 			if not m.is_empty():
 				var p := Defs.producer_of(m[0])
-				_goal("A Bakery needs %s: build a %s." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2), hud.btn_build)
+				_goal("A Bakery needs %s: build a %s, or set it to Auto." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2))
 				return
-	var hall := world.hall()
-	if hall and Game.level < Defs.HALL.size() and Game.job_of(hall.uid).is_empty():
-		var cost := Bal.upgrade_cost("hall", Game.level)
-		if Game.free_builders() > 0 and Game.can_afford(cost):
-			_goal("Upgrade the Cookie Hall to level %d: new buildings!" % (Game.level + 1), "hall", _top(hall))
-			return
-	for kind in Defs.BUILD_ORDER:
-		var d: Dictionary = Defs.BUILDINGS[kind]
-		if d["cat"] == "decor" or Game.count_of(kind) > 0 or not Game.unlocked(kind) or d.has("gems"):
-			continue
-		if Game.build_block(kind) == "":
-			_goal("New: build a %s. %s" % [d["name"], d["desc"]], d["icon"], null, hud.btn_build)
-		else:
-			_goal("Next: a %s ($%s). %s" % [d["name"], Fmt.num(Game.price_of(kind)), d["desc"]], d["icon"])
-		return
 	if Game.count_of("palace") > 0 and not Game.won:
 		var pal := _first("palace") as PalaceB
 		if pal:
 			_goal(pal.status(), "palace", _top(pal))
 			return
-	if hall and Game.level < Defs.HALL.size():
-		_goal("Save $%s to upgrade the Cookie Hall to level %d." % [Fmt.num(Bal.upgrade_cost("hall", Game.level)), Game.level + 1], "hall")
-		return
 	_goal("", "")
 
 

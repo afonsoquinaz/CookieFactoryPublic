@@ -1,10 +1,10 @@
 extends Node
 ## Autopilot that plays the real game for balance runs, like a sensible
-## player who checks in now and then: finishes free jobs, upgrades the Cookie
-## Hall whenever it can, builds the farms and kitchens its best recipe needs,
-## more bakeries and sales, upgrades what's slowest, hires porters, clears
-## obstacles, buys land when it runs out of room, researches, and finally
-## builds the Palace. No gems are spent on timers except free finishes.
+## player who checks in now and then: finishes free jobs, saves up for and
+## builds the farms and kitchens its best recipe needs, more bakeries and
+## sales, upgrades what's slowest, hires porters, clears obstacles, buys land
+## when it runs out of room, researches, and finally builds the Palace. No
+## gems are spent on timers except free finishes.
 ##   tools/bot.sh [minutes]
 
 var world: World
@@ -53,8 +53,6 @@ func _manage() -> void:
 			Game.finish_now(j)
 	_staff()
 	if Game.free_builders() > 0:
-		if _hall():
-			return
 		if _palace():
 			return
 		if _build_needed():
@@ -65,34 +63,27 @@ func _manage() -> void:
 	_research()
 
 
-## Money the Hall upgrade needs (kept aside once it's within reach).
-func _hall_cost() -> float:
-	return Bal.upgrade_cost("hall", Game.level) if Game.level < Defs.HALL.size() else INF
-
-
-func _saving() -> bool:
+## The next new building worth saving for (its price is kept aside once
+## it's within reach of about ten minutes of income).
+func _goal_cost() -> float:
 	var inc := Game.recent_income() * 60.0
-	return _hall_cost() < inc * 12.0 and _hall_cost() > Game.money
+	for k in _wants():
+		if Game.count_of(k) > 0 or Game.build_block(k).begins_with("You"):
+			continue
+		var p := Game.price_of(k)
+		if p < inc * 10.0 and p > Game.money:
+			return p
+		return 0.0
+	return 0.0
 
 
 func _spare() -> float:
-	return Game.money - (_hall_cost() if _saving() else 0.0)
-
-
-func _hall() -> bool:
-	var h := world.hall()
-	if h == null or Game.level >= Defs.HALL.size() or not Game.job_of(h.uid).is_empty():
-		return false
-	if Game.upgrade_block(h.uid) == "":
-		_kind = "hall"
-		Game.upgrade(h.uid)
-		return true
-	return false
+	return Game.money - _goal_cost()
 
 
 ## Builds what's missing: farms for the best recipe, more bakeries, sales,
 ## cabins, storage.
-func _build_needed() -> bool:
+func _wants() -> Array[String]:
 	var want: Array[String] = []
 	var best := _target_recipe()
 	for i in Defs.recipe(best)["ings"]:
@@ -103,14 +94,26 @@ func _build_needed() -> bool:
 			var p2 := Defs.producer_of(j)
 			if p2 != "" and Game.count_of(p2) == 0:
 				want.append(p2)
-	want.append_array(["shop", "board", "pantry", "rack", "cabin", "packer", "train", "wrapper", "airship"])
-	# more of what's already there once the hall allows it
-	for k in ["bakery", "farm_wheat", "farm_sugar", "dock", "cabin", "shop"]:
-		want.append(k)
-	for k in want:
+	for k in ["shop", "board", "pantry", "rack", "packer", "train", "wrapper", "airship"]:
+		if Game.count_of(k) == 0:
+			want.append(k)
+	# more of what's already there, in proportion
+	var bakeries := Game.count_of("bakery")
+	var cap := {"bakery": 1 + Game.level / 3, "farm_wheat": bakeries * 2, "farm_sugar": bakeries, "dock": bakeries, "shop": 1 + bakeries / 2}
+	for k in cap:
+		if Game.count_of(k) < int(cap[k]):
+			want.append(k)
+	if not Game.can_hire() and Game.workers.size() < 2 + world.bnodes.size() / 3:
+		want.append("cabin")
+	return want
+
+
+func _build_needed() -> bool:
+	for k in _wants():
 		if Game.build_block(k) != "":
 			continue
-		if Game.price_of(k) > _spare():
+		# new kinds may use the savings; more copies come out of spare money
+		if Game.price_of(k) > (Game.money if Game.count_of(k) == 0 else _spare()):
 			continue
 		if _place(k):
 			return true
@@ -124,7 +127,7 @@ func _target_recipe() -> String:
 	for n in world.buildings_of("bakery"):
 		slots = maxi(slots, (n as BakeryB).slots())
 	for r in Defs.RECIPES:
-		if Defs.recipe_level(r["id"]) <= Game.level and (r["ings"] as Array).size() <= slots + 1 and float(r["price"]) > bp:
+		if (r["ings"] as Array).size() <= slots + 1 and float(r["price"]) > bp:
 			bp = float(r["price"])
 			best = r["id"]
 	return best
@@ -134,7 +137,7 @@ func _upgrade() -> bool:
 	var best: Building = null
 	var bc := INF
 	for n in world.bnodes.values():
-		if n is SiteB or n is HallB or Bal.max_level(n.kind) <= 1:
+		if n is SiteB or Bal.max_level(n.kind) <= 1:
 			continue
 		if Game.upgrade_block(n.uid) != "":
 			continue
@@ -143,7 +146,7 @@ func _upgrade() -> bool:
 		var w := c
 		if n is BakeryB or n is VehicleB:
 			w *= 0.5
-		if w < bc and c <= _spare():
+		if w < bc and (c <= _spare() or c <= Game.money * 0.25):
 			bc = w
 			best = n
 	if best:
@@ -207,16 +210,18 @@ func _place(kind: String) -> bool:
 	return false
 
 
-## Nearest spot to the Hall that fits and gets a road.
+## Nearest spot to the middle of the High Street that fits and gets a road.
 func _find_spot(kind: String) -> Variant:
-	var h := world.hall()
-	var c := Grid.cell_of(h.global_position) if h else Vector2i.ZERO
+	var c := Vector2i.ZERO
 	for r in range(2, 40):
 		for dx in range(-r, r + 1):
 			for dy in [-r, r]:
 				for q in [Vector2i(dx, dy), Vector2i(dy, dx)]:
 					for rot in [0, 2]:
 						var o: Vector2i = c + q
+						# face the street
+						if (rot == 0) != (o.y < Roads.STREET_Y):
+							continue
 						var s := world.check_spot(kind, o, rot)
 						if not s["ok"]:
 							continue
@@ -272,15 +277,15 @@ func _buy_land() -> bool:
 func _milestones() -> void:
 	var checks := {
 		"first_sale": int(Game.stats["cookies"]) > 0,
-		"hall2": Game.level >= 2, "hall3": Game.level >= 3, "hall4": Game.level >= 4, "hall5": Game.level >= 5,
-		"hall6": Game.level >= 6, "hall8": Game.level >= 8, "hall10": Game.level >= 10, "hall12": Game.level >= 12,
-		"hall15": Game.level >= 15, "sugar": Game.known_recipes.has("sugar"), "choc": Game.known_recipes.has("choc"),
+		"lvl2": Game.level >= 2, "lvl3": Game.level >= 3, "lvl4": Game.level >= 4, "lvl5": Game.level >= 5,
+		"lvl6": Game.level >= 6, "lvl8": Game.level >= 8, "lvl10": Game.level >= 10, "lvl12": Game.level >= 12,
+		"lvl15": Game.level >= 15, "sugar": Game.known_recipes.has("sugar"), "choc": Game.known_recipes.has("choc"),
 		"royal": Game.known_recipes.has("royal"), "palace": Game.count_of("palace") > 0, "won": Game.won,
 	}
 	for k in checks:
 		if checks[k] and not _first.has(k):
 			_first[k] = int(_t)
-			print("[%6.0fs] milestone %s  money=%s hall=%d" % [_t, k, Fmt.num(Game.money), Game.level])
+			print("[%6.0fs] milestone %s  money=%s level=%d" % [_t, k, Fmt.num(Game.money), Game.level])
 
 
 func _print_status() -> void:
@@ -309,6 +314,6 @@ func _print_status() -> void:
 			if n is VehicleB:
 				extra = " state=%s" % VehicleB.S.keys()[(n as VehicleB).state]
 			print("        %s %s%s" % [n.name, parts, extra])
-	print("[%6.0fs] $%s  +%s/min  hall %d  gems %d  cookies %d  bakeries %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
+	print("[%6.0fs] $%s  +%s/min  lvl %d  gems %d  cookies %d  bakeries %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
 		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["cookies"]),
 		recipes, world.bnodes.size(), Game.land.size(), Game.workers.size(), Game.jobs.size(), Game.builders(), JSON.stringify(_spent)])

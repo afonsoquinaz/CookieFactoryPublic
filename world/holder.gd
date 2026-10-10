@@ -304,6 +304,8 @@ static func fly(from: Holder, to: Holder, t := "", dur := 0.32, on_land := Calla
 			to.landed.emit(t)
 			if on_land.is_valid():
 				on_land.call(t)
+	# the target going away takes the flyer with it
+	to.tree_exiting.connect(flyer.queue_free)
 	var tw := flyer.create_tween()
 	tw.tween_method(step, 0.0, 1.0, dur)
 	tw.tween_callback(land)

@@ -20,11 +20,11 @@ func _build() -> void:
 	hp.add_child(hv)
 	hv.add_child(Kit.game("How to play", 30, Kit.INK, 0))
 	for line in [
-		["hall", "Upgrade the Cookie Hall to unlock new buildings, more of each, and higher levels."],
+		["hammer", "Everything is open from the start: build and upgrade whatever you like. Sales raise your Empire level, and every level brings gems."],
 		["builder", "Builders build and upgrade over time, even while you're away. Under 30 s left? Tap the timer: it's free."],
 		["porter", "Porters carry everything along the roads. Every building's road builds itself to its entrance."],
 		["bakery", "A Bakery bakes the recipe you choose (Bake). Upgrades add silos for richer recipes."],
-		["gem", "Gems come from orders, obstacles and Hall upgrades. Spend them on builders or to finish jobs."],
+		["gem", "Gems come from orders, obstacles and Empire levels. Spend them on builders or to finish jobs."],
 	]:
 		var row := Kit.hbox(10)
 		row.add_child(Kit.icon(line[0], 44))
@@ -42,7 +42,7 @@ func _build() -> void:
 	var s: Dictionary = Game.stats
 	for line in ["Cookies sold: %s" % Fmt.num(int(s["cookies"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
 			"Batches baked: %s" % Fmt.num(int(s["batches"])), "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
-			"Cookie Hall: level %d" % Game.level,
+			"Empire level %d: %s" % [Game.level, Defs.level_title(Game.level)],
 			"Time played: %s" % Fmt.time(float(s["play_time"]))]:
 		v.add_child(Kit.label(line, 18, Kit.MUTED, 0, false))
 	body.add_child(st)

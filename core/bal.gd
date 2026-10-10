@@ -17,8 +17,6 @@ static func build_cost(kind: String, owned: int) -> float:
 
 ## Cost to take a building from level l to l+1.
 static func upgrade_cost(kind: String, l: int) -> float:
-	if kind == "hall":
-		return float(Defs.HALL[mini(l, Defs.HALL.size() - 1)]["cost"])
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	var g := 1.3
 	match d["cat"]:
@@ -42,8 +40,6 @@ static func build_time(kind: String, owned: int) -> float:
 ## Seconds to upgrade from level l to l+1. Short at first (a few seconds),
 ## up to about 8 hours for the top levels.
 static func upgrade_time(kind: String, l: int) -> float:
-	if kind == "hall":
-		return float(Defs.HALL[mini(l, Defs.HALL.size() - 1)]["time"]) * tool_mult()
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	var mx := maxi(2, int(d["max"]))
 	var t0 := maxf(4.0, float(d.get("time", 10)) * 0.6)
@@ -51,19 +47,11 @@ static func upgrade_time(kind: String, l: int) -> float:
 	if d["cat"] == "staff":
 		top = 2.0 * 3600.0
 	var f := float(l - 1) / float(mx - 2) if mx > 2 else 0.0
-	return roundf(t0 * pow(top / t0, pow(f, 1.25))) * tool_mult()
+	return roundf(t0 * pow(top / t0, pow(f, 0.75))) * tool_mult()
 
 
 static func tool_mult() -> float:
 	return pow(0.95, Game.research("tools"))
-
-
-## Highest level a building may reach at a Cookie Hall level.
-static func level_cap(kind: String, hall: int) -> int:
-	if kind == "hall":
-		return Defs.HALL.size()
-	var per := 4 if Defs.BUILDINGS[kind]["cat"] != "farm" else 5
-	return mini(max_level(kind), hall * per)
 
 
 ## Gems to finish a job right now. Short jobs (30 s or less) are free.
@@ -100,7 +88,6 @@ static func _tiers(kind: String) -> Array[int]:
 	match Defs.BUILDINGS[kind]["cat"]:
 		"farm": return Defs.FARM_TIERS
 		"bake": return Defs.BAKERY_TIERS
-		"hall": return Defs.HALL_TIERS
 	return Defs.MACHINE_TIERS
 
 
@@ -130,9 +117,8 @@ static func batch_size(l: int) -> int: return 3 + (l - 1) / 3
 static func tray_cap(l: int) -> int: return 18 + (l - 1) * 4
 const DOUGH_GAP := 0.7          # metres between dough balls
 
-# hall
-static func hall_store(l: int) -> int: return 30 + (l - 1) * 25
-static func hall_staff(l: int) -> int: return 3 + l / 2
+# staff housed without any cabin
+const BASE_STAFF := 1
 
 # kitchen machines
 static func craft_time(kind: String, l: int) -> float: return maxf(0.5, float(Defs.BUILDINGS[kind]["craft"]) * pow(0.95, l - 1))
@@ -140,7 +126,7 @@ static func machine_in_cap(l: int) -> int: return 10 + (l - 1) * 3
 static func machine_out_cap(l: int) -> int: return 10 + (l - 1) * 3
 
 # storage + packing
-static func pantry_cap(l: int) -> int: return 30 + (l - 1) * 15
+static func pantry_cap(l: int) -> int: return 40 + (l - 1) * 15
 static func rack_cap(l: int) -> int: return 40 + (l - 1) * 20
 static func pack_time(l: int) -> float: return maxf(0.4, 2.6 * pow(0.95, l - 1))
 static func wrap_time(l: int) -> float: return maxf(0.5, 3.2 * pow(0.95, l - 1))

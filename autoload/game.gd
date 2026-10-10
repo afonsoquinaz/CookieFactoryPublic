@@ -1,5 +1,5 @@
 extends Node
-## Game state: money, gems, the Cookie Hall level, every placed building,
+## Game state: money, gems, the Empire level, every placed building,
 ## builders and their jobs, owned land and its obstacles, research, perks,
 ## staff, orders. Owns saving/loading and offline progress. Gameplay nodes
 ## read and change state only through here and listen to its signals.
@@ -10,7 +10,7 @@ extends Node
 
 signal money_changed(value: float, delta: float)
 signal gems_changed(value: int)
-signal hall_upgraded(level: int, gems: int)
+signal level_up(level: int, gems: int)
 signal building_added(b: Dictionary)
 signal building_built(uid: int)
 signal building_removed(uid: int)
@@ -30,12 +30,12 @@ signal discovered(recipe: String)
 signal toast(text: String, icon: String)
 signal victory
 
-const SAVE_PATH := "user://cookie_empire_v4.json"
-const VERSION := 4
+const SAVE_PATH := "user://cookie_empire_v5.json"
+const VERSION := 5
 
 var money := 0.0
 var gems := 0
-var level := 1                # = the Cookie Hall's level
+var level := 1                # Empire level: grows with lifetime earnings
 var clock := 0.0              # game time (s), includes time away
 var research_lv := {}         # id -> level
 var perks := {}               # id -> level
@@ -113,25 +113,27 @@ func reset_state() -> void:
 	_starting_empire()
 
 
-## A new empire on four plots of meadow: the Cookie Hall in the middle, a
-## Bakery, a Wheat Field, a Delivery Van, two Builder's Huts, three porters and
-## some brambles, stumps and boulders to clear.
+## A new empire on four plots of meadow along the High Street: a Wheat
+## Field, a Bakery and a Pantry on the north side; a Staff Cabin, a Delivery
+## Van and two Builder's Huts on the south side; three porters, and some
+## brambles, stumps and boulders to clear.
 func _starting_empire() -> void:
 	for x in [-1, 0]:
 		for y in [-1, 0]:
 			land["%d,%d" % [x, y]] = true
-	_add("hall", Vector2i(-2, -4), 0)
-	_add("bakery", Vector2i(-8, -1), 0)
-	_add("farm_wheat", Vector2i(-7, -7), 0)
-	_add("dock", Vector2i(4, -2), 0)
-	_add("hut", Vector2i(3, 3), 0)
-	_add("hut", Vector2i(5, 3), 0)
+	_add("farm_wheat", Vector2i(-6, -5), 0)
+	_add("bakery", Vector2i(-2, -5), 0)
+	_add("pantry", Vector2i(4, -4), 0)
+	_add("dock", Vector2i(-1, 2), 2)
+	_add("hut", Vector2i(3, 2), 2)
+	_add("hut", Vector2i(5, 2), 2)
+	_add("cabin", Vector2i(-4, 2), 2)
 	known_recipes["shortbread"] = true
 	for i in 3:
 		workers.append({"id": next_worker_id, "role": "porter", "target": 0})
 		next_worker_id += 1
-	for ob in [["bush", Vector2i(-3, 4), 1], ["stump", Vector2i(1, 5), 0], ["rock", Vector2i(-6, 5), 2], ["oak", Vector2i(-4, 6), 3],
-			["bush", Vector2i(6, -6), 0], ["pine", Vector2i(1, -7), 1], ["boulders", Vector2i(-2, -8), 2], ["bush", Vector2i(7, 0), 1]]:
+	for ob in [["bush", Vector2i(-6, 3), 1], ["stump", Vector2i(-3, 5), 0], ["rock", Vector2i(6, 6), 2], ["oak", Vector2i(-7, 5), 3],
+			["bush", Vector2i(6, -8), 0], ["pine", Vector2i(1, -8), 1], ["boulders", Vector2i(-8, -8), 2], ["bush", Vector2i(2, 5), 1]]:
 		obstacles[cell_key(ob[1])] = {"kind": ob[0], "gems": ob[2]}
 
 
@@ -171,6 +173,36 @@ func add_money(amount: float, earned := true) -> void:
 		stats["earned"] = float(stats["earned"]) + amount
 		_income_window.append([_clock, amount])
 	money_changed.emit(money, amount)
+	if earned and amount > 0.0:
+		_check_level()
+
+
+## Empire level from lifetime earnings.
+static func level_for(earned: float) -> int:
+	var l := 1
+	for i in Defs.EMPIRE.size():
+		if earned >= float(Defs.EMPIRE[i]["xp"]):
+			l = i + 1
+	return l
+
+
+## Progress (0..1) toward the next Empire level.
+func level_progress() -> float:
+	if level >= Defs.EMPIRE.size():
+		return 1.0
+	var a := float(Defs.EMPIRE[level - 1]["xp"])
+	var b := float(Defs.EMPIRE[level]["xp"])
+	return clampf((float(stats["earned"]) - a) / (b - a), 0.0, 1.0)
+
+
+func _check_level() -> void:
+	var l := level_for(float(stats["earned"]))
+	while level < l:
+		level += 1
+		var g := int(Defs.EMPIRE[level - 1]["gems"])
+		add_gems(g)
+		refill_orders()
+		level_up.emit(level, g)
 
 
 func can_afford(amount: float) -> bool:
@@ -219,19 +251,6 @@ func sell(items: Array, mult := 1.0, gift_mult := 1.0) -> float:
 	total = roundf(total)
 	add_money(total)
 	return total
-
-
-# ---------------------------------------------------------------- hall level
-
-func unlocked(kind: String) -> bool:
-	return level >= int(Defs.BUILDINGS[kind]["hall"])
-
-
-func hall() -> Dictionary:
-	for b in buildings:
-		if b["kind"] == "hall":
-			return b
-	return {}
 
 
 # ---------------------------------------------------------------- buildings
@@ -283,13 +302,9 @@ func build_time_of(kind: String) -> float:
 
 ## Why a new building can't be placed now ("" when it can).
 func build_block(kind: String) -> String:
-	var d: Dictionary = Defs.BUILDINGS[kind]
-	if not unlocked(kind):
-		return "Needs Cookie Hall level %d" % int(d["hall"])
-	var mx := Defs.max_count(kind, level)
+	var mx := Defs.limit_of(kind)
 	if mx >= 0 and count_of(kind) >= mx:
-		var nh := Defs.next_count_hall(kind, count_of(kind))
-		return "Upgrade the Cookie Hall to level %d for another" % nh if nh > 0 else "You have all of these"
+		return "You have all of these" if mx > 1 else "You already have one"
 	var gp := gem_price_of(kind)
 	if gp > 0 and gems < gp:
 		return "Needs %d gems" % gp
@@ -381,8 +396,6 @@ func upgrade_block(uid: int) -> String:
 		return "Already being built"
 	if l >= Bal.max_level(kind):
 		return "Max level"
-	if l >= Bal.level_cap(kind, level):
-		return "Upgrade the Cookie Hall first"
 	if free_builders() <= 0:
 		return "All builders are busy"
 	if not can_afford(Bal.upgrade_cost(kind, l)):
@@ -410,12 +423,6 @@ func upgrade(uid: int) -> bool:
 func _finish_upgrade(b: Dictionary) -> void:
 	b["lvl"] = int(b["lvl"]) + 1
 	var uid := int(b["uid"])
-	if b["kind"] == "hall":
-		level = int(b["lvl"])
-		var g := int(Defs.HALL[mini(level - 1, Defs.HALL.size() - 1)]["gems"])
-		add_gems(g)
-		refill_orders()
-		hall_upgraded.emit(level, g)
 	building_upgraded.emit(uid, int(b["lvl"]))
 
 
@@ -618,6 +625,8 @@ func _spawn_obstacles(chunk: Vector2i) -> void:
 
 
 func _cell_taken(c: Vector2i) -> bool:
+	if Roads.is_street(c) or Roads.is_street(c + Vector2i(0, 1)) or Roads.is_street(c - Vector2i(0, 1)):
+		return true
 	for k in obstacles:
 		if obstacle_cells(k, obstacles[k]).has(c):
 			return true
@@ -806,9 +815,9 @@ func wanted_items() -> Array[String]:
 
 # ---------------------------------------------------------------- workers
 
-## Staff you can house: the Hall plus every Staff Cabin.
+## Staff you can house: a few in town plus every Staff Cabin.
 func cabin_capacity() -> int:
-	var n := Bal.hall_staff(level)
+	var n := Bal.BASE_STAFF
 	for b in buildings:
 		if b["kind"] == "cabin" and int(b["lvl"]) > 0:
 			n += Bal.cabin_cap(int(b["lvl"]))
@@ -956,7 +965,7 @@ func from_dict(d: Dictionary) -> void:
 		settings[k] = s[k]
 	tutorial_step = int(d.get("tutorial", 0))
 	won = bool(d.get("won", false))
-	level = int(hall().get("lvl", 1))
+	level = level_for(float(stats["earned"]))
 	var away := maxf(0.0, float(Time.get_unix_time_from_system() - int(d.get("time", 0))))
 	rush_cooldown = maxf(0.0, float(d.get("rush_cd", 0.0)) - away)
 	# time away counts for builders

@@ -147,11 +147,11 @@ func slots() -> int:
 	return Defs.bakery_slots(level)
 
 
-## Recipes this bakery could bake (enough silos, unlocked by the Hall).
+## Recipes this bakery could bake (enough silos for their ingredients).
 func choices() -> Array[String]:
 	var out: Array[String] = []
 	for r in Defs.RECIPES:
-		if (r["ings"] as Array).size() <= slots() and Defs.recipe_level(r["id"]) <= Game.level:
+		if (r["ings"] as Array).size() <= slots():
 			out.append(r["id"])
 	return out
 
@@ -219,14 +219,14 @@ func _rebuild_silo_holders() -> void:
 	var keep := {}
 	for i in ings():
 		keep[i] = true
-	# ingredients the new recipe doesn't use go back to the Hall
+	# ingredients the new recipe doesn't use go to a Pantry
 	for k in silos.keys():
 		if not keep.has(k):
 			var h: Holder = silos[k]
 			var back := h.items.duplicate()
 			h.queue_free()
 			silos.erase(k)
-			_return_to_hall(back)
+			_return_to_store(back)
 	for i in ings():
 		if not silos.has(i):
 			var h2 := Holder.new().setup(Bal.silo_cap(level), [i], Holder.Layout.NONE)
@@ -238,14 +238,14 @@ func _rebuild_silo_holders() -> void:
 		add_port(silos[i], null, "in")
 
 
-func _return_to_hall(items: Array) -> void:
+func _return_to_store(items: Array) -> void:
 	if world == null or items.is_empty():
 		return
 	for n in world.bnodes.values():
-		if n is HallB:
+		if n is StorageB and (n as StorageB).store.can_accept(str(items[0])):
 			for t in items:
-				if (n as HallB).store.space() > 0:
-					(n as HallB).store.add(str(t), false)
+				if (n as StorageB).store.space() > 0:
+					(n as StorageB).store.add(str(t), false)
 			return
 
 

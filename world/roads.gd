@@ -1,10 +1,12 @@
 class_name Roads
 extends RefCounted
-## The road network. Roads build themselves: every building's entrance (the
-## cell or two in front of the middle of its front edge) gets a cobbled path
-## to the Cookie Hall, joining the nearest road already there. Paths only run
-## over free land you own, so they go around buildings, never through them,
-## and turn as little as they can.
+## The road network. The High Street runs straight through your land from
+## horizon to horizon (two cells wide, rows STREET_Y and STREET_Y + 1); vans
+## drive off along it to sell. Side roads build themselves: every building's
+## entrance (the cell or two in front of the middle of its front edge) gets a
+## cobbled path to the High Street, joining the nearest road already there.
+## Paths only run over free land you own, so they go around buildings, never
+## through them, and turn as little as they can.
 ##
 ## Porters walk only on roads (a cell-sized A* over road cells), so a
 ## building whose entrance is walled in gets no deliveries until you make
@@ -14,10 +16,11 @@ const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), 
 const STEP_NEW := 3        # cost of paving a new cell
 const STEP_ROAD := 1       # cost of walking an existing road
 const TURN := 2            # extra cost of a turn
+const STREET_Y := -1       # the High Street covers rows STREET_Y and STREET_Y + 1
 
 ## cell -> bits: 1 = road, 2 << dir = a doorstep stub toward a building
 var cells := {}
-## uid -> true for buildings joined to the Hall
+## uid -> true for buildings joined to the High Street
 var connected := {}
 ## uid -> path cells from its entrance to the network (for the placement preview)
 var paths := {}
@@ -25,25 +28,24 @@ var astar := AStarGrid2D.new()
 var region := Rect2i()
 
 
+static func is_street(c: Vector2i) -> bool:
+	return c.y == STREET_Y or c.y == STREET_Y + 1
+
+
 ## Rebuilds every road from scratch. `blocked(c)` says whether a cell is
 ## taken; `owned(c)` whether you own it. `entries` = [{uid, cells, stub, d}]
-## with the Hall's first (d = distance to the hall, used for ordering).
+## (d = distance to the High Street, used for ordering: nearest first).
 func build(entries: Array, blocked: Callable, owned: Callable, bounds: Rect2i) -> void:
 	cells.clear()
 	connected.clear()
 	paths.clear()
 	region = bounds
-	if entries.is_empty():
-		_rebuild_astar()
-		return
 	var network := {}
-	var hall: Dictionary = entries[0]
-	for c in hall["cells"]:
-		if owned.call(c) and not blocked.call(c):
-			network[c] = true
-	if not network.is_empty():
-		connected[hall["uid"]] = true
-	var rest := entries.slice(1)
+	if region.size != Vector2i.ZERO:
+		for x in range(region.position.x, region.end.x):
+			for y in [STREET_Y, STREET_Y + 1]:
+				network[Vector2i(x, y)] = true
+	var rest := entries.duplicate()
 	rest.sort_custom(func(a, b): return a["d"] < b["d"])
 	for e in rest:
 		var starts: Array[Vector2i] = []
@@ -51,6 +53,16 @@ func build(entries: Array, blocked: Callable, owned: Callable, bounds: Rect2i) -
 			if owned.call(c) and not blocked.call(c):
 				starts.append(c)
 		if starts.is_empty() or network.is_empty():
+			continue
+		var on := false
+		for c in starts:
+			if network.has(c):
+				on = true
+		if on:
+			connected[e["uid"]] = true
+			paths[e["uid"]] = [] as Array[Vector2i]
+			for c in starts:
+				network[c] = true
 			continue
 		var p := _search(starts, network, blocked, owned)
 		if p.is_empty():
@@ -122,9 +134,10 @@ func _search(starts: Array[Vector2i], network: Dictionary, blocked: Callable, ow
 			return out
 		for d in 4:
 			var nc := cc + DIRS[d]
-			if not region.has_point(nc) or blocked.call(nc) or not owned.call(nc):
+			var on_net := network.has(nc)
+			if not region.has_point(nc) or (not on_net and (blocked.call(nc) or not owned.call(nc))):
 				continue
-			var step := STEP_ROAD if network.has(nc) else STEP_NEW
+			var step := STEP_ROAD if on_net else STEP_NEW
 			if cur.z != 4 and cur.z != d:
 				step += TURN
 			var nk := Vector3i(nc.x, nc.y, d)
