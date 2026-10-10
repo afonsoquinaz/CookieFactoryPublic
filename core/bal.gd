@@ -47,7 +47,7 @@ static func upgrade_time(kind: String, l: int) -> float:
 	if d["cat"] == "staff":
 		top = 2.0 * 3600.0
 	var f := float(l - 1) / float(mx - 2) if mx > 2 else 0.0
-	return roundf(t0 * pow(top / t0, pow(f, 1.25))) * tool_mult()
+	return roundf(t0 * pow(top / t0, pow(f, 0.75))) * tool_mult()
 
 
 static func tool_mult() -> float:
