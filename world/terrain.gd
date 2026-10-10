@@ -82,6 +82,7 @@ func _ready() -> void:
 	_mat.set_shader_parameter("road_tex", _road_tex)
 	_mat.set_shader_parameter("road_origin", Vector2(-ROAD_N / 2, -ROAD_N / 2))
 	_mat.set_shader_parameter("road_n", float(ROAD_N))
+	_mat.set_shader_parameter("street_y", float(Roads.STREET_Y))
 	refresh_land()
 	# a big flat collider so taps and the player always find the ground
 	var body := StaticBody3D.new()
@@ -185,7 +186,10 @@ func _chunk_decor(c: Vector2i, per: Dictionary) -> void:
 			var p := Vector3(x0 + rng.randf() * CHUNK_M, 0, z0 + rng.randf() * CHUNK_M)
 			var s := rng.randf_range(smin, smax)
 			var rot := rng.randf() * TAU
-			if world and (world.grid.blocked(Grid.cell_of(p)) or world.roads.is_road(Grid.cell_of(p))):
+			var pc := Grid.cell_of(p)
+			if Roads.is_street(pc) or Roads.is_street(pc + Vector2i(0, 1)) or Roads.is_street(pc - Vector2i(0, 1)):
+				continue
+			if world and (world.grid.blocked(pc) or world.roads.is_road(pc)):
 				continue
 			per[kind].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3(s, s, s)), p))
 	add.call("tuft", 40, 0.8, 1.4)

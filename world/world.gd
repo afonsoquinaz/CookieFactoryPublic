@@ -45,8 +45,7 @@ func _ready() -> void:
 	cam = CameraRig.new()
 	add_child(cam)
 	cam.world = self
-	var h := hall()
-	cam.global_position = (h.global_position + Vector3(0, 0, 3)) if h else Vector3.ZERO
+	cam.global_position = Vector3(0, 0, 1)
 	cam.snap()
 	_sync_workers()
 	_sync_jobs()
@@ -57,16 +56,11 @@ func _ready() -> void:
 	Game.building_upgraded.connect(_on_upgraded)
 	Game.land_bought.connect(_on_land)
 	Game.obstacles_changed.connect(_on_obstacles)
-	Game.obstacle_cleared.connect(func(key, gems):
-		var n: Node3D = obst_nodes.get(key)
-		if n and gems > 0:
-			UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 2.2, 0), "+%d gems" % gems, Color(1.0, 0.7, 0.8), 90)
-			Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.2, 0), Color(0.95, 0.55, 0.7), 14, false)
-			Sfx.play("cash", -4.0, 1.3))
+	Game.obstacle_cleared.connect(_on_cleared)
 	Game.workers_changed.connect(_sync_workers)
 	Game.jobs_changed.connect(_sync_jobs)
-	Game.researched.connect(func(_id, _l): _on_research())
-	Game.money_changed.connect(func(_v, _d): terrain.refresh_prices())
+	Game.researched.connect(_on_research)
+	Game.money_changed.connect(_on_money)
 	# a brand-new empire: a few sheaves are already waiting in the wheat crate
 	if int(Game.stats["cookies"]) == 0 and float(Game.stats["earned"]) == 0.0:
 		for n in bnodes.values():
@@ -89,13 +83,6 @@ func _process(dt: float) -> void:
 	if _store_cd <= 0.0:
 		_store_cd = 2.0
 		store_state()
-
-
-func hall() -> HallB:
-	for n in bnodes.values():
-		if n is HallB:
-			return n
-	return null
 
 
 # ---------------------------------------------------------------- buildings
@@ -203,7 +190,19 @@ func _on_land(_c: Vector2i) -> void:
 	Sfx.play("levelup", -6.0)
 
 
-func _on_research() -> void:
+func _on_cleared(key: String, gems: int) -> void:
+	var n: Node3D = obst_nodes.get(key)
+	if n and gems > 0:
+		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 2.2, 0), "+%d gems" % gems, Color(1.0, 0.7, 0.8), 90)
+		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.2, 0), Color(0.95, 0.55, 0.7), 14, false)
+		Sfx.play("cash", -4.0, 1.3)
+
+
+func _on_money(_v: float, _d: float) -> void:
+	terrain.refresh_prices()
+
+
+func _on_research(_id := "", _l := 0) -> void:
 	for w in workers.values():
 		w.refresh()
 
@@ -283,31 +282,34 @@ func rebuild_roads() -> void:
 				fresh.append(c)
 		for i in mini(fresh.size(), 40):
 			var p := Grid.cell_center(fresh[i]) + Vector3(0, 0.1, 0)
-			get_tree().create_timer(i * 0.05).timeout.connect(func():
-				Fx.puff(get_tree().current_scene, p, Color(0.86, 0.8, 0.7), 3))
+			get_tree().create_timer(i * 0.05).timeout.connect(_dust.bind(p))
 		if not fresh.is_empty():
 			Sfx.play("pop", -12.0, 0.8)
 
 
-## Entrances for the road builder, the Hall's first. `skip` = a building
-## being moved (left out); `extra` = a ghost {uid, kind, origin, rot}.
+func _dust(p: Vector3) -> void:
+	Fx.puff(get_tree().current_scene, p, Color(0.86, 0.8, 0.7), 3)
+
+
+## Entrances for the road builder. `skip` = a building being moved (left
+## out); `extra` = a ghost {uid, kind, origin, rot}.
 func _road_entries(skip := 0, extra := {}) -> Array:
-	var h := hall()
 	var entries := []
-	var hc := Vector2i.ZERO
-	if h:
-		var hcells := h.entrance_cells()
-		hc = hcells[0]
-		entries.append({"uid": h.uid, "cells": hcells, "stub": Building.stub_dir(h.rot()), "d": 0})
 	for n in bnodes.values():
-		if n == h or not n.has_entrance() or n.uid == skip:
+		if not n.has_entrance() or n.uid == skip:
 			continue
 		var ec: Array[Vector2i] = n.entrance_cells()
-		entries.append({"uid": n.uid, "cells": ec, "stub": Building.stub_dir(n.rot()), "d": absi(ec[0].x - hc.x) + absi(ec[0].y - hc.y)})
+		entries.append({"uid": n.uid, "cells": ec, "stub": Building.stub_dir(n.rot()), "d": _street_dist(ec[0])})
 	if not extra.is_empty() and Building.kind_has_entrance(extra["kind"]):
 		var ec2 := Building.entrance_of(extra["kind"], extra["origin"], extra["rot"])
-		entries.append({"uid": -99, "cells": ec2, "stub": Building.stub_dir(extra["rot"]), "d": absi(ec2[0].x - hc.x) + absi(ec2[0].y - hc.y)})
+		entries.append({"uid": -99, "cells": ec2, "stub": Building.stub_dir(extra["rot"]), "d": _street_dist(ec2[0])})
 	return entries
+
+
+static func _street_dist(c: Vector2i) -> int:
+	if Roads.is_street(c):
+		return 0
+	return mini(absi(c.y - Roads.STREET_Y), absi(c.y - Roads.STREET_Y - 1))
 
 
 ## Buildings that would lose their road if `kind` went here (names).
@@ -368,6 +370,12 @@ func road_path(from: Vector3, b: Building) -> PackedVector3Array:
 	return _lane(best, from)
 
 
+## Road cells from a road cell to the nearest point of the High Street.
+func street_route(from: Vector2i) -> Array[Vector2i]:
+	var row := Roads.STREET_Y if from.y < Roads.STREET_Y else Roads.STREET_Y + 1
+	return roads.route(from, Vector2i(from.x, row))
+
+
 ## Along the roads to any point (resting seats, chef stations).
 func road_path_to_point(from: Vector3, to: Vector3) -> PackedVector3Array:
 	var a := _nearest_road(Grid.cell_of(from))
@@ -421,6 +429,11 @@ func check_spot(kind: String, origin: Vector2i, rot: int, ignore := 0) -> Dictio
 		if not Game.owns_cell(c):
 			bad.append(c)
 			reason = "You don't own this land yet. Tap a For Sale sign to buy it."
+	if reason == "":
+		for c in cells:
+			if Roads.is_street(c):
+				bad.append(c)
+				reason = "Keep the High Street clear."
 	if reason == "":
 		for c in cells:
 			var u := grid.at(c)
@@ -686,8 +699,7 @@ func _sync_workers() -> void:
 			var w2 := Worker.new()
 			w2.setup(self, d)
 			actors.add_child(w2)
-			var h := hall()
-			w2.global_position = h.door_pos() if h else Vector3.ZERO
+			w2.global_position = rest_seat(w2)
 			workers[id] = w2
 			if _synced_once:
 				w2.greet()
@@ -704,7 +716,8 @@ func _sync_workers() -> void:
 	_synced_once = true
 
 
-## Seat for a resting worker on the Hall's benches (or a cabin's).
+## Where a resting worker goes: a bench seat at a Staff Cabin, or (with no
+## cabins) a spot by the road near the first building.
 func rest_seat(w: Worker) -> Vector3:
 	var i := 0
 	for id in workers:
@@ -712,11 +725,27 @@ func rest_seat(w: Worker) -> Vector3:
 			break
 		i += 1
 	var cabins := buildings_of("cabin")
-	var h := hall()
-	if i < 6 or cabins.is_empty():
-		return h.seat(i) if h else Vector3.ZERO
-	var c: CabinB = cabins[(i - 6) / 8 % cabins.size()]
-	return c.seat((i - 6) % 8)
+	if not cabins.is_empty():
+		var c: CabinB = cabins[i / 8 % cabins.size()]
+		return c.seat(i % 8)
+	for n in bnodes.values():
+		if n.has_entrance() and not n is SiteB:
+			return n.door_pos() + n.base_xf().basis.x * (-1.5 + (i % 6) * 0.6) + n.base_xf().basis.z * 0.9
+	return Vector3(i * 0.6, 0, 0)
+
+
+## Whether resting worker w sits on a bench there.
+func rest_sits(_w: Worker) -> bool:
+	return not buildings_of("cabin").is_empty()
+
+
+## Which way a resting worker faces: out from the cabin's front.
+func rest_face(w: Worker) -> Vector3:
+	var cabins := buildings_of("cabin")
+	if cabins.is_empty():
+		return Vector3(0, 0, 1)
+	var i := workers.values().find(w)
+	return (cabins[maxi(0, i) / 8 % cabins.size()] as Building).base_xf().basis.z
 
 
 # ---------------------------------------------------------------- save state

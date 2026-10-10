@@ -20,10 +20,10 @@ var _frames := 0
 var _t := 0.0
 
 const TIPS := [
-	"Upgrade the Cookie Hall to unlock new buildings",
+	"Everything is open from the start: you decide what to build",
 	"Builders keep building while you're away",
 	"Jobs with 30 seconds left finish for free",
-	"Every building gets its own road. Keep entrances clear",
+	"Every building gets a road to the High Street. Keep entrances clear",
 	"Bushes, stumps and boulders often hide gems",
 	"Every 3 Bakery levels add a silo for richer recipes",
 ]

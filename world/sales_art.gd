@@ -1,5 +1,6 @@
 class_name SalesArt
 ## Sales buildings and their vehicles, five tiers each.
+## Depot: plank shed -> brick depot -> Cookie Express -> logistics hub -> royal post office.
 ## Van: cream van -> sage truck -> charcoal + brass -> box truck -> royal coach.
 ## Train: little tank engine -> ... -> streamlined golden express.
 ## Airship: canvas blimp -> ... -> royal zeppelin with gold fins.
@@ -9,25 +10,7 @@ static func site(kind: String, t: int) -> Mesh:
 	var k := MeshKit.new()
 	match kind:
 		"dock":
-			# driveway + garage with a roller door at the back
-			k.rbox(Vector3(3.6, 0.05, 4.8), 0.03, Color(0.55, 0.54, 0.52), MeshKit.at(0, 0.02, -0.4))
-			for i in 4:
-				k.rbox(Vector3(0.1, 0.06, 0.6), 0.02, Pal.CREAM, MeshKit.at(0, 0.05, 1.4 - i * 1.1))
-			var wall: Color = [Color(0.92, 0.88, 0.8), Color(0.88, 0.84, 0.76), Pal.BRICK, Color(0.7, 0.72, 0.74), Color(0.94, 0.92, 0.86)][t]
-			var roof: Color = [Pal.TERRACOTTA, Pal.SAGE, Pal.STEEL_DARK, Pal.STEEL_DARK, Pal.CHOCO][t]
-			k.rbox(Vector3(4.0, 2.6, 1.4), 0.06, wall, MeshKit.at(0, 1.3, -2.3))
-			k.rbox(Vector3(4.2, 0.14, 1.6), 0.04, roof, MeshKit.at(0, 2.68, -2.3))
-			k.rbox(Vector3(3.0, 2.2, 0.05), 0.02, Pal.STEEL_DARK, MeshKit.at(0, 1.1, -1.58))
-			if t >= 2:
-				k.rbox(Vector3(1.4, 0.4, 0.06), 0.05, Pal.CREAM, MeshKit.at(0, 2.45, -1.55))
-				Items.cookie_into(k, "choc", 0.14, 0.04, MeshKit.xf(Vector3(0, 2.45, -1.5), Vector3(90, 0, 0)))
-			if t >= 3:
-				for sx in [-1.0, 1.0]:
-					k.sphere(0.12, Color(1.0, 0.92, 0.7, 0.4), MeshKit.at(sx * 1.75, 2.3, -1.5), 8, 5)
-			if t >= 4:
-				k.rbox(Vector3(4.24, 0.08, 1.64), 0.02, Pal.GOLD, MeshKit.at(0, 2.78, -2.3))
-				for sx in [-1.0, 1.0]:
-					k.cone(0.12, 0.4, Pal.GOLD, MeshKit.at(sx * 1.9, 2.8, -1.6), 8)
+			_depot(k, t)
 		"train":
 			# platform, rails, a stone tunnel portal on the left
 			k.rbox(Vector3(6.0, 0.35, 1.6), 0.04, Pal.STONE, MeshKit.at(0, 0.17, 0.4))
@@ -65,12 +48,140 @@ static func site(kind: String, t: int) -> Mesh:
 	return k.commit()
 
 
-static func garage_door() -> Mesh:
+## The Delivery Van's depot: a paved bay with a cookie turntable in front
+## (the van parks on it), the depot building along the back. Local: footprint
+## x -2..2, z -3..3, the street side at +z. Five looks: a plank shed, a brick
+## depot, the two-storey Cookie Express, a steel logistics hub, a royal post
+## office.
+const BAY_Z := 0.75              # turntable centre (local z)
+const DEPOT_Z := -2.25           # depot centre (local z), 1.5 m deep
+
+
+static func _depot(k: MeshKit, t: int) -> void:
+	var pave: Color = [Color(0.66, 0.6, 0.52), Color(0.68, 0.64, 0.6), Color(0.74, 0.7, 0.64), Color(0.56, 0.57, 0.58), Color(0.86, 0.82, 0.74)][t]
+	var paint: Color = [Pal.CREAM, Pal.CREAM, Pal.CREAM, Color(0.96, 0.8, 0.3), Pal.GOLD][t]
+	# the bay: paving, painted edge lines, the turntable
+	k.rbox(Vector3(3.9, 0.06, 4.6), 0.04, pave, MeshKit.at(0, 0.03, 0.7))
+	for sx in [-1.0, 1.0]:
+		k.rbox(Vector3(0.08, 0.02, 4.2), 0.01, paint, MeshKit.at(sx * 1.82, 0.065, 0.8))
+	if t == 4:
+		k.rbox(Vector3(1.2, 0.02, 1.5), 0.01, Color(0.66, 0.22, 0.22), MeshKit.at(0, 0.065, 2.55))
+	# depot
+	match t:
+		0:
+			# a plank shed with a lean-to roof and a hand-painted sign
+			k.rbox(Vector3(3.8, 2.0, 1.4), 0.04, Pal.WOOD, MeshKit.at(0, 1.0, DEPOT_Z))
+			for i in 7:
+				k.rbox(Vector3(0.03, 1.9, 0.02), 0.005, Pal.WOOD_DARK, MeshKit.at(-1.6 + i * 0.53, 1.0, DEPOT_Z + 0.71))
+			TownArt.gable(k, Vector3(0, 2.0, DEPOT_Z), 3.8, 1.5, 0.6, Pal.TERRACOTTA, Pal.WOOD)
+			k.rbox(Vector3(1.6, 1.4, 0.05), 0.03, Pal.WOOD_DARK, MeshKit.at(0, 0.75, DEPOT_Z + 0.72))
+			k.rbox(Vector3(1.4, 0.36, 0.06), 0.04, Pal.CREAM, MeshKit.at(0, 1.75, DEPOT_Z + 0.75))
+			Items.cookie_into(k, "shortbread", 0.12, 0.03, MeshKit.xf(Vector3(-0.45, 1.75, DEPOT_Z + 0.8), Vector3(90, 0, 0)))
+		1:
+			# a brick depot under a tiled gable, a roller door and a lamp
+			k.rbox(Vector3(3.8, 2.3, 1.4), 0.05, Pal.BRICK, MeshKit.at(0, 1.15, DEPOT_Z))
+			k.rbox(Vector3(3.9, 0.14, 1.5), 0.03, Pal.STONE, MeshKit.at(0, 2.3, DEPOT_Z))
+			TownArt.gable(k, Vector3(0, 2.36, DEPOT_Z), 3.8, 1.5, 0.75, Pal.TERRACOTTA, Pal.BRICK)
+			_roller(k, Vector3(0, 0, DEPOT_Z + 0.71), 1.8, 1.7, Color(0.84, 0.82, 0.78))
+			k.rbox(Vector3(1.6, 0.34, 0.06), 0.04, Pal.CREAM, MeshKit.at(0, 2.0, DEPOT_Z + 0.74))
+			Items.cookie_into(k, "sugar", 0.12, 0.03, MeshKit.xf(Vector3(-0.5, 2.0, DEPOT_Z + 0.79), Vector3(90, 0, 0)))
+			TownArt.lamp_post(k, Vector3(1.75, 0, DEPOT_Z + 1.0), 1.8)
+		2:
+			# the Cookie Express: two storeys, a clock, an awning over the bay
+			k.rbox(Vector3(3.8, 3.4, 1.4), 0.05, Color(0.94, 0.9, 0.8), MeshKit.at(0, 1.7, DEPOT_Z))
+			k.rbox(Vector3(3.9, 0.12, 1.5), 0.03, Pal.SAGE, MeshKit.at(0, 1.95, DEPOT_Z))
+			TownArt.gable(k, Vector3(0, 3.4, DEPOT_Z), 3.8, 1.5, 0.8, Pal.SAGE, Color(0.94, 0.9, 0.8))
+			_roller(k, Vector3(0, 0, DEPOT_Z + 0.71), 2.0, 1.75, Pal.SAGE.lightened(0.2))
+			for sx in [-1.0, 1.0]:
+				TownArt.window(k, Vector3(sx * 1.15, 2.6, DEPOT_Z + 0.71), 0.6, 0.6, Pal.SAGE, Color(0.6, 0.72, 0.78), true)
+			k.cyl(0.32, 0.08, Pal.CREAM, MeshKit.xf(Vector3(0, 2.75, DEPOT_Z + 0.74), Vector3(90, 0, 0)), 16)
+			k.torus(0.32, 0.04, Pal.BRASS, MeshKit.xf(Vector3(0, 2.75, DEPOT_Z + 0.78), Vector3(90, 0, 0)), 16, 4)
+			k.rbox(Vector3(0.04, 0.22, 0.03), 0.01, Pal.INK, MeshKit.xf(Vector3(0, 2.83, DEPOT_Z + 0.8), Vector3(0, 0, 0)))
+			k.rbox(Vector3(0.16, 0.035, 0.03), 0.01, Pal.INK, MeshKit.at(0.07, 2.75, DEPOT_Z + 0.8))
+			_awning(k, 3.8, Pal.SAGE, Pal.CREAM)
+		3:
+			# a steel logistics hub: flat roof, vents, a lit sign, floodlights
+			k.rbox(Vector3(3.9, 3.0, 1.45), 0.04, Color(0.72, 0.74, 0.76), MeshKit.at(0, 1.5, DEPOT_Z))
+			for i in 9:
+				k.rbox(Vector3(0.03, 2.9, 0.02), 0.005, Color(0.6, 0.62, 0.64), MeshKit.at(-1.8 + i * 0.45, 1.5, DEPOT_Z + 0.73))
+			k.rbox(Vector3(4.0, 0.16, 1.55), 0.03, Pal.STEEL_DARK, MeshKit.at(0, 3.05, DEPOT_Z))
+			for sx in [-1.0, 1.0]:
+				k.cyl(0.18, 0.4, Pal.STEEL, MeshKit.at(sx * 1.2, 3.1, DEPOT_Z - 0.2), 10, 0.03)
+				k.sphere(0.13, Color(1.0, 0.96, 0.85, 0.35), MeshKit.at(sx * 1.85, 2.7, DEPOT_Z + 0.85), 8, 5)
+			_roller(k, Vector3(0, 0, DEPOT_Z + 0.74), 2.6, 2.1, Color(0.86, 0.66, 0.24))
+			k.rbox(Vector3(2.2, 0.42, 0.08), 0.06, Pal.STEEL_DARK, MeshKit.at(0, 2.55, DEPOT_Z + 0.78))
+			k.rbox(Vector3(2.0, 0.3, 0.09), 0.05, Color(1.0, 0.88, 0.5, 0.5), MeshKit.at(0, 2.55, DEPOT_Z + 0.79))
+			_canopy(k, Pal.STEEL_DARK)
+		_:
+			# a royal post office: cream stone, gold trim, a dome and flags
+			var stone := Color(0.95, 0.92, 0.86)
+			k.rbox(Vector3(3.9, 3.2, 1.45), 0.05, stone, MeshKit.at(0, 1.6, DEPOT_Z))
+			k.rbox(Vector3(4.0, 0.2, 1.55), 0.04, Pal.GOLD, MeshKit.at(0, 3.2, DEPOT_Z))
+			for sx in [-1.5, -0.5, 0.5, 1.5]:
+				k.cyl(0.13, 3.0, stone.darkened(0.06), MeshKit.at(sx * 1.2, 0, DEPOT_Z + 0.8), 10, 0.02)
+				k.cyl(0.17, 0.14, Pal.GOLD, MeshKit.at(sx * 1.2, 2.95, DEPOT_Z + 0.8), 10)
+			_roller(k, Vector3(0, 0, DEPOT_Z + 0.73), 1.9, 2.1, Pal.CHOCO)
+			k.lathe(PackedVector2Array([Vector2(0.75, 0), Vector2(0.72, 0.35), Vector2(0.55, 0.7), Vector2(0.25, 0.92), Vector2(0.0, 1.0)]), Pal.GOLD, MeshKit.at(0, 3.3, DEPOT_Z), 16)
+			k.cyl(0.78, 0.3, stone, MeshKit.at(0, 3.0, DEPOT_Z), 16, 0.03)
+			k.sphere(0.12, Pal.GOLD, MeshKit.at(0, 4.4, DEPOT_Z), 8, 5)
+			for sx in [-1.0, 1.0]:
+				TownArt.flag(k, Vector3(sx * 1.8, 3.3, DEPOT_Z), 1.4, Color(0.66, 0.22, 0.22), Pal.GOLD)
+			k.rbox(Vector3(1.4, 0.4, 0.08), 0.1, Pal.CHOCO, MeshKit.at(0, 2.65, DEPOT_Z + 0.82))
+			Items.cookie_into(k, "royal", 0.16, 0.04, MeshKit.xf(Vector3(0, 2.65, DEPOT_Z + 0.88), Vector3(90, 0, 0)))
+			_canopy(k, Pal.GOLD)
+	# windows on the back, for the view from across the street
+	var wf: Color = [Pal.WOOD_DARK, Pal.CREAM, Pal.SAGE, Pal.STEEL_DARK, Pal.GOLD][t]
+	for sx in [-1.0, 1.0]:
+		TownArt.window(k, Vector3(sx * 1.0, 1.3, DEPOT_Z - 0.76), 0.6, 0.55, wf, Color(0.6, 0.72, 0.78), t >= 2)
+	# a loading platform along the depot front
+	k.rbox(Vector3(3.8, 0.5, 0.36), 0.04, Pal.STONE if t != 3 else Pal.STEEL_DARK, MeshKit.at(0, 0.25, DEPOT_Z + 0.88))
+	TownArt.crate(k, Vector3(-1.5, 0.5, DEPOT_Z + 0.88), 0.32)
+
+
+static func _roller(k: MeshKit, at: Vector3, w: float, h: float, col: Color) -> void:
+	k.rbox(Vector3(w + 0.16, h + 0.08, 0.06), 0.03, Pal.STEEL_DARK, MeshKit.at(at.x, h * 0.5, at.z))
+	for i in int(h / 0.22):
+		k.rbox(Vector3(w, 0.18, 0.05), 0.02, col if i % 2 == 0 else col.darkened(0.06), MeshKit.at(at.x, 0.12 + i * 0.22, at.z + 0.02))
+
+
+## A striped awning over the front of the depot.
+static func _awning(k: MeshKit, w: float, a: Color, b: Color) -> void:
+	var n := int(w / 0.48)
+	for i in n:
+		k.rbox(Vector3(0.48, 0.05, 0.9), 0.015, a if i % 2 == 0 else b, MeshKit.xf(Vector3(-w * 0.5 + 0.24 + i * 0.48, 2.05, DEPOT_Z + 1.1), Vector3(-16, 0, 0)))
+
+
+## A canopy on posts over the back of the bay.
+static func _canopy(k: MeshKit, col: Color) -> void:
+	for sx in [-1.0, 1.0]:
+		k.cyl(0.07, 2.9, col, MeshKit.at(sx * 1.85, 0, -0.3), 8, 0.02)
+	k.rbox(Vector3(4.0, 0.1, 2.0), 0.04, col, MeshKit.at(0, 2.95, -0.75))
+	k.rbox(Vector3(4.0, 0.06, 1.9), 0.02, Color(0.9, 0.9, 0.88, 0.75), MeshKit.at(0, 2.88, -0.75))
+
+
+## The turntable the van parks on: turns it around while it's loaded.
+static func turntable(t: int) -> Mesh:
 	var k := MeshKit.new()
-	# hangs from its top edge (origin) and shrinks upward to open
+	var rim: Color = [Pal.STEEL_DARK, Pal.STEEL_DARK, Pal.BRASS, Pal.STEEL_DARK, Pal.GOLD][t]
+	k.cyl(1.82, 0.05, rim, MeshKit.at(0, 0.0, 0), 32, 0.02)
+	k.cyl(1.7, 0.06, Color(0.5, 0.48, 0.46) if t != 4 else Color(0.62, 0.22, 0.22), MeshKit.at(0, 0.01, 0), 32, 0.02)
+	# a big cookie painted in the middle
+	k.cyl(0.62, 0.02, Pal.COOKIE, MeshKit.at(0, 0.07, 0), 20)
+	for i in 5:
+		var a := TAU * i / 5.0
+		k.cyl(0.08, 0.02, Pal.CHOCO, MeshKit.at(cos(a) * 0.35, 0.08, sin(a) * 0.35), 8)
 	for i in 8:
-		k.rbox(Vector3(2.9, 0.26, 0.06), 0.02, Color(0.84, 0.82, 0.78) if i % 2 == 0 else Color(0.78, 0.76, 0.72), MeshKit.at(0, -0.14 - i * 0.27, 0))
+		var a2 := TAU * i / 8.0
+		k.rbox(Vector3(0.9, 0.012, 0.05), 0.005, rim, MeshKit.xf(Vector3(cos(a2) * 1.2, 0.07, sin(a2) * 1.2), Vector3(0, -rad_to_deg(a2), 0)))
 	return k.commit()
+
+
+## Spots around the depot for the things it gains as it levels up.
+const DOCK_PROPS := [
+	[Vector3(-1.65, 0, 2.75), 0.0], [Vector3(1.6, 0, 2.75), 0.0], [Vector3(1.85, 0, -0.85), 0.0],
+	[Vector3(-0.75, 0.5, -1.38), 0.0], [Vector3(-1.85, 0, 2.05), 0.0], [Vector3(-1.85, 0, -0.85), 0.0],
+	[Vector3(1.8, 0, 2.0), 90.0], [Vector3(0.75, 0.5, -1.38), 0.0],
+]
 
 
 ## Front = +x. Bed / load at -x.

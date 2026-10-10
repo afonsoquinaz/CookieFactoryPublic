@@ -5,7 +5,7 @@ extends Node3D
 ##           from the Wheat Field to the Bakery"), walks there along the
 ##           roads, loads up at the entrance, delivers, repeats.
 ##   chef    stands at their bakery or kitchen and works it.
-## Staff with nothing to do rest on the Cookie Hall's benches.
+## Staff with nothing to do rest on the Staff Cabins' benches.
 
 enum S { DECIDE, GO_TAKE, TAKING, GO_GIVE, GIVING, WAIT, REST, STATION }
 
@@ -339,8 +339,8 @@ func _rest(dt: float) -> void:
 		_walk_point(seat, dt)
 	else:
 		ch.move_speed = 0.0
-		ch.work = "sit"
-		ch.face(Vector3(0, 0, 1), dt, 4.0)
+		ch.work = "sit" if world.rest_sits(self) else ""
+		ch.face(world.rest_face(self), dt, 4.0)
 
 
 ## Chefs stand in front of their machine and work it.

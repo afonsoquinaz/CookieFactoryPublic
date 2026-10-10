@@ -35,8 +35,6 @@ static func create(w: World, b: Dictionary) -> Building:
 		node = FarmB.new()
 	elif k == "bakery":
 		node = BakeryB.new()
-	elif k == "hall":
-		node = HallB.new()
 	elif k == "hut":
 		node = HutB.new()
 	elif cat == "kitchen" or k == "packer" or k == "wrapper":

@@ -1,6 +1,6 @@
 extends Control
 ## The game HUD, base-builder style. Top: money and gems, the builders chip
-## (busy / total), the Cookie Hall badge, settings. Bottom: Staff, Research,
+## (busy / total), the Empire level badge, settings. Bottom: Staff, Research,
 ## Boost and a big Build button. Tap a building (or an obstacle, or a For Sale
 ## sign) to select it: it lights up and an action bar replaces the bottom
 ## buttons. Floating timers sit over everything being built. Build mode
@@ -24,9 +24,10 @@ var _builders_chip: JuicyButton
 var _trend_chip: PanelContainer
 var _trend_icon: TextureRect
 var _trend_label: Label
-var _hall_box: Control
-var _hall_label: Label
-var _hall_title: Label
+var _lvl_box: Control
+var _lvl_label: Label
+var _lvl_title: Label
+var _lvl_fill: Panel
 var _gear: JuicyButton
 var btn_build: JuicyButton
 var btn_staff: JuicyButton
@@ -93,7 +94,7 @@ func _ready() -> void:
 	Game.gems_changed.connect(func(g):
 		_gem_label.text = str(g)
 		Kit.bounce(_gem_chip, 0.15))
-	Game.hall_upgraded.connect(_on_hall_up)
+	Game.level_up.connect(_on_level_up)
 	Game.toast.connect(toast)
 	Game.rush_changed.connect(_on_rush)
 	Game.building_built.connect(_on_built)
@@ -111,7 +112,7 @@ func _ready() -> void:
 		_popup("Cookie Empire!", "The Grand Cookie Palace is complete. Your cookies are a legend from coast to coast.",
 			"%s cookies sold  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["cookies"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
 			"palace", "Keep baking"))
-	_update_hall()
+	_update_level()
 	_on_trend(Game.trending)
 	_gem_label.text = str(Game.gems)
 
@@ -128,7 +129,7 @@ func show_title() -> void:
 func _start_playing() -> void:
 	playing = true
 	_set_hud_visible(true)
-	for c in [_money_pill, _hall_box, _gear, _builders_chip]:
+	for c in [_money_pill, _lvl_box, _gear, _builders_chip]:
 		Kit.pop_in(c, 0.2)
 	_welcome_back.call_deferred()
 
@@ -145,7 +146,7 @@ func _welcome_back() -> void:
 
 
 func _set_hud_visible(on: bool) -> void:
-	for c in [_money_pill, _hall_box, _gear, _bar, goals, pan, _gem_chip, _trend_chip, _builders_chip, timers]:
+	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _trend_chip, _builders_chip, timers]:
 		c.visible = on
 	if on:
 		_trend_chip.visible = Game.trending != ""
@@ -201,12 +202,12 @@ func _build_top() -> void:
 	th.add_child(_trend_icon)
 	_trend_label = Kit.game("", 17, Color(1.0, 0.9, 0.55), 5)
 	th.add_child(_trend_label)
-	# Cookie Hall badge
+	# Empire level badge: grows with lifetime earnings
 	var hb := Control.new()
 	hb.custom_minimum_size = Vector2(190, 84)
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hb)
-	_hall_box = hb
+	_lvl_box = hb
 	var back := Panel.new()
 	back.add_theme_stylebox_override("panel", Kit.skin("bar", 30))
 	back.position = Vector2(40, 12)
@@ -216,31 +217,40 @@ func _build_top() -> void:
 	var star := Kit.icon("star", 84)
 	star.position = Vector2(-6, -6)
 	hb.add_child(star)
-	_hall_label = Kit.game("1", 30, Kit.WHITE, 7)
-	_hall_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hall_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hall_label.position = Vector2(-6, 6)
-	_hall_label.size = Vector2(84, 60)
-	hb.add_child(_hall_label)
-	var hl := Kit.game("Cookie Hall", 15, Color(1.0, 0.86, 0.5), 4)
-	hl.position = Vector2(80, 14)
-	hb.add_child(hl)
-	_hall_title = Kit.game("", 17, Kit.WHITE, 5)
-	_hall_title.position = Vector2(80, 34)
-	hb.add_child(_hall_title)
+	_lvl_label = Kit.game("1", 30, Kit.WHITE, 7)
+	_lvl_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lvl_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_lvl_label.position = Vector2(-6, 6)
+	_lvl_label.size = Vector2(84, 60)
+	hb.add_child(_lvl_label)
+	_lvl_title = Kit.game("", 17, Kit.WHITE, 5)
+	_lvl_title.position = Vector2(80, 16)
+	hb.add_child(_lvl_title)
+	var track := Panel.new()
+	track.add_theme_stylebox_override("panel", Kit.skin("track", 10))
+	track.position = Vector2(82, 44)
+	track.size = Vector2(98, 14)
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_child(track)
+	_lvl_fill = Panel.new()
+	_lvl_fill.add_theme_stylebox_override("panel", Kit.skin("fill_gold", 10))
+	_lvl_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(_lvl_fill)
 	_gear = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(72, 72))
 	_gear.set_glyph("settings", 34)
 	_gear.pressed.connect(func(): open_sheet(SettingsPanel.new()))
 	add_child(_gear)
 
 
-func _update_hall() -> void:
-	_hall_label.text = str(Game.level)
-	_hall_title.text = Defs.level_title(Game.level)
+func _update_level() -> void:
+	_lvl_label.text = str(Game.level)
+	_lvl_title.text = Defs.level_title(Game.level)
+	_lvl_fill.size = Vector2(maxf(10.0, 98.0 * Game.level_progress()), 14)
 
 
 func _on_money(_value: float, delta: float) -> void:
 	if delta > 0:
+		_update_level()
 		Kit.bounce(_money_pill, 0.06)
 
 
@@ -484,8 +494,6 @@ func _refresh_actions() -> void:
 		sub = "Under construction"
 	elif Bal.max_level(n.kind) > 1:
 		sub = "Level %d" % n.level
-		if n is HallB:
-			sub += "  ·  %s" % Defs.level_title(n.level)
 	if not j2.is_empty():
 		sub += ("  ·  " if sub != "" else "") + ("Upgrading" if j2["type"] == "upgrade" else "Building") + ": %s left" % Fmt.time(Game.job_left(j2))
 	elif n.has_entrance() and not n.on_road() and not n is SiteB:
@@ -496,15 +504,14 @@ func _refresh_actions() -> void:
 	if not j2.is_empty():
 		b.append(["finish", "gem", _finish_label(j2), Kit.BRASS])
 	elif not n is SiteB and Bal.max_level(n.kind) > 1 and n.level < Bal.max_level(n.kind):
-		var cap := n.level >= Bal.level_cap(n.kind, Game.level)
-		b.append(["upgrade", "hammer" if not cap else "lock", ("$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level))) if not cap else "Hall %d" % (Game.level + 1), Kit.SAGE, not cap])
+		b.append(["upgrade", "hammer", "$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level)), Kit.SAGE])
 	if n is BakeryB:
 		b.append(["recipe", "ck_" + (n as BakeryB).recipe, "Bake", Kit.BRASS])
 	if (n is FarmB or n is BakeryB or n is MachineB) and not n is SiteB:
 		b.append(["staff", "farmer" if n is FarmB else "chef", "Staff", Kit.CHARCOAL])
 	if n is PalaceB and j2.is_empty() and not (n as PalaceB).complete():
 		b.append(["stage", "palace", "Next stage", Kit.BRASS, (n as PalaceB).can_advance()])
-	if not n is SiteB and n.kind != "hall":
+	if not n is SiteB:
 		b.append(["move", "move", "Move", Kit.CHARCOAL])
 	actions.set_buttons(b, "b%d" % n.uid)
 	_mark_cells(Grid.cells(n.cell(), n.size(), n.rot()))
@@ -516,10 +523,9 @@ func _finish_label(j: Dictionary) -> String:
 	return "Free!" if g == 0 else "%d gems" % g
 
 
-## Little glowing stones along the selected building's road to the Hall.
+## Little glowing stones along the selected building's road to the High Street.
 func _mark_route(n: Building) -> void:
-	var h := world.hall()
-	if h == null or n == h or not n.has_entrance() or not n.on_road():
+	if not n.has_entrance() or not n.on_road():
 		_route_mark.visible = false
 		return
 	var key := "%d_%d" % [n.uid, world.roads.cells.size()]
@@ -527,7 +533,7 @@ func _mark_route(n: Building) -> void:
 		_route_mark.visible = true
 		return
 	_route_mark.set_meta("key", key)
-	var r := world.roads.route(n.entrance_cells()[0], h.entrance_cells()[0])
+	var r := world.street_route(n.entrance_cells()[0])
 	var k := MeshKit.new()
 	for i in r.size():
 		var p := Grid.cell_center(r[i])
@@ -699,8 +705,8 @@ func _layout() -> void:
 	_gem_chip.position = Vector2(40, 88 + top)
 	_gear.size = _gear.custom_minimum_size
 	_gear.position = Vector2(vs.x - _gear.size.x - 14, 14 + top)
-	_hall_box.size = _hall_box.custom_minimum_size
-	_hall_box.position = Vector2(_gear.position.x - _hall_box.size.x - 8, 12 + top)
+	_lvl_box.size = _lvl_box.custom_minimum_size
+	_lvl_box.position = Vector2(_gear.position.x - _lvl_box.size.x - 8, 12 + top)
 	_builders_chip.size = _builders_chip.custom_minimum_size
 	_builders_chip.position = Vector2(vs.x - _builders_chip.size.x - 14, 96 + top)
 	_trend_chip.size = _trend_chip.get_combined_minimum_size()
@@ -810,19 +816,12 @@ func _on_discovered(rid: String) -> void:
 	_popup("New cookie!", r["name"], "Sells for $%s each" % Fmt.num(Bal.item_value("c:" + rid)), "ck_" + rid, "Yum!")
 
 
-func _on_hall_up(level: int, gems: int) -> void:
-	_update_hall()
+func _on_level_up(level: int, gems: int) -> void:
+	_update_level()
 	Sfx.play("levelup", -2.0)
-	Kit.bounce(_hall_box, 0.2)
-	var lines := []
-	for u in HallB.unlocks_at(level):
-		lines.append(u[1])
-	if gems > 0:
-		lines.append("+%d gems" % gems)
-	_popup("Cookie Hall %d!" % level, Defs.level_title(level), "\n".join(lines.slice(0, 6)), "hall", "Awesome!")
-	var h := world.hall()
-	if h:
-		Fx.burst(get_tree().current_scene, h.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
+	Kit.bounce(_lvl_box, 0.2)
+	_popup("Empire level %d!" % level, Defs.level_title(level), "+%d gems" % gems if gems > 0 else "", "star", "Awesome!")
+	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
 
 
 func _offline_popup(amount: float) -> void:

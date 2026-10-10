@@ -2,7 +2,7 @@ class_name BuildingPanel
 extends Sheet
 ## A building's card: what it's doing, its staff, the next upgrade (what
 ## changes, how long it takes, the price, and the look it gets), Move and
-## Sell. Upgrades need a free builder and are capped by the Cookie Hall.
+## Sell. Upgrades need a free builder.
 
 signal move_requested(uid: int)
 
@@ -116,7 +116,7 @@ func _build() -> void:
 				Game.toast.emit(p.advance_block(), "palace"))
 		body.add_child(_palace_btn)
 	# move / sell
-	if node.kind != "hall" and not node is SiteB:
+	if not node is SiteB:
 		var row := Kit.hbox(10)
 		body.add_child(row)
 		var mv := Kit.juicy("Move", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 22, Vector2(0, 62))
@@ -238,7 +238,6 @@ func _refresh_upgrade() -> void:
 		_up_box.add_child(Kit.game("Max level!", 22, Kit.INK, 0))
 		_upgrade_btn.visible = false
 		return
-	var cap := Bal.level_cap(node.kind, Game.level)
 	_up_box.add_child(Kit.game("Upgrade to Lv %d" % (l + 1), 22, Kit.INK, 0))
 	for r in node.upgrade_info():
 		var h2 := Kit.hbox(8)
@@ -249,29 +248,11 @@ func _refresh_upgrade() -> void:
 		h2.add_child(Kit.glyph("arrow", 20, Kit.MUTED))
 		h2.add_child(Kit.game(str(r[2]), 19, Color(0.3, 0.52, 0.22), 0))
 		_up_box.add_child(h2)
-	if node is HallB:
-		var un := HallB.unlocks_at(l + 1)
-		if not un.is_empty():
-			_up_box.add_child(Kit.label("Unlocks:", 17, Kit.MUTED, 0))
-			var grid := GridContainer.new()
-			grid.columns = 2
-			for u in un:
-				var hh := Kit.hbox(6)
-				hh.add_child(Kit.icon(u[0], 32))
-				hh.add_child(Kit.label(u[1], 15, Kit.INK, 0, false))
-				grid.add_child(hh)
-			_up_box.add_child(grid)
 	var nt := Bal.next_tier_level(node.kind, l)
 	if nt > 0:
 		_up_box.add_child(Kit.label("New look at Lv %d" % nt, 16, Kit.TERRACOTTA_EDGE, 0))
 	var t := Bal.upgrade_time(node.kind, l)
 	_up_box.add_child(Kit.label("Takes %s  ·  needs a free builder (%d / %d free)" % [Fmt.time(t) if t > 0.0 else "no time", Game.free_builders(), Game.builders()], 16, Kit.MUTED, 0))
-	if l >= cap:
-		_up_box.add_child(Kit.label("Upgrade the Cookie Hall to go higher.", 17, Kit.TERRACOTTA_EDGE, 0))
-		_upgrade_btn.set_icon("lock", 30)
-		_upgrade_btn.set_text_value("Needs Cookie Hall %d" % (Game.level + 1))
-		_upgrade_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
-		return
 	var cost := Bal.upgrade_cost(node.kind, l)
 	_upgrade_btn.set_icon("coin", 30)
 	_upgrade_btn.set_text_value("Upgrade  %s" % Fmt.num(cost))

@@ -3,7 +3,7 @@ extends Sheet
 ## Choose what a Bakery bakes. Auto keeps it on the best recipe your farms
 ## and kitchens can supply. Each recipe shows its price, the ingredients it
 ## needs (faded when you don't make them yet) and what's still missing: a
-## bigger bakery (more silos) or a higher Cookie Hall.
+## bigger bakery (more silos) or the farms and kitchens that make its ingredients.
 
 var bakery: BakeryB
 
@@ -73,10 +73,7 @@ func _recipe_row(r: Dictionary) -> Control:
 			ii.modulate = Color(1, 1, 1, 0.35)
 		row.add_child(ii)
 	var why := ""
-	var hall := Defs.recipe_level(id)
-	if hall > Game.level:
-		why = "Ingredients unlock at Cookie Hall %d" % hall
-	elif ings.size() > bakery.slots():
+	if ings.size() > bakery.slots():
 		why = "Needs %d silos: Bakery level %d" % [ings.size(), Defs.slots_level(ings.size())]
 	else:
 		var missing := []
@@ -92,7 +89,7 @@ func _recipe_row(r: Dictionary) -> Control:
 		v.add_child(w)
 	if Game.trending == id:
 		v.add_child(Kit.label("Trending now: sells for more!", 14, Kit.SAGE_EDGE, 0))
-	var ok := hall <= Game.level and ings.size() <= bakery.slots()
+	var ok := ings.size() <= bakery.slots()
 	h.add_child(_pick(id, ok))
 	return box
 

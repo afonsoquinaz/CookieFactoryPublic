@@ -47,7 +47,7 @@ func _select(tab: String) -> void:
 		"perks":
 			var g := Kit.hbox(8)
 			g.add_child(Kit.icon("gem", 40))
-			g.add_child(Kit.game("%d gems  ·  from orders, obstacles and Cookie Hall upgrades" % Game.gems, 18, Kit.INK, 0))
+			g.add_child(Kit.game("%d gems  ·  from orders, obstacles and Empire levels" % Game.gems, 18, Kit.INK, 0))
 			body.add_child(g)
 			for id in Bal.PERK_ORDER:
 				body.add_child(_row(id, true))
@@ -140,9 +140,6 @@ func _recipes() -> void:
 			if not Game.can_make(i):
 				ii.modulate = Color(1, 1, 1, 0.4)
 			ings.add_child(ii)
-		var lv := Defs.recipe_level(r["id"])
-		if Game.level < lv:
-			v.add_child(Kit.label("Ingredients unlock at Cookie Hall %d" % lv, 14, Kit.TERRACOTTA_EDGE, 0, false))
 		if Game.trending == r["id"]:
 			v.add_child(Kit.label("Trending now: sells for more!", 14, Kit.SAGE_EDGE, 0))
 		body.add_child(box)

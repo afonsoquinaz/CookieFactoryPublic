@@ -5,7 +5,9 @@ render_mode cull_back;
 // darker and hazier; a cream dashed line marks the edge of your land.
 // Roads are cobbled paths drawn per 2 m grid cell from road_tex: each road
 // cell links its centre to its road neighbours (and a doorstep stub toward
-// its building), and the path is everything near those links.
+// its building), and the path is everything near those links. The High
+// Street (two cell rows from street_y) runs from horizon to horizon: paved
+// setts, kerbs with gaps where side roads join, a dashed centre line.
 #include "res://render/toon.gdshaderinc"
 
 uniform sampler2D biome_tex : source_color, filter_linear, repeat_disable;
@@ -24,6 +26,11 @@ uniform vec4 stone_b : source_color = vec4(0.86, 0.82, 0.74, 1.0);
 uniform vec4 stone_c : source_color = vec4(0.72, 0.68, 0.6, 1.0);
 uniform vec4 grout_col : source_color = vec4(0.55, 0.51, 0.45, 1.0);
 uniform vec4 kerb_col : source_color = vec4(0.6, 0.57, 0.52, 1.0);
+uniform float street_y = -1.0;  // first row (cells) of the High Street
+uniform vec4 sett_a : source_color = vec4(0.55, 0.52, 0.49, 1.0);
+uniform vec4 sett_b : source_color = vec4(0.62, 0.59, 0.55, 1.0);
+uniform vec4 street_kerb : source_color = vec4(0.88, 0.85, 0.78, 1.0);
+uniform vec4 line_col : source_color = vec4(0.97, 0.93, 0.8, 1.0);
 
 varying vec3 v_wpos;
 
@@ -37,7 +44,12 @@ float owned_at(vec2 chunk) {
 	return texelFetch(own_tex, ivec2(t), 0).r;
 }
 
+bool is_street(vec2 cell) {
+	return cell.y >= street_y && cell.y < street_y + 2.0;
+}
+
 int road_at(vec2 cell) {
+	if (is_street(cell)) return 1;
 	vec2 t = cell - road_origin;
 	if (t.x < 0.0 || t.y < 0.0 || t.x >= road_n || t.y >= road_n) return 0;
 	return int(texelFetch(road_tex, ivec2(t), 0).r * 255.0 + 0.5);
@@ -110,10 +122,40 @@ void fragment() {
 		float line = (1.0 - smoothstep(0.18, 0.3, d)) * smoothstep(0.02, 0.08, d) * dash;
 		c = mix(c, border_col.rgb, line * 0.85);
 	}
-	// cobbled roads
+	// the High Street
 	vec2 rc = floor(p / cell_m);
 	int rm = road_at(rc);
-	if ((rm & 1) == 1) {
+	if (is_street(rc)) {
+		float v = (p.y / cell_m - street_y) * 0.5;      // 0..1 across the street
+		float lx = p.x / cell_m - rc.x;                  // 0..1 along this cell
+		// setts: staggered rectangles
+		vec2 q = vec2(p.x / 0.62, p.y / 0.36);
+		q.x += step(1.0, mod(floor(q.y), 2.0)) * 0.5;
+		vec2 f = fract(q);
+		float sid = hash12(floor(q));
+		float gap = min(min(f.x, 1.0 - f.x) * 0.62, min(f.y, 1.0 - f.y) * 0.36);
+		vec3 st = mix(sett_a.rgb, sett_b.rgb, sid) * mix(0.92, 1.04, vnoise(p * 0.9));
+		st = mix(grout_col.rgb * 0.8, st, smoothstep(0.012, 0.04, gap));
+		// worn wheel tracks
+		float lane = abs(fract(v * 2.0) - 0.5);
+		st *= 1.0 - (1.0 - smoothstep(0.08, 0.2, abs(lane - 0.22))) * 0.05;
+		// dashed centre line
+		float dash = step(0.42, fract(p.x / 2.4));
+		st = mix(st, line_col.rgb, (1.0 - smoothstep(0.035, 0.05, abs(v - 0.5))) * dash * 0.9);
+		// kerbs along both edges, open where a side road joins
+		float k = 0.0;
+		if (v < 0.07 && (road_at(vec2(rc.x, street_y - 1.0)) & 1) == 0) k = 1.0;
+		if (v > 0.93 && (road_at(vec2(rc.x, street_y + 2.0)) & 1) == 0) k = 1.0;
+		if (v < 0.07 && (road_at(vec2(rc.x, street_y - 1.0)) & 1) == 1 && abs(lx - 0.5) > road_w) k = 1.0;
+		if (v > 0.93 && (road_at(vec2(rc.x, street_y + 2.0)) & 1) == 1 && abs(lx - 0.5) > road_w) k = 1.0;
+		float kv = min(v, 1.0 - v);
+		vec3 kc = street_kerb.rgb * mix(0.9, 1.0, step(0.5, fract(p.x / 0.9)));
+		kc = mix(kc * 0.82, kc, smoothstep(0.0, 0.02, kv));
+		st = mix(st, kc, k);
+		// a soft gutter shadow inside the kerb
+		st *= 1.0 - (1.0 - smoothstep(0.07, 0.12, kv)) * (1.0 - k) * 0.12;
+		c = st;
+	} else if ((rm & 1) == 1) {
 		vec2 l = p / cell_m - rc;
 		float d = road_dist(rc, l, rm);
 		float edge = smoothstep(road_w + 0.015, road_w - 0.015, d);

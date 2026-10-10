@@ -17,7 +17,7 @@ func _ready() -> void:
 		Game.tutorial_step = int(a["tut"])
 	if a.has("level"):
 		Game.level = int(a["level"])
-		Game.hall()["lvl"] = Game.level
+		Game.stats["earned"] = float(Defs.EMPIRE[Game.level - 1]["xp"])
 	if a.has("showcase"):
 		_showcase(int(a.get("tier", "-1")))
 	world = World.new()
@@ -80,6 +80,8 @@ func _ready() -> void:
 		add_child(load("res://dev/dbg.gd").new())
 	if a.has("tour"):
 		add_child(load("res://dev/tour.gd").new())
+	if a.has("film"):
+		add_child(load("res://dev/film.gd").new())
 	if a.has("wdbg"):
 		add_child(load("res://dev/wdbg.gd").new())
 	Shot.attach(self)
@@ -94,8 +96,7 @@ func _demo_state() -> void:
 	Game.tutorial_step = 99
 	Game.stats["cookies"] = 900
 	Game.stats["earned"] = 30000.0
-	Game.level = 5
-	Game.hall()["lvl"] = 5
+	Game.level = Game.level_for(30000.0)
 	Game.obstacles.clear()
 	for c in [Vector2i(1, -1), Vector2i(1, 0), Vector2i(-2, -1), Vector2i(-2, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(-1, -2), Vector2i(-2, -2)]:
 		Game.land[Game.chunk_key(c)] = true
@@ -105,25 +106,26 @@ func _demo_state() -> void:
 			"bakery": b["lvl"] = 8
 			"farm_wheat": b["lvl"] = 12
 			"dock": b["lvl"] = 9
-	Game.place("farm_sugar", Vector2i(-11, -7), 0, {"lvl": 10}, false)
-	Game.place("farm_egg", Vector2i(-15, -7), 0, {"lvl": 6}, false)
-	Game.place("farm_milk", Vector2i(-15, -2), 0, {"lvl": 5}, false)
-	Game.place("farm_cocoa", Vector2i(-6, -14), 0, {"lvl": 4}, false)
-	Game.place("hut", Vector2i(7, 3), 0, {}, false)
-	Game.place("chocolatier", Vector2i(-14, 3), 0, {"lvl": 3}, false)
-	Game.place("churn", Vector2i(-11, 3), 0, {"lvl": 2}, false)
-	Game.place("pantry", Vector2i(-6, 5), 0, {"lvl": 3}, false)
-	Game.place("shop", Vector2i(8, 4), 0, {"lvl": 6}, false)
-	Game.place("rack", Vector2i(8, -2), 0, {"lvl": 2}, false)
-	Game.place("cabin", Vector2i(-2, 9), 0, {"lvl": 2}, false)
-	Game.place("board", Vector2i(2, 9), 0, {}, false)
-	Game.place("dock", Vector2i(12, -2), 0, {"lvl": 4}, false)
-	Game.place("well", Vector2i(-12, -4), 0, {}, false)
-	Game.place("flowers", Vector2i(7, 7), 0, {}, false)
-	Game.place("lamp", Vector2i(11, 4), 0, {}, false)
-	Game.place("tree", Vector2i(12, 7), 0, {}, false)
-	Game.place("fountain", Vector2i(-1, 13), 0, {}, false)
-	var s := Game.place("farm_oats", Vector2i(3, -9), 0, {"lvl": 0}, false)
+	# north of the High Street, facing it
+	Game.place("farm_sugar", Vector2i(-10, -5), 0, {"lvl": 10}, false)
+	Game.place("farm_egg", Vector2i(-14, -5), 0, {"lvl": 6}, false)
+	Game.place("farm_milk", Vector2i(-10, -9), 0, {"lvl": 5}, false)
+	Game.place("farm_cocoa", Vector2i(-6, -9), 0, {"lvl": 4}, false)
+	Game.place("churn", Vector2i(7, -4), 0, {"lvl": 2}, false)
+	Game.place("chocolatier", Vector2i(10, -4), 0, {"lvl": 3}, false)
+	Game.place("rack", Vector2i(13, -4), 0, {"lvl": 2}, false)
+	# south of it, facing north
+	Game.place("hut", Vector2i(7, 2), 2, {}, false)
+	Game.place("shop", Vector2i(9, 2), 2, {"lvl": 6}, false)
+	Game.place("dock", Vector2i(13, 2), 2, {"lvl": 4}, false)
+	Game.place("board", Vector2i(-7, 2), 2, {}, false)
+	Game.place("well", Vector2i(-15, 3), 0, {}, false)
+	Game.place("flowers", Vector2i(8, 5), 0, {}, false)
+	Game.place("lamp", Vector2i(12, 1), 0, {}, false)
+	Game.place("lamp", Vector2i(-2, 1), 0, {}, false)
+	Game.place("tree", Vector2i(12, 6), 0, {}, false)
+	Game.place("fountain", Vector2i(-1, 9), 0, {}, false)
+	var s := Game.place("farm_oats", Vector2i(2, -9), 0, {"lvl": 0}, false)
 	Game._start_job("build", int(s["uid"]), 90.0)
 	for b in Game.buildings:
 		if b["kind"] == "bakery":
@@ -134,8 +136,8 @@ func _demo_state() -> void:
 		Game.workers.append({"id": Game.next_worker_id, "role": "porter", "target": 0})
 		Game.next_worker_id += 1
 	Game.hired = 5
-	Game.obstacles["8,10"] = {"kind": "oak", "gems": 2}
-	Game.obstacles["13,9"] = {"kind": "rock", "gems": 1}
+	Game.obstacles["4,10"] = {"kind": "oak", "gems": 2}
+	Game.obstacles["2,13"] = {"kind": "rock", "gems": 1}
 
 
 ## Every building kind laid out in rows (--showcase[=tier]) for art reviews.
@@ -145,12 +147,10 @@ func _showcase(tier: int) -> void:
 	Game.buildings.clear()
 	Game.obstacles.clear()
 	Game.money = 1e12
-	Game.level = 15
 	Game.tutorial_step = 99
 	for x in range(-3, 3):
 		for y in range(-3, 3):
 			Game.land[Game.chunk_key(Vector2i(x, y))] = true
-	Game.place("hall", Vector2i(-2, 18), 0, {"lvl": 15 if tier < 0 else [1, 3, 6, 9, 12][tier]}, false)
 	var lv := [1, 5, 12, 25, 40]
 	var x0 := -22
 	var cx := x0
@@ -163,6 +163,9 @@ func _showcase(tier: int) -> void:
 			cx = x0
 			cy += row_h + 2
 			row_h = 0
+		# keep the High Street clear
+		if cy <= Roads.STREET_Y + 1 and cy + sz.y > Roads.STREET_Y:
+			cy = Roads.STREET_Y + 3
 		var t := tier if tier >= 0 else i % 5
 		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "farm" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
 		var extra := {"lvl": l}
