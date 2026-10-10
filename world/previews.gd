@@ -55,7 +55,8 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 			match kind:
 				"dock":
 					k.add_mesh(SalesArt.site("dock", t))
-					k.add_mesh(SalesArt.van(t), MeshKit.xf(Vector3(0, 0.08, -0.15), Vector3(0, 90, 0)))
+					k.add_mesh(SalesArt.turntable(t), MeshKit.at(0, 0.02, SalesArt.BAY_Z))
+					k.add_mesh(SalesArt.van(t), MeshKit.xf(Vector3(0, 0.1, SalesArt.BAY_Z), Vector3(0, -90, 0)))
 				"train":
 					k.add_mesh(SalesArt.site("train", t))
 					k.add_mesh(SalesArt.train(t), MeshKit.at(0.4, 0.12, -1.4))

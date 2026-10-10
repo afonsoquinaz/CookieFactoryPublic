@@ -32,6 +32,7 @@ var _banner: PanelContainer
 var _dirty := true
 var _placed_any := false
 var _t := 0.0
+var _turned := false             # the player rotated it: stop facing it to the street
 static var last_rot := 0
 
 
@@ -97,7 +98,9 @@ func _ready() -> void:
 		world.cam.fly_to(world.building(move_uid).global_position, -1.0, 0.3)
 		world.building(move_uid).visible = false
 	else:
-		# start on the nearest free spot that gets a road
+		# start on the nearest free spot that gets a road, facing the street
+		if Building.kind_has_entrance(kind):
+			rot = Placement.street_rot(world.cam.global_position)
 		var spot = Placement.free_spot(world, kind, Grid.cell_of(world.cam.global_position), rot)
 		if spot != null:
 			rot = spot[1]
@@ -113,7 +116,8 @@ static func free_spot(w: World, k: String, near: Vector2i, prefer_rot := 0) -> V
 		for dx in range(-r, r + 1):
 			for dy in ([-r, r] if r > 0 else [0]):
 				for q in [Vector2i(dx, dy), Vector2i(dy, dx)]:
-					for rot in [prefer_rot, (prefer_rot + 2) % 4]:
+					var face := Placement.street_rot(Grid.cell_center(near + q)) if Building.kind_has_entrance(k) else prefer_rot
+					for rot in [face, (face + 2) % 4]:
 						var o: Vector2i = near + q - Grid.rotated(sz, rot) / 2
 						# prefer spots off the roads (and they're cheaper to check)
 						var on_road := false
@@ -152,6 +156,12 @@ func _process(dt: float) -> void:
 	_t += dt
 	_layout()
 	var c := world.cam.global_position
+	# new buildings face the High Street until you turn them yourself
+	if move_uid == 0 and not _turned and Building.kind_has_entrance(kind):
+		var want := Placement.street_rot(c)
+		if want != rot:
+			rot = want
+			_dirty = true
 	var o := Grid.origin_for(c, Defs.size_of(kind), rot)
 	if o != origin or _dirty:
 		origin = o
@@ -307,7 +317,13 @@ func _unhandled_key_input(e: InputEvent) -> void:
 			KEY_ESCAPE: finish(false)
 
 
+## Rotation that faces a building at world point p toward the High Street.
+static func street_rot(p: Vector3) -> int:
+	return 0 if p.z < (Roads.STREET_Y + 1) * Grid.CELL else 2
+
+
 func _rotate() -> void:
+	_turned = true
 	rot = (rot + 1) % 4
 	last_rot = rot
 	_dirty = true

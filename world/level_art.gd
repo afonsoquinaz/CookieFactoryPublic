@@ -5,11 +5,40 @@ class_name LevelArt
 ## where they stand; the first levels add one almost every level, later
 ## ones less often.
 
+## Spots where a kind of building shows its props (local, front +Z):
+## [[pos, yaw_deg], ...], kept clear of where people walk and work.
+static func anchors_for(kind: String) -> Array:
+	var d: Dictionary = Defs.BUILDINGS[kind]
+	match d["cat"]:
+		"farm":
+			return [[Vector3(-2.35, 0, 2.4), 0.0], [Vector3(2.35, 0, 2.4), 0.0], [Vector3(-1.5, 0, 2.55), 0.0],
+				[Vector3(1.5, 0, 2.55), 0.0], [Vector3(-2.55, 0, 1.55), 90.0], [Vector3(2.55, 0, 1.55), -90.0]]
+		"bake":
+			return [[Vector3(-4.55, 0.12, 2.55), 0.0], [Vector3(4.55, 0.12, 2.55), 0.0], [Vector3(-2.4, 0.12, 2.6), 0.0],
+				[Vector3(1.6, 0.12, 2.6), 0.0], [Vector3(-4.6, 0.12, 0.4), 90.0], [Vector3(4.6, 0.12, 0.2), -90.0],
+				[Vector3(-0.6, 0.12, 2.65), 0.0], [Vector3(4.55, 0.12, 1.75), 0.0]]
+		"kitchen":
+			return [[Vector3(-1.7, 0, 1.6), 0.0], [Vector3(1.7, 0, 1.6), 0.0], [Vector3(-1.75, 0, 0.95), 90.0], [Vector3(1.75, 0, 0.95), -90.0]]
+		"pack":
+			return [[Vector3(-1.7, 0, 1.55), 0.0], [Vector3(1.7, 0, 1.55), 0.0], [Vector3(-1.75, 0, 1.0), 90.0], [Vector3(1.75, 0, 1.0), -90.0]]
+		"sell":
+			match kind:
+				"dock": return SalesArt.DOCK_PROPS
+				"shop": return [[Vector3(2.55, 0, 1.5), 0.0], [Vector3(-2.65, 0, 1.55), 0.0], [Vector3(2.6, 0, 0.55), -90.0], [Vector3(1.6, 0, 1.6), 0.0]]
+				"train", "airship": return [[Vector3(-2.55, 0, 2.55), 0.0], [Vector3(2.55, 0, 2.55), 0.0], [Vector3(-2.6, 0, 1.6), 90.0], [Vector3(2.6, 0, 1.6), -90.0]]
+	return []
+
+
 ## Level at which prop i (of n anchors) appears, for a building that tops
-## out at max_level: quick at first, then spreading out.
+## out at max_level: the first half one per level from level 2 (early
+## upgrades always show), the rest spread out toward the top.
 static func level_of(i: int, n: int, max_level: int) -> int:
-	var f := float(i + 1) / float(n)
-	return 2 + int(round(pow(f, 1.6) * float(maxi(1, max_level - 2))))
+	var early := (n + 1) / 2
+	if i < early:
+		return 2 + i
+	var f := float(i - early + 1) / float(n - early)
+	var lo := 2 + early
+	return lo + int(round(pow(f, 1.5) * float(maxi(0, max_level - lo))))
 
 
 ## How many props a building of max_level shows at level l.
@@ -45,7 +74,9 @@ static func _prop(k: MeshKit, i: int, p: Vector3, yaw: float, style: int) -> voi
 				k.sphere(0.09, Pal.LEAF, t * MeshKit.at(-0.3 + j * 0.15, 0.38, 0), 6, 4)
 				k.sphere(0.06, c, t * MeshKit.at(-0.3 + j * 0.15, 0.46, 0.04), 6, 4)
 		2:
-			TownArt.lamp_post(k, p, 1.9)
+			var lk := MeshKit.new()
+			TownArt.lamp_post(lk, Vector3.ZERO, 1.9)
+			k.merge(lk, MeshKit.at(p.x, p.y, p.z))
 		3:
 			# barrels
 			for j in 2:
@@ -69,6 +100,6 @@ static func _prop(k: MeshKit, i: int, p: Vector3, yaw: float, style: int) -> voi
 			Items.cookie_into(k, "choc", 0.18, 0.05, t * MeshKit.xf(Vector3(0, 0.72, 0), Vector3(80, 0, 0)))
 		9:
 			# a brass lamp with a warm glow
-			k.cyl(0.05, 1.7, Pal.BRASS, MeshKit.at(p.x, 0, p.z), 8)
-			k.sphere(0.17, Color(1.0, 0.88, 0.6, 0.4), MeshKit.at(p.x, 1.85, p.z), 10, 6)
-			k.cone(0.16, 0.18, Pal.BRASS, MeshKit.at(p.x, 1.98, p.z), 8)
+			k.cyl(0.05, 1.7, Pal.BRASS, MeshKit.at(p.x, p.y, p.z), 8)
+			k.sphere(0.17, Color(1.0, 0.88, 0.6, 0.4), MeshKit.at(p.x, p.y + 1.85, p.z), 10, 6)
+			k.cone(0.16, 0.18, Pal.BRASS, MeshKit.at(p.x, p.y + 1.98, p.z), 8)

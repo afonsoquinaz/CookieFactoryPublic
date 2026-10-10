@@ -16,8 +16,6 @@ var vehicle: Node3D
 var _vbody: Node3D
 var _vmesh: MeshInstance3D
 var _turn: Node3D                 # the van's turntable (dock)
-var _props: MeshInstance3D        # things the depot gains as it levels up
-var _props_n := -1
 var _route: Curve3D               # the van's drive (world space)
 var _route_len := 0.0
 var _drive := 0.0                 # metres along the route
@@ -47,7 +45,6 @@ func _build() -> void:
 			remove_child(vehicle)
 			_turn.add_child(vehicle)
 			vehicle.rotation.y = -PI * 0.5
-			_props = Mats.inst(null, self)
 			for p in [Vector3(-1.05, 0.32, 0.72), Vector3(-1.05, 0.32, -0.72), Vector3(1.0, 0.32, 0.72), Vector3(1.0, 0.32, -0.72)]:
 				_wheel(p)
 			cargo.grid = Vector2i(4, 3)
@@ -113,11 +110,6 @@ func _set_vehicle_tier(t: int) -> void:
 
 
 func _on_level() -> void:
-	if _props:
-		var n := LevelArt.count(SalesArt.DOCK_PROPS.size(), level, Bal.max_level(kind))
-		if n != _props_n:
-			_props_n = n
-			_props.mesh = MeshKit.cached("dock_props_%d_%d" % [n, tier], func(): return LevelArt.props(SalesArt.DOCK_PROPS, n, tier))
 	match kind:
 		"dock": cargo.capacity = Bal.truck_cap(level)
 		"train": cargo.capacity = Bal.train_cap(level)

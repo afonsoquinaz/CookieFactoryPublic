@@ -249,7 +249,13 @@ func _refresh_upgrade() -> void:
 		h2.add_child(Kit.game(str(r[2]), 19, Color(0.3, 0.52, 0.22), 0))
 		_up_box.add_child(h2)
 	var nt := Bal.next_tier_level(node.kind, l)
-	if nt > 0:
+	var anchors := LevelArt.anchors_for(node.kind)
+	var mx := Bal.max_level(node.kind)
+	if nt == l + 1:
+		_up_box.add_child(Kit.label("Next level: a whole new look!", 16, Kit.TERRACOTTA_EDGE, 0))
+	elif not anchors.is_empty() and LevelArt.count(anchors.size(), l + 1, mx) > LevelArt.count(anchors.size(), l, mx):
+		_up_box.add_child(Kit.label("Next level: something new for it" + ("  ·  new look at Lv %d" % nt if nt > 0 else ""), 16, Kit.TERRACOTTA_EDGE, 0))
+	elif nt > 0:
 		_up_box.add_child(Kit.label("New look at Lv %d" % nt, 16, Kit.TERRACOTTA_EDGE, 0))
 	var t := Bal.upgrade_time(node.kind, l)
 	_up_box.add_child(Kit.label("Takes %s  ·  needs a free builder (%d / %d free)" % [Fmt.time(t) if t > 0.0 else "no time", Game.free_builders(), Game.builders()], 16, Kit.MUTED, 0))
