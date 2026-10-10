@@ -9,7 +9,6 @@ extends Building
 enum S { PARKED, LEAVING, AWAY, RETURNING }
 
 var cargo: Holder
-var zone: Zone
 var state := S.PARKED
 var vehicle: Node3D
 var _vbody: Node3D
@@ -40,24 +39,21 @@ func _build() -> void:
 			cargo.grid = Vector2i(4, 3)
 			cargo.cell = Vector2(0.36, 0.38)
 			cargo.position = Vector3(-0.55, 0.92, 0)
-			zone = add_zone(Zone.Kind.GIVE, [cargo], Vector2(0, 2.35), Vector2(1.9, 1.1), Pal.TERRACOTTA)
 		"train":
 			_park = Vector3(0.4, 0.12, -1.4)
 			cargo.grid = Vector2i(6, 3)
 			cargo.cell = Vector2(0.34, 0.34)
 			cargo.position = Vector3(0.95, 0.7, 0)
-			zone = add_zone(Zone.Kind.GIVE, [cargo], Vector2(0, 2.15), Vector2(2.6, 1.3), Pal.TERRACOTTA)
 		"airship":
 			_park = Vector3(0, 5.2, -0.6)
 			cargo.grid = Vector2i(4, 3)
 			cargo.cell = Vector2(0.34, 0.34)
 			cargo.position = Vector3(0, -1.15, 0)
-			zone = add_zone(Zone.Kind.GIVE, [cargo], Vector2(0, 2.15), Vector2(2.4, 1.3), Pal.TERRACOTTA)
 	cargo.max_visible = 60
 	_vbody.add_child(cargo)
 	vehicle.position = _park
 	cargo.landed.connect(_on_load)
-	add_port(cargo, zone, "in")
+	add_port(cargo, null, "in")
 	_label = UI3D.label("0/10", 30)
 	_label.position = Vector3(0, 3.4 if kind != "airship" else 7.2, -0.6)
 	add_child(_label)
@@ -152,7 +148,6 @@ func _process(dt: float) -> void:
 	var mult := Game.speed_mult()
 	match state:
 		S.PARKED:
-			zone.enabled = true
 			if kind == "airship":
 				vehicle.position.y = _park.y + sin(_t * 1.2) * 0.12
 			else:
@@ -163,7 +158,6 @@ func _process(dt: float) -> void:
 					_depart()
 			_update_label()
 		S.LEAVING:
-			zone.enabled = false
 			_timer -= dt * mult
 			var done := _move_out(dt)
 			if done:

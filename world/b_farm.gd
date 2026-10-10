@@ -12,7 +12,6 @@ const PAD_Z := 2.5
 
 var ing := "wheat"
 var crate: Holder
-var zone: Zone
 var farmers: Array[FarmWorker] = []
 var spots: Array[Dictionary] = []     # {pos, node, ripe, busy}
 var _plot: Node3D
@@ -35,8 +34,7 @@ func _build() -> void:
 	crate.max_visible = 18
 	crate.position = Vector3(0, 0.16, 0)
 	cb.add_child(crate)
-	zone = add_zone(Zone.Kind.TAKE, [crate], Vector2(0, PAD_Z), Vector2(2.0, 0.9), Defs.ITEMS[ing]["color"].lightened(0.3))
-	add_port(crate, zone, "out")
+	add_port(crate, null, "out")
 	var b := UI3D.badge(def["icon"], Pal.STEEL_DARK, 0.6)
 	b.position = Vector3(0, 1.3, CRATE_Z)
 	add_child(b)

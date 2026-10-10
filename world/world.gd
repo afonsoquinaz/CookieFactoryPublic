@@ -1,29 +1,30 @@
 class_name World
 extends Node3D
-## The world: endless land, every building the player placed, the
-## production lines that connect them, the player, workers and the camera.
-## Keeps the scene in sync with Game state (placed / moved / sold / upgraded
-## buildings, land, workers) and runs the logistics broker workers ask for
-## jobs ("which crate has wheat, and who needs it most?").
+## The world: endless land, every building, the roads between them, the
+## obstacles on your land, staff, builders and the camera. Keeps the scene in
+## sync with Game state (placed / built / moved / sold / upgraded buildings,
+## builder jobs, land, obstacles, staff) and runs the logistics broker porters
+## ask for work ("which crate has wheat, and who needs it most?").
 
 signal sold(amount: float, count: int, where: Vector3)
-signal lines_changed
+signal roads_changed
 
 var grid := Grid.new()
+var roads := Roads.new()
 var terrain: Terrain
 var actors: Node3D
 var bnodes := {}                  # uid -> Building
-var lines: Array[Line] = []
-var player: Player
 var workers := {}                 # id -> Worker
+var builders := {}                # hut uid -> Builder
+var obst_nodes := {}              # obstacle key -> Node3D
 var cam: CameraRig
 var sun: DirectionalLight3D
+var reserved := {}                # holder instance id -> {item: n} reserved by porters
 var _decor: Array[Building] = []
+var _scaffolds := {}              # uid -> Node3D (upgrade in progress)
 var _synced_once := false
 var _store_cd := 0.0
-var reserved := {}                # holder instance id -> items reserved by workers
-var links: Array[Dictionary] = [] # touching buildings: {a, b, cd, node}
-var _links_dirty := true
+var _roads_dirty := true
 
 
 func _ready() -> void:
@@ -36,28 +37,28 @@ func _ready() -> void:
 	actors = Node3D.new()
 	actors.name = "Actors"
 	add_child(actors)
+	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)
-	grid.rebuild(Game.owned_chunks())
-	rebuild_lines()
-	player = Player.new()
-	actors.add_child(player)
-	var ps: Dictionary = Game.player_state
-	player.global_position = Vector3(float(ps.get("x", -1.0)), 0, float(ps.get("z", -6.5)))
+	_sync_obstacles()
+	rebuild_roads()
 	cam = CameraRig.new()
 	add_child(cam)
-	cam.target = player
+	cam.world = self
+	var h := hall()
+	cam.global_position = (h.global_position + Vector3(0, 0, 3)) if h else Vector3.ZERO
 	cam.snap()
-	for t in ps.get("carry", []):
-		if player.carry.space() > 0:
-			player.carry.add(str(t), false)
 	_sync_workers()
+	_sync_jobs()
 	Game.building_added.connect(_on_added)
+	Game.building_built.connect(_on_built)
 	Game.building_removed.connect(_on_removed)
 	Game.building_moved.connect(_on_moved)
 	Game.building_upgraded.connect(_on_upgraded)
 	Game.land_bought.connect(_on_land)
+	Game.obstacles_changed.connect(_on_obstacles)
 	Game.workers_changed.connect(_sync_workers)
+	Game.jobs_changed.connect(_sync_jobs)
 	Game.researched.connect(func(_id, _l): _on_research())
 	Game.money_changed.connect(func(_v, _d): terrain.refresh_prices())
 	# a brand-new empire: a few sheaves are already waiting in the wheat crate
@@ -76,14 +77,19 @@ func _on_quality(lv: int) -> void:
 
 
 func _process(dt: float) -> void:
-	if _links_dirty:
-		_links_dirty = false
-		rebuild_links()
-	_run_links(dt)
+	if _roads_dirty:
+		rebuild_roads()
 	_store_cd -= dt
 	if _store_cd <= 0.0:
 		_store_cd = 2.0
 		store_state()
+
+
+func hall() -> HallB:
+	for n in bnodes.values():
+		if n is HallB:
+			return n
+	return null
 
 
 # ---------------------------------------------------------------- buildings
@@ -93,8 +99,8 @@ func _spawn(b: Dictionary) -> Building:
 	add_child(n)
 	bnodes[n.uid] = n
 	grid.fill(n.uid, n.cell(), n.size(), n.rot())
-	grid._solids[n.uid] = n.world_solids()
-	if n.def["cat"] == "decor":
+	grid.set_solids(n.uid, n.world_solids())
+	if n.def["cat"] == "decor" and not n is SiteB:
 		_decor.append(n)
 	return n
 
@@ -106,44 +112,61 @@ func building(uid: int) -> Building:
 func buildings_of(kind: String) -> Array[Building]:
 	var out: Array[Building] = []
 	for n in bnodes.values():
-		if n.kind == kind:
+		if n.kind == kind and not n is SiteB:
 			out.append(n)
 	return out
 
 
-func _on_added(b: Dictionary) -> void:
-	_links_dirty = true
-	var n := _spawn(b)
-	grid.set_solids(n.uid, n.world_solids())
-	n.appear()
-	Sfx.play("upgrade", -4.0)
-	if n is LineModule:
-		rebuild_lines()
-	terrain.mark_dirty()
-	_unstick_player.call_deferred()
-	_poke_workers()
-
-
-func _on_removed(uid: int) -> void:
-	_links_dirty = true
+func _despawn(uid: int) -> Building:
 	var n: Building = bnodes.get(uid)
 	if n == null:
-		return
+		return null
 	bnodes.erase(uid)
 	_decor.erase(n)
 	grid.clear(uid)
 	grid.remove_solids(uid)
-	Fx.puff(get_tree().current_scene, n.global_position + Vector3(0, 0.5, 0), Pal.CREAM, 14)
-	var was_line := n is LineModule
+	if _scaffolds.has(uid):
+		_scaffolds.erase(uid)
 	n.queue_free()
-	if was_line:
-		rebuild_lines.call_deferred()
+	return n
+
+
+func _on_added(b: Dictionary) -> void:
+	var n := _spawn(b)
+	n.appear()
+	Sfx.play("upgrade", -4.0)
 	terrain.mark_dirty()
+	_roads_dirty = true
+	_poke_workers()
+
+
+## A construction finished: the site becomes the real building.
+func _on_built(uid: int) -> void:
+	var b := Game.building(uid)
+	var old := _despawn(uid)
+	if b.is_empty():
+		return
+	var n := _spawn(b)
+	if old:
+		n.global_position = old.global_position
+	n.appear()
+	n.celebrate()
+	Sfx.play("levelup", -6.0)
+	UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 3.0, 0), "Built!", Color(1.0, 0.9, 0.5), 90)
+	_roads_dirty = true
+	_poke_workers()
+
+
+func _on_removed(uid: int) -> void:
+	var n := _despawn(uid)
+	if n:
+		Fx.puff(get_tree().current_scene, n.global_position + Vector3(0, 0.5, 0), Pal.CREAM, 14)
+	terrain.mark_dirty()
+	_roads_dirty = true
 	_poke_workers()
 
 
 func _on_moved(uid: int) -> void:
-	_links_dirty = true
 	var n: Building = bnodes.get(uid)
 	if n == null:
 		return
@@ -151,10 +174,8 @@ func _on_moved(uid: int) -> void:
 	grid.fill(uid, n.cell(), n.size(), n.rot())
 	grid.set_solids(uid, n.world_solids())
 	n.appear()
-	if n is LineModule:
-		rebuild_lines()
 	terrain.mark_dirty()
-	_unstick_player.call_deferred()
+	_roads_dirty = true
 	_poke_workers()
 
 
@@ -163,17 +184,20 @@ func _on_upgraded(uid: int, _lvl: int) -> void:
 	if n:
 		n.refresh()
 		n.bump(0.08)
-		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.6, 0), Pal.GOLD, 10, false)
+		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 2.0, 0), Pal.GOLD, 16, false)
+		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 3.2, 0), "Level %d!" % n.level if not n is PalaceB else "New stage!", Color(1.0, 0.9, 0.5), 80)
+		Sfx.play("upgrade", -2.0)
+	_sync_jobs()
 
 
 func _on_land(_c: Vector2i) -> void:
 	grid.rebuild(Game.owned_chunks())
 	terrain.refresh_land()
+	_roads_dirty = true
 	Sfx.play("levelup", -6.0)
 
 
 func _on_research() -> void:
-	player.refresh()
 	for w in workers.values():
 		w.refresh()
 
@@ -197,198 +221,289 @@ func aura(p: Vector3, what: String) -> float:
 			s += float(a["v"])
 	return s
 
-# ---------------------------------------------------------------- lines
 
-## Line modules that touch end to end with the same rotation.
-func next_module(m: LineModule) -> LineModule:
-	var p := m.tube_end() + m.flow_dir() * 0.5
-	var n: Building = bnodes.get(grid.at(Grid.cell_of(p)))
-	if n is LineModule and n.rot() == m.rot() and n != m:
-		var lm := n as LineModule
-		if lm.tube_start().distance_to(m.tube_end()) < 0.3:
-			return lm
-	return null
+# ---------------------------------------------------------------- obstacles
+
+func _on_obstacles() -> void:
+	_sync_obstacles()
+	_roads_dirty = true
+	terrain.mark_dirty()
 
 
-func prev_module(m: LineModule) -> LineModule:
-	var p := m.tube_start() - m.flow_dir() * 0.5
-	var n: Building = bnodes.get(grid.at(Grid.cell_of(p)))
-	if n is LineModule and n.rot() == m.rot() and n != m:
-		var lm := n as LineModule
-		if lm.tube_end().distance_to(m.tube_start()) < 0.3:
-			return lm
-	return null
+func _sync_obstacles() -> void:
+	for k in obst_nodes.keys():
+		if not Game.obstacles.has(k):
+			var n: Node3D = obst_nodes[k]
+			Fx.puff(get_tree().current_scene, n.global_position + Vector3(0, 0.6, 0), Color(0.75, 0.68, 0.55), 16)
+			Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.0, 0), Pal.LEAF, 10, false)
+			n.queue_free()
+			obst_nodes.erase(k)
+			grid.clear_obstacle(k)
+	for k in Game.obstacles:
+		if obst_nodes.has(k):
+			continue
+		var ob: Dictionary = Game.obstacles[k]
+		var cells := Game.obstacle_cells(k, ob)
+		var sz: Vector2i = Defs.OBSTACLES[ob["kind"]]["size"]
+		var n2 := Node3D.new()
+		n2.position = Grid.center_of(cells[0], sz, 0)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(k)
+		n2.rotation.y = rng.randf() * TAU
+		add_child(n2)
+		Mats.inst(MeshKit.cached("obstacle_" + ob["kind"], TownArt.obstacle.bind(ob["kind"])), n2)
+		obst_nodes[k] = n2
+		grid.set_obstacle(k, cells)
 
 
-func rebuild_lines() -> void:
-	for l in lines:
-		l.queue_free()
-	lines.clear()
-	var mods: Array[LineModule] = []
+## The obstacle key under a world point ("" if none).
+func obstacle_at(p: Vector3) -> String:
+	return grid.obstacle_at(Grid.cell_of(p))
+
+
+# ---------------------------------------------------------------- roads
+
+func rebuild_roads() -> void:
+	_roads_dirty = false
+	var h := hall()
+	var entries := []
+	var hc := Vector2i.ZERO
+	if h:
+		var hcells := h.entrance_cells()
+		hc = hcells[0]
+		entries.append({"uid": h.uid, "cells": hcells, "stub": Building.stub_dir(h.rot()), "d": 0})
 	for n in bnodes.values():
-		if n is LineModule and not n.is_queued_for_deletion():
-			mods.append(n)
-			(n as LineModule).line = null
-	for m in mods:
-		if not m is MixerB:
+		if n == h or not n.has_entrance():
 			continue
-		var chain: Array[LineModule] = [m]
-		var cur: LineModule = m
-		while true:
-			var nx := next_module(cur)
-			if nx == null or chain.has(nx) or nx is MixerB:
-				break
-			chain.append(nx)
-			cur = nx
-			if nx is OvenB:
-				break
-		if chain.size() >= 2 and chain[chain.size() - 1] is OvenB:
-			var l := Line.new()
-			l.name = "Line_%d" % m.uid
-			l.setup(self, chain)
-			add_child(l)
-			lines.append(l)
-	for m in mods:
-		m.set_links(prev_module(m) != null and not m is MixerB, next_module(m) != null and not m is OvenB)
-	lines_changed.emit()
+		var ec: Array[Vector2i] = n.entrance_cells()
+		entries.append({"uid": n.uid, "cells": ec, "stub": Building.stub_dir(n.rot()), "d": absi(ec[0].x - hc.x) + absi(ec[0].y - hc.y)})
+	roads.build(entries, func(c): return grid.blocked(c), func(c): return Game.owns_cell(c), _owned_bounds())
+	terrain.set_roads(roads.cells)
+	roads_changed.emit()
 
 
-# ---------------------------------------------------------------- chutes
-
-## Buildings whose footprints touch hand items over directly: a farm next to
-## a mixer feeds it, an oven next to a van loads it.
-static func can_link(a: Building, b: Building) -> bool:
-	if a == b or a.out_ports().is_empty() or b.in_ports().is_empty():
-		return false
-	if a is StorageB and b is StorageB:
-		return false
-	if a is LineModule and not a is OvenB:
-		return false
-	return true
+func _owned_bounds() -> Rect2i:
+	var mn := Vector2i(1 << 20, 1 << 20)
+	var mx := Vector2i(-(1 << 20), -(1 << 20))
+	for c in Game.owned_chunks():
+		mn = Vector2i(mini(mn.x, c.x), mini(mn.y, c.y))
+		mx = Vector2i(maxi(mx.x, c.x), maxi(mx.y, c.y))
+	if mn.x > mx.x:
+		return Rect2i()
+	return Rect2i(mn * Bal.CHUNK, (mx - mn + Vector2i.ONE) * Bal.CHUNK)
 
 
-static func touching(a_origin: Vector2i, a_size: Vector2i, b_origin: Vector2i, b_size: Vector2i) -> bool:
-	var ra := Rect2i(a_origin - Vector2i.ONE, a_size + Vector2i(2, 2))
-	var rb := Rect2i(b_origin, b_size)
-	return ra.intersects(rb) and not Rect2i(a_origin, a_size).intersects(rb)
+## A walking route along the roads from a point to a building's entrance.
+func road_path(from: Vector3, b: Building) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var ents := b.entrance_cells()
+	if ents.is_empty():
+		return out
+	var start := _nearest_road(Grid.cell_of(from))
+	var best: Array[Vector2i] = []
+	for e in ents:
+		var r := roads.route(start, e)
+		if not r.is_empty() and (best.is_empty() or r.size() < best.size()):
+			best = r
+	if best.is_empty():
+		return grid.path(from, b.door_pos())
+	return _lane(best, from)
 
 
-func rebuild_links() -> void:
-	for l in links:
-		if is_instance_valid(l["node"]):
-			l["node"].queue_free()
-	links.clear()
-	var all := bnodes.values()
-	for a in all:
-		for b in all:
-			if not can_link(a, b):
-				continue
-			if not World.touching(a.cell(), Grid.rotated(a.size(), a.rot()), b.cell(), Grid.rotated(b.size(), b.rot())):
-				continue
-			links.append({"a": a, "b": b, "cd": randf(), "node": _chute(a, b)})
-
-
-## A little roller chute from a's output pad to b's input pad.
-func _chute(a: Building, b: Building) -> Node3D:
-	var p0: Vector3 = (a.out_ports()[0]["zone"] as Zone).global_position
-	var p1: Vector3 = (b.in_ports()[0]["zone"] as Zone).global_position
-	var n := Node3D.new()
-	add_child(n)
-	var d := p1 - p0
-	d.y = 0
-	var len := d.length()
-	if len < 0.1:
-		return n
-	var k := MeshKit.new()
-	var ang := rad_to_deg(atan2(d.x, d.z))
-	var mid := (p0 + p1) * 0.5
-	k.rbox(Vector3(0.5, 0.06, len), 0.03, Pal.STEEL_DARK, MeshKit.xf(Vector3(mid.x, 0.12, mid.z), Vector3(0, ang, 0)))
-	var steps := int(len / 0.35)
-	for i in steps:
-		var q := p0 + d * ((i + 0.5) / steps)
-		k.cyl(0.05, 0.42, Pal.STEEL, MeshKit.xf(Vector3(q.x, 0.18, q.z), Vector3(0, ang, 90)) * MeshKit.at(0, -0.21, 0), 6)
-	k.cone(0.22, 0.3, Pal.BRASS, MeshKit.xf(Vector3(p1.x, 0.2, p1.z) - d.normalized() * 0.5, Vector3(90, ang, 0)), 6)
-	var mi := Mats.inst(k.commit(), n, Transform3D.IDENTITY, false)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return n
-
-
-func link_interval() -> float:
-	return 1.2 / (1.0 + 0.25 * Game.research("chutes"))
-
-
-func _run_links(dt: float) -> void:
-	var iv := link_interval() / Game.speed_mult()
-	for l in links:
-		var a: Building = l["a"]
-		var b: Building = l["b"]
-		if not is_instance_valid(a) or not is_instance_valid(b):
-			continue
-		l["cd"] = float(l["cd"]) - dt
-		if l["cd"] > 0.0:
-			continue
-		l["cd"] = iv
-		for p in a.out_ports():
-			var h: Holder = p["holder"]
-			if h.count() == 0:
-				continue
-			var t := h.items[h.items.size() - 1]
-			if available(h, t) <= 0 or b.need(t) <= 0.0:
-				# try another kind of item in the holder
-				t = ""
-				for it in h.items:
-					if available(h, it) > 0 and b.need(it) > 0.0:
-						t = it
-						break
-				if t == "":
-					continue
-			for q in b.in_ports():
-				var dst: Holder = q["holder"]
-				if dst.can_accept(t) and Holder.fly(h, dst, t, 0.45):
-					break
-			break
-
-
-func links_of(n: Building) -> Array[Building]:
-	var out: Array[Building] = []
-	for l in links:
-		if l["a"] == n:
-			out.append(l["b"])
+## Along the roads to any point (resting seats, chef stations).
+func road_path_to_point(from: Vector3, to: Vector3) -> PackedVector3Array:
+	var a := _nearest_road(Grid.cell_of(from))
+	var z := _nearest_road(Grid.cell_of(to))
+	var r := roads.route(a, z)
+	if r.is_empty():
+		return grid.path(from, to)
+	var out := _lane(r, from)
+	out.append(to)
 	return out
 
 
+func _nearest_road(c: Vector2i) -> Vector2i:
+	if roads.is_road(c):
+		return c
+	for rad in range(1, 6):
+		for dx in range(-rad, rad + 1):
+			for dy in [-rad, rad]:
+				for q in [c + Vector2i(dx, dy), c + Vector2i(dy, dx)]:
+					if roads.is_road(q):
+						return q
+	return c
+
+
+## Cell centres -> walking points, keeping to the right of the road.
+func _lane(cells: Array[Vector2i], from: Vector3) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for i in cells.size():
+		var p := Grid.cell_center(cells[i])
+		var dir := Vector2.ZERO
+		if i + 1 < cells.size():
+			dir = Vector2(cells[i + 1] - cells[i])
+		elif i > 0:
+			dir = Vector2(cells[i] - cells[i - 1])
+		if dir != Vector2.ZERO:
+			var right := Vector2(-dir.y, dir.x)
+			p += Vector3(right.x, 0, right.y) * 0.32
+		if i == 0 and from.distance_to(p) < 0.6:
+			continue
+		out.append(p)
+	return out
+
+
+## Where a building of `kind` could go: {ok, reason, bad: cells, path: cells}
+func check_spot(kind: String, origin: Vector2i, rot: int, ignore := 0) -> Dictionary:
+	var size := Defs.size_of(kind)
+	var cells := Grid.cells(origin, size, rot)
+	var bad: Array[Vector2i] = []
+	var reason := ""
+	for c in cells:
+		if not Game.owns_cell(c):
+			bad.append(c)
+			reason = "You don't own this land yet. Tap a For Sale sign to buy it."
+	if reason == "":
+		for c in cells:
+			var u := grid.at(c)
+			if (u != 0 and u != ignore) or grid.obstacle_at(c) != "":
+				bad.append(c)
+				reason = "Something is in the way."
+			elif _entrance_owner(c, ignore) != 0:
+				bad.append(c)
+				reason = "Keep building entrances clear."
+	var ents := Building.entrance_of(kind, origin, rot)
+	if reason == "":
+		for e in ents:
+			if not Game.owns_cell(e) or (grid.at(e) != 0 and grid.at(e) != ignore) or grid.obstacle_at(e) != "" or cells.has(e):
+				bad.append(e)
+				reason = "Its entrance is blocked: leave room in front for a road."
+	return {"ok": reason == "", "reason": reason, "bad": bad, "entrance": ents}
+
+
+func _entrance_owner(c: Vector2i, ignore: int) -> int:
+	for n in bnodes.values():
+		if n.uid != ignore and n.has_entrance() and n.entrance_cells().has(c):
+			return n.uid
+	return 0
+
+
+## The road a new building at this spot would get (cells), for the preview.
+func preview_road(kind: String, origin: Vector2i, rot: int, ignore := 0) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not Building.kind_has_entrance(kind):
+		return out
+	var fp := Grid.cells(origin, Defs.size_of(kind), rot)
+	var ents := Building.entrance_of(kind, origin, rot)
+	var starts: Array[Vector2i] = []
+	for e in ents:
+		if Game.owns_cell(e) and not grid.blocked(e) and not fp.has(e):
+			starts.append(e)
+	if starts.is_empty():
+		return out
+	var network := {}
+	for c in roads.cells:
+		if not fp.has(c):
+			network[c] = true
+	if network.is_empty():
+		return out
+	var blocked := func(c): return fp.has(c) or (grid.blocked(c) and grid.at(c) != ignore)
+	var r := roads._search(starts, network, blocked, func(c): return Game.owns_cell(c))
+	return r
+
+
+# ---------------------------------------------------------------- jobs (builders + scaffolding)
+
+func _sync_jobs() -> void:
+	# scaffolding around buildings being upgraded
+	var want := {}
+	for j in Game.jobs:
+		if j["type"] in ["upgrade", "stage"]:
+			want[int(j["uid"])] = true
+	for uid in _scaffolds.keys():
+		if not want.has(uid):
+			var s: Node3D = _scaffolds[uid]
+			if is_instance_valid(s):
+				s.queue_free()
+			_scaffolds.erase(uid)
+	for uid in want:
+		var n: Building = bnodes.get(uid)
+		if n == null or _scaffolds.has(uid):
+			continue
+		var sm := n.size_m()
+		var h := clampf(maxf(sm.x, sm.y) * 0.5, 2.6, 6.5)
+		var sc := Mats.inst(MeshKit.cached("scaffold_up_%d_%d" % [n.size().x, n.size().y], func(): return TownArt.scaffold(sm.x + 0.3, sm.y + 0.3, h)), n, Transform3D.IDENTITY, false)
+		sc.scale = Vector3(1, 0.05, 1)
+		var tw := sc.create_tween()
+		tw.tween_property(sc, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_scaffolds[uid] = sc
+	# builders: one per finished hut; each takes a job
+	var huts: Array = []
+	for n2 in bnodes.values():
+		if n2 is HutB:
+			huts.append(n2)
+	huts.sort_custom(func(a, b): return a.uid < b.uid)
+	for uid2 in builders.keys():
+		var found := false
+		for h in huts:
+			if h.uid == uid2:
+				found = true
+		if not found:
+			builders[uid2].queue_free()
+			builders.erase(uid2)
+	for h in huts:
+		if not builders.has(h.uid):
+			var bd := Builder.new()
+			bd.world = self
+			bd.hut_uid = h.uid
+			actors.add_child(bd)
+			bd.global_position = (h as HutB).rest_spot()
+			builders[h.uid] = bd
+	var taken := []
+	for uid3 in builders:
+		var bd2: Builder = builders[uid3]
+		if not bd2.job.is_empty() and Game.jobs.has(bd2.job):
+			taken.append(bd2.job)
+		else:
+			bd2.job = {}
+	for j in Game.jobs:
+		if taken.has(j):
+			continue
+		for uid4 in builders:
+			var bd3: Builder = builders[uid4]
+			if bd3.job.is_empty():
+				bd3.job = j
+				taken.append(j)
+				break
+
+
+## Centre of what a job works on (world).
+func job_center(j: Dictionary) -> Vector3:
+	if str(j.get("ob", "")) != "":
+		var n: Node3D = obst_nodes.get(j["ob"])
+		return n.global_position if n else Vector3.ZERO
+	var b: Building = bnodes.get(int(j["uid"]))
+	return b.global_position if b else Vector3.ZERO
+
+
+## Where a builder stands to work on a job: beside the front corner.
+func job_spot(j: Dictionary, seed_: int) -> Vector3:
+	if str(j.get("ob", "")) != "":
+		var n: Node3D = obst_nodes.get(j["ob"])
+		if n == null:
+			return Vector3.ZERO
+		var ob: Dictionary = Game.obstacles.get(j["ob"], {"kind": "bush"})
+		var sz: Vector2i = Defs.OBSTACLES[ob["kind"]]["size"]
+		return n.global_position + Vector3(0, 0, sz.y * Grid.CELL * 0.5 + 0.5)
+	var b: Building = bnodes.get(int(j["uid"]))
+	if b == null:
+		return Vector3.ZERO
+	var s := b.size_m()
+	var side := -1.0 if seed_ % 2 == 0 else 1.0
+	return b.to_world(side * (s.x * 0.5 - 0.6), s.y * 0.5 + 0.55)
+
+
 # ---------------------------------------------------------------- logistics broker
-
-## Which buildings a role may take from / bring to.
-static func role_sources(role: String, n: Building) -> bool:
-	match role:
-		"gatherer": return n is FarmB
-		"feeder": return (n is StorageB and n.kind == "pantry") or (n is MachineB and n.def["cat"] == "kitchen")
-		"collector": return n is OvenB
-		"loader": return (n is StorageB and n.kind == "rack") or (n is MachineB and n.def["cat"] == "pack")
-	return false
-
-
-func role_dest(role: String, n: Building) -> bool:
-	match role:
-		"gatherer":
-			if n is MachineB and n.def["cat"] == "kitchen":
-				return true
-			if n is StorageB and n.kind == "pantry":
-				return true
-			return n is MixerB or n is HopperB
-		"feeder":
-			return n is MixerB or n is HopperB or (n is MachineB and n.def["cat"] == "kitchen")
-		"collector":
-			if n is MachineB and n.kind == "packer":
-				return true
-			if n is StorageB and n.kind == "rack":
-				return true
-			return n is VehicleB or n is ShopB or n is BoardB or n is PalaceB
-		"loader":
-			return n is VehicleB or n is ShopB or n is BoardB or n is PalaceB or (n is MachineB and n.kind == "wrapper")
-	return false
-
 
 func available(h: Holder, t: String) -> int:
 	return h.count_of(t) - int(reserved.get(h.get_instance_id(), {}).get(t, 0))
@@ -409,30 +524,23 @@ func unreserve(h: Holder, t: String, n: int) -> void:
 		reserved[id][t] = maxi(0, int(reserved[id].get(t, 0)) - n)
 
 
-## How much a role should care about a destination's need: gatherers leave
-## the line to feeders and collectors leave sales to loaders, unless it's
-## starving or nobody does that job.
-func _weigh(role: String, d: Building, nd: float) -> float:
-	if role == "gatherer" and (d is MixerB or d is HopperB) and Game.workers_with("feeder") > 0:
-		return nd if nd > 0.8 else nd * 0.35
-	if role == "collector" and (d is VehicleB or d is ShopB or d is BoardB or d is PalaceB) and Game.workers_with("loader") > 0:
-		return nd * 0.3
-	return nd
+static func is_store(n: Building) -> bool:
+	return n is StorageB
 
 
-## Best job for a role: {src: Building, src_holder, src_zone, dst: Building, item, count} or {}.
-func find_job(role: String, from: Vector3, cap: int) -> Dictionary:
+## Best delivery for a porter: {src, src_holder, dst, item, count} or {}.
+func find_job(from: Vector3, cap: int) -> Dictionary:
 	var best := {}
 	var best_score := -INF
 	var srcs: Array[Building] = []
 	var dsts: Array[Building] = []
 	for n in bnodes.values():
-		if role_sources(role, n):
+		if n is SiteB or not n.on_road():
+			continue
+		if not n.out_ports().is_empty():
 			srcs.append(n)
-		if role_dest(role, n):
+		if not n.in_ports().is_empty():
 			dsts.append(n)
-	if srcs.is_empty() or dsts.is_empty():
-		return {}
 	for s in srcs:
 		for p in s.out_ports():
 			var h: Holder = p["holder"]
@@ -446,47 +554,44 @@ func find_job(role: String, from: Vector3, cap: int) -> Dictionary:
 				if avail <= 0:
 					continue
 				for d in dsts:
-					if d == s:
+					if d == s or (is_store(s) and is_store(d)):
 						continue
-					var nd := _weigh(role, d, d.need(t))
+					var nd := d.need(t)
 					if nd <= 0.0:
 						continue
 					var dist_sd := s.global_position.distance_to(d.global_position)
 					var dist_w := from.distance_to(s.global_position)
-					var score := nd * 3.0 + float(h.count()) / maxf(1.0, h.capacity) - dist_sd / 30.0 - dist_w / 45.0
+					# a full source (a crate or bench about to block) is urgent,
+					# and bigger loads are worth the walk
+					var fill := float(h.count()) / maxf(1.0, h.capacity)
+					if is_store(s):
+						fill *= 0.4
+					var load := float(mini(cap, avail)) / maxf(1.0, cap)
+					var score := nd * 2.0 + fill * 2.0 + load * 1.5 - dist_sd / 30.0 - dist_w / 45.0
 					if score > best_score:
 						best_score = score
-						best = {"src": s, "src_holder": h, "src_zone": p["zone"], "dst": d, "item": t, "count": mini(cap, avail)}
+						best = {"src": s, "src_holder": h, "dst": d, "item": t, "count": mini(cap, avail)}
 	return best
 
 
-## Best place to deliver an item a worker is already carrying.
-func find_dest(role: String, t: String, from: Vector3) -> Building:
+## Best place to deliver an item a porter is already carrying.
+func find_dest(t: String, from: Vector3) -> Building:
 	var best: Building = null
 	var best_score := -INF
 	for n in bnodes.values():
-		if not role_dest(role, n):
+		if n is SiteB or not n.on_road():
 			continue
-		var nd: float = _weigh(role, n, n.need(t))
+		var nd: float = n.need(t)
 		if nd <= 0.0:
 			continue
 		var score := nd * 3.0 - from.distance_to(n.global_position) / 30.0
 		if score > best_score:
 			best_score = score
 			best = n
-	if best == null:
-		# nobody wants it right now: park it in the nearest storage
-		var bd := INF
-		for n in bnodes.values():
-			if n is StorageB and (n as StorageB).store.can_accept(t):
-				var dd := from.distance_to(n.global_position)
-				if dd < bd:
-					bd = dd
-					best = n
 	return best
 
 
-# ---------------------------------------------------------------- workers
+# ---------------------------------------------------------------- staff
 
 func _sync_workers() -> void:
 	var seen := {}
@@ -506,8 +611,8 @@ func _sync_workers() -> void:
 			var w2 := Worker.new()
 			w2.setup(self, d)
 			actors.add_child(w2)
-			var cabins := buildings_of("cabin")
-			w2.global_position = cabins[0].to_world(0, 1.2) if not cabins.is_empty() else player.global_position + Vector3(1, 0, 1)
+			var h := hall()
+			w2.global_position = h.door_pos() if h else Vector3.ZERO
 			workers[id] = w2
 			if _synced_once:
 				w2.greet()
@@ -524,50 +629,26 @@ func _sync_workers() -> void:
 	_synced_once = true
 
 
-## Seat for a resting worker at the nearest cabin.
+## Seat for a resting worker on the Hall's benches (or a cabin's).
 func rest_seat(w: Worker) -> Vector3:
-	var cabins := buildings_of("cabin")
-	if cabins.is_empty():
-		return player.global_position + Vector3(2, 0, 2)
 	var i := 0
 	for id in workers:
 		if workers[id] == w:
 			break
-		if workers[id].role == "":
-			i += 1
-	var c: CabinB = cabins[i / 8 % cabins.size()]
-	return c.seat(i % 8)
+		i += 1
+	var cabins := buildings_of("cabin")
+	var h := hall()
+	if i < 6 or cabins.is_empty():
+		return h.seat(i) if h else Vector3.ZERO
+	var c: CabinB = cabins[(i - 6) / 8 % cabins.size()]
+	return c.seat((i - 6) % 8)
+
 
 # ---------------------------------------------------------------- save state
 
 func store_state() -> void:
 	for n in bnodes.values():
 		n.persist()
-	Game.player_state = {"x": player.global_position.x, "z": player.global_position.z, "carry": player.carry.items.duplicate()}
-
-
-## After something is built where you stand, step out of its walls.
-func _unstick_player() -> void:
-	await get_tree().physics_frame
-	var space := get_world_3d().direct_space_state
-	var q := PhysicsShapeQueryParameters3D.new()
-	var cap := CapsuleShape3D.new()
-	cap.radius = 0.4
-	cap.height = 1.2
-	q.shape = cap
-	q.collision_mask = 1
-	var start := player.global_position
-	for r in [0.0, 0.8, 1.4, 2.0, 2.8, 3.6, 4.6, 6.0]:
-		for a in 12:
-			var p: Vector3 = start + Vector3(sin(a * TAU / 12.0), 0, cos(a * TAU / 12.0)) * r
-			q.transform = Transform3D(Basis.IDENTITY, p + Vector3(0, 0.62, 0))
-			if space.intersect_shape(q, 1).is_empty():
-				if r > 0.0:
-					var tw := player.create_tween()
-					tw.tween_property(player, "global_position", p, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-				return
-			if r == 0.0:
-				break
 
 
 # ---------------------------------------------------------------- picking
@@ -575,30 +656,3 @@ func _unstick_player() -> void:
 ## The building under a world point (on the ground), or null.
 func building_at(p: Vector3) -> Building:
 	return bnodes.get(grid.at(Grid.cell_of(p)))
-
-
-# ---------------------------------------------------------------- route preview
-
-var _route: Node3D
-
-## Shows the buildings a role works between, "" hides it.
-func show_route(role: String) -> void:
-	if _route:
-		_route.queue_free()
-		_route = null
-	if role == "" or not Defs.ROLES.has(role):
-		return
-	_route = Node3D.new()
-	add_child(_route)
-	var col: Color = Defs.ROLES[role]["color"]
-	var pts := []
-	for n in bnodes.values():
-		if role_sources(role, n) or role_dest(role, n):
-			pts.append(n.global_position)
-	for p in pts:
-		Fx.ring(_route, p, col, 2.0)
-	var tw := _route.create_tween().set_loops()
-	tw.tween_interval(0.9)
-	tw.tween_callback(func():
-		for p2 in pts:
-			Fx.ring(_route, p2, col, 2.0))

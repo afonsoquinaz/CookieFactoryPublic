@@ -145,6 +145,12 @@ ICONS = [
     ("land", "a folded parchment land deed map with a brass pin"),
     ("research", "a brass microscope beside an open notebook and a cookie"),
     ("hammer", "a classic wooden-handled claw hammer crossed with a small brass ruler"),
+    # ---- v4: town
+    ("hall", "a charming small town hall building: cream timber-framed walls, a terracotta tiled gable roof with a small clock tower and a brass weathervane, an arched wooden double door with a striped awning, a round cookie emblem sign over the door"),
+    ("builder", "a yellow construction hard hat resting on a wooden-handled claw hammer and a small rolled blueprint"),
+    ("bakery", "a small bakery production line: a cream stand mixer on the left, a short square glass tube with a dough ball in the middle, a terracotta brick dome oven with a warm glow on the right, on a chequered tile floor"),
+    ("porter", "a sage-green wooden hand cart with two big wheels carrying a kraft cookie box and a small linen flour sack"),
+    ("road", "a short curved section of warm grey cobblestone path with neat stones"),
     ("move", "four brass arrows pointing outward in a cross shape (move symbol)"),
     ("rotate", "a curved brass arrow forming a three-quarter circle (rotate symbol)"),
     ("tree", "a small round sage-green tree with a walnut trunk"),

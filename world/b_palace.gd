@@ -6,7 +6,6 @@ extends Building
 ## Finishing The Crown wins the game.
 
 var inbox: Holder
-var zone: Zone
 var _label: Label3D
 var _sparkle_t := 0.0
 
@@ -17,8 +16,7 @@ func _build() -> void:
 	inbox.position = Vector3(0, 1.5, 3.0)
 	add_child(inbox)
 	inbox.landed.connect(_on_landed)
-	zone = add_zone(Zone.Kind.GIVE, [inbox], Vector2(0, 4.2), Vector2(3.0, 1.2), Pal.GOLD)
-	add_port(inbox, zone, "in")
+	add_port(inbox, null, "in")
 	_label = UI3D.label("", 34, Color(1.0, 0.9, 0.5))
 	_label.position = Vector3(0, 9.0, 0)
 	add_child(_label)
@@ -48,23 +46,39 @@ func complete() -> bool:
 	return stage() >= Defs.PALACE_STAGES.size() - 1
 
 
-func can_advance() -> bool:
-	return not complete() and delivered() >= needed() and Game.can_afford(next_cost())
+func next_time() -> float:
+	var s := stage() + 1
+	return float(Defs.PALACE_STAGES[s]["time"]) * Bal.tool_mult() if s < Defs.PALACE_STAGES.size() else 0.0
 
 
-## Builds the next stage (money is paid here).
-func advance() -> bool:
-	if not can_advance() or not Game.spend(next_cost()):
-		return false
-	data["stage"] = stage() + 1
-	data["royal"] = 0
-	tier = -1
-	refresh()
-	Game.save_game()
+func building_stage() -> bool:
+	return not Game.job_of(uid).is_empty()
+
+
+## Why the next stage can't start ("" when it can).
+func advance_block() -> String:
 	if complete():
-		Game.won = true
-		Game.victory.emit()
-	return true
+		return "Complete"
+	if building_stage():
+		return "Builders are on it"
+	if delivered() < needed():
+		return "Deliver %d more Royal Empire cookies" % (needed() - delivered())
+	if not Game.can_afford(next_cost()):
+		return "Not enough money"
+	if Game.free_builders() <= 0:
+		return "All builders are busy"
+	return ""
+
+
+func can_advance() -> bool:
+	return advance_block() == ""
+
+
+## Starts building the next stage: money now, a builder for a while.
+func advance() -> bool:
+	if not can_advance():
+		return false
+	return Game.start_stage(uid, next_cost(), next_time())
 
 
 func refresh() -> void:
@@ -91,7 +105,7 @@ func _on_landed(t: String) -> void:
 
 
 func need(t: String) -> float:
-	return 1.5 if inbox.can_accept(t) else 0.0
+	return 1.5 if inbox.can_accept(t) and not building_stage() else 0.0
 
 
 func _update() -> void:

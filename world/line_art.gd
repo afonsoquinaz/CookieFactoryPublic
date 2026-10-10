@@ -7,7 +7,8 @@ class_name LineArt
 ##   3 industrial (stainless steel, windows, dials)
 ##   4 royal (copper, brass and gold trim, glowing windows)
 
-const Y := LineModule.TUBE_Y
+const Y := 1.25
+const TZ := -1.0
 
 static var _belt: ShaderMaterial
 
@@ -58,7 +59,7 @@ static func cap() -> Mesh:
 ## centre, tube at z = TUBE_Z).
 static func mixer(t: int) -> Mesh:
 	var k := MeshKit.new()
-	var z := LineModule.TUBE_Z
+	var z := TZ
 	var base_c: Color = [Color(0.93, 0.9, 0.82), Color(0.9, 0.88, 0.84), Color(0.55, 0.62, 0.52), Pal.STEEL, Color(0.72, 0.42, 0.28)][t]
 	var trim: Color = [Pal.WOOD, Pal.STEEL_DARK, Pal.CREAM, Pal.STEEL_DARK, Pal.BRASS][t]
 	var bowl: Color = [Color(0.92, 0.9, 0.86), Pal.STEEL, Pal.STEEL, Pal.STEEL.lightened(0.08), Color(0.8, 0.5, 0.32)][t]
@@ -171,7 +172,7 @@ static func silo(ing: String, t: int) -> Mesh:
 ## z = TUBE_Z and the oven dome sits over the tube end.
 static func oven(t: int) -> Mesh:
 	var k := MeshKit.new()
-	var z := LineModule.TUBE_Z
+	var z := TZ
 	var cx := -0.25
 	match t:
 		0, 1:
@@ -258,7 +259,7 @@ static func oven(t: int) -> Mesh:
 
 ## The chimney top (where smoke puffs) for each tier, local.
 static func chimney_top(t: int) -> Vector3:
-	var z := LineModule.TUBE_Z
+	var z := TZ
 	match t:
 		0: return Vector3(-0.6, 3.5, z - 0.35)
 		1: return Vector3(-0.6, 3.8, z - 0.35)

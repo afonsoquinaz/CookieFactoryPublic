@@ -1,10 +1,11 @@
 class_name Goals
 extends Control
-## Guides the player: a goal card under the top bar ("Grab wheat from the
-## Wheat Field"), a bouncing pin in the world over the place to go, an edge
-## pointer when that place is off screen, and a pulsing pointer over a HUD
-## button when the goal is a button. The first steps are a tutorial;
-## afterwards it keeps pointing at the next thing worth doing.
+## Guides the player. The first steps are a short tutorial (tap the Bakery,
+## upgrade it, finish it for free, build a Sugar Cane Field, upgrade the
+## Cookie Hall, clear an obstacle, hire a porter); after that it always
+## points at the next useful thing. A goal card sits under the top bar, a
+## brass pin bobs over the place to look at in the world (an edge arrow when
+## it's off screen) and a pulsing pointer marks the button to press.
 
 var hud
 var world: World
@@ -17,8 +18,7 @@ var _has_world := false
 var _target_ui: Control
 var _t := 0.0
 var _last_text := ""
-var _done_flash := 0.0
-var _tip_t := 0.0
+var _flown := -1
 
 
 func _ready() -> void:
@@ -32,7 +32,7 @@ func _ready() -> void:
 	_card.add_child(h)
 	_icon = Kit.icon("star", 50)
 	h.add_child(_icon)
-	_text = Kit.game("", 22, Kit.WHITE, 6)
+	_text = Kit.game("", 21, Kit.WHITE, 6)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size.x = 380
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -40,9 +40,9 @@ func _ready() -> void:
 	_arrow = Node3D.new()
 	var k := MeshKit.new()
 	# a slim brass map pin
-	k.cone(0.2, 0.55, Pal.BRASS, MeshKit.xf(Vector3(0, 0.55, 0), Vector3(180, 0, 0)), 14)
-	k.sphere(0.26, Pal.BRASS, MeshKit.at(0, 0.72, 0), 14, 8)
-	k.sphere(0.1, Color(0.98, 0.96, 0.92), MeshKit.at(0, 0.74, 0.18), 8, 5)
+	k.cone(0.3, 0.8, Pal.BRASS, MeshKit.xf(Vector3(0, 0.8, 0), Vector3(180, 0, 0)), 14)
+	k.sphere(0.38, Pal.BRASS, MeshKit.at(0, 1.05, 0), 14, 8)
+	k.sphere(0.14, Color(0.98, 0.96, 0.92), MeshKit.at(0, 1.08, 0.27), 8, 5)
 	var mi := Mats.inst(k.commit(), _arrow, Transform3D.IDENTITY, false)
 	var m := Mats.toon().duplicate() as ShaderMaterial
 	m.set_shader_parameter("emit", 0.25)
@@ -60,9 +60,9 @@ func layout(vs: Vector2, top_inset: float) -> void:
 func _process(dt: float) -> void:
 	_t += dt
 	_evaluate()
-	_arrow.visible = _has_world
+	_arrow.visible = _has_world and visible
 	if _has_world:
-		_arrow.global_position = _target_world + Vector3(0, 1.9 + sin(_t * 3.0) * 0.18, 0)
+		_arrow.global_position = _target_world + Vector3(0, 0.3 + sin(_t * 3.0) * 0.25, 0)
 		_arrow.rotation.y += dt * 1.2
 	queue_redraw()
 
@@ -92,149 +92,157 @@ func _first(kind: String) -> Building:
 	return l[0] if not l.is_empty() else null
 
 
-func _zone_pos(kind: String) -> Variant:
-	var b := _first(kind)
-	if b == null or b.ports.is_empty():
+func _site(kind: String) -> Building:
+	for n in world.bnodes.values():
+		if n.kind == kind:
+			return n
+	return null
+
+
+func _top(n: Building) -> Variant:
+	if n == null:
 		return null
-	for p in b.ports:
-		if p["dir"] == "in":
-			return (p["zone"] as Zone).global_position
-	return (b.ports[0]["zone"] as Zone).global_position
+	return n.global_position + Vector3(0, clampf(maxf(n.size_m().x, n.size_m().y) * 0.6, 3.0, 6.5), 0)
+
+
+## Glide the camera to a step's place once.
+func _look(n: Building) -> void:
+	if n and _flown != Game.tutorial_step:
+		_flown = Game.tutorial_step
+		world.cam.fly_to(n.global_position + Vector3(0, 0, 2), 1.0)
 
 
 func _evaluate() -> void:
-	var p := world.player
 	if hud.placement != null:
 		_goal("", "")
 		return
+	var bakery := _first("bakery") as BakeryB
+	var hall := world.hall()
 	match Game.tutorial_step:
 		0:
-			var mixer := _first("mixer") as MixerB
-			if p.carry.count_of("wheat") > 0 or (mixer and mixer.wheat.count() > 0):
+			if hud.selected is BakeryB:
 				_advance()
 				return
-			var farm := _first("farm_wheat") as FarmB
-			_goal("Walk to the Wheat Field and pick up wheat", "wheat", farm.zone.global_position if farm else null)
+			_look(bakery)
+			_goal("Welcome! Porters carry wheat along the road to your Bakery. Tap the Bakery.", "bakery", _top(bakery))
 		1:
-			var m := _first("mixer") as MixerB
-			if m and (m.wheat.count() > 0 or int(Game.stats["batches"]) > 0 or (m.line and not m.line.doughs.is_empty())):
+			if bakery and (bakery.level >= 2 or not Game.job_of(bakery.uid).is_empty()):
 				_advance()
 				return
-			_goal("Drop the wheat on the Dough Mixer's pad", "mixer", _zone_pos("mixer"))
+			if not hud.selected is BakeryB:
+				_goal("Tap the Bakery, then Upgrade: a builder makes it faster.", "hammer", _top(bakery))
+				return
+			var up: Control = hud.actions.find("upgrade")
+			if Game.money < Bal.upgrade_cost("bakery", 1):
+				_goal("Wait for the van to sell some cookies...", "truck", null, null)
+			else:
+				_goal("Tap Upgrade, then Upgrade again to send a builder.", "hammer", null, up)
 		2:
-			var o := _first("oven") as OvenB
-			if int(Game.stats["batches"]) > 0 or (o and o.tray.count() > 0):
+			if bakery and bakery.level >= 2:
 				_advance()
 				return
-			_goal("The dough rolls down the tube into the oven...", "oven", o.tray_zone.global_position if o else null)
+			_goal("Short jobs are free to finish. Tap the timer over the Bakery!", "builder", _top(bakery))
 		3:
-			if p.carry.count() > 0 and Defs.is_product(p.carry.items[p.carry.items.size() - 1]) or int(Game.stats["cookies"]) > 0:
-				_advance()
-				return
-			var o2 := _first("oven") as OvenB
-			_goal("Fresh cookies! Pick them up at the oven", "ck_shortbread", o2.tray_zone.global_position if o2 else null)
-		4:
-			if int(Game.stats["cookies"]) > 0:
-				_advance()
-				return
-			_goal("Load the cookies into the Delivery Van", "truck", _zone_pos("dock"))
-		5:
 			if Game.count_of("farm_sugar") > 0:
 				_advance()
 				return
 			if Game.money < Game.price_of("farm_sugar"):
-				_goal("Earn $%s for a Sugar Cane Field" % Fmt.num(Game.price_of("farm_sugar")), "sugar")
+				_goal("Cookies are selling! Earn $%s for a Sugar Cane Field." % Fmt.num(Game.price_of("farm_sugar")), "sugar")
 			else:
-				_goal("Tap Build and place a Sugar Cane Field anywhere on your land", "hammer", null, hud.btn_build)
-		6:
-			if Game.count_of("hopper") > 0:
+				_goal("Tap Build > Farms and place a Sugar Cane Field. Its road builds itself.", "hammer", null, hud.btn_build)
+		4:
+			if Game.count_ready("farm_sugar") > 0:
 				_advance()
 				return
-			if Game.money < Game.price_of("hopper"):
-				_goal("Earn $%s for a Sugar Hopper" % Fmt.num(Game.price_of("hopper")), "hopper")
-			else:
-				_goal("Build > Bakery: place a Sugar Hopper on one of the line's glass tubes", "hopper", null, hud.btn_build)
-		7:
+			_goal("A builder is on it. Tap the timer to finish it free!", "builder", _top(_site("farm_sugar")))
+		5:
 			if Game.known_recipes.has("sugar"):
 				_advance()
 				return
-			_goal("Fill the Sugar Hopper with sugar cane: Sugar Cookies sell for double!", "sugar", _zone_pos("hopper"))
-		8:
-			if Game.count_of("cabin") > 0:
+			_goal("The Bakery switches to Sugar Cookies (worth double) when sugar arrives. Tap Bake on it to choose recipes.", "ck_sugar", _top(bakery))
+		6:
+			if Game.level >= 2 or (hall and not Game.job_of(hall.uid).is_empty()):
 				_advance()
 				return
-			if Game.level < 2:
-				_goal("Keep baking: reach Level 2 to unlock staff", "star")
-			elif Game.money < Game.price_of("cabin"):
-				_goal("Earn $%s for a Staff Cabin" % Fmt.num(Game.price_of("cabin")), "cabin")
+			_look(hall)
+			if Game.money < Bal.upgrade_cost("hall", 1):
+				_goal("Save $%s to upgrade the Cookie Hall: it unlocks everything else." % Fmt.num(Bal.upgrade_cost("hall", 1)), "hall", _top(hall))
 			else:
-				_goal("Build > Staff: place a Staff Cabin", "cabin", null, hud.btn_build)
-		9:
-			if Game.workers.size() > 0:
+				_goal("Tap the Cookie Hall and upgrade it: it unlocks new buildings.", "hall", _top(hall), hud.actions.find("upgrade"))
+		7:
+			if Game.cleared > 0 or Game.obstacles.is_empty():
 				_advance()
 				return
-			_goal("Open Staff and hire your first worker", "hire", null, hud.btn_staff)
-		10:
-			for w in Game.workers:
-				if w["role"] != "":
-					_advance()
-					return
-			_goal("Give them a job: tap + on Gatherer (or on a farm, + Farmer)", "gatherer", null, hud.btn_staff)
-		11:
-			for b in Game.buildings:
-				if int(b["lvl"]) > 1:
-					_advance()
-					return
-			_goal("Tap any building in the world to upgrade it", "star")
-		12:
-			if not world.links.is_empty():
+			if Game.free_builders() <= 0:
+				_goal("Builders are busy. Meanwhile: bushes, stumps and rocks hide gems!", "gem")
+				return
+			var key := _nearest_obstacle()
+			var on: Node3D = world.obst_nodes.get(key)
+			_goal("Tap a bush, stump or rock and clear it: many hide gems!", "gem", on.global_position + Vector3(0, 2.4, 0) if on else null, hud.actions.find("clear"))
+		8:
+			if Game.workers.size() >= 3:
 				_advance()
 				return
-			if Game.level < 4:
-				_free_goal()
-				return
-			_tip_t += get_process_delta_time()
-			if _tip_t > 120.0:
-				_advance()
-				return
-			_goal("Tip: buildings that touch pass things along by chute. Move a field next to a mixer, or a van next to an oven.", "conveyor")
+			_goal("Hire another porter (Staff > Hire): more deliveries, more cookies.", "porter", null, hud.btn_staff)
 		_:
 			_free_goal()
 
 
+func _nearest_obstacle() -> String:
+	var best := ""
+	var bd := INF
+	var h := world.hall()
+	var c := h.global_position if h else Vector3.ZERO
+	for k in world.obst_nodes:
+		var d: float = (world.obst_nodes[k] as Node3D).global_position.distance_to(c)
+		if d < bd:
+			bd = d
+			best = k
+	return best
+
+
 func _free_goal() -> void:
-	if Game.idle_workers() > 0 and Game.workers.size() > 0:
-		_goal("%d worker%s resting: give them a job in Staff" % [Game.idle_workers(), "s" if Game.idle_workers() > 1 else ""], "hire", null, hud.btn_staff)
-		return
+	# something can't be reached by road
 	for n in world.bnodes.values():
-		if n is OvenB and (n as OvenB).line == null:
-			_goal("An oven isn't connected to a Mixer", "oven", n.global_position)
+		if n.has_entrance() and not n is SiteB and not n.on_road():
+			_goal("%s has no road: clear the space in front of its entrance." % n.def["name"], "lock", _top(n))
 			return
-		if n is MixerB and (n as MixerB).line == null:
-			_goal("A mixer has no oven at the end of its line", "mixer", n.global_position)
+	for n2 in world.bnodes.values():
+		if n2 is BakeryB:
+			var m := (n2 as BakeryB).missing()
+			if not m.is_empty():
+				var p := Defs.producer_of(m[0])
+				_goal("A Bakery needs %s: build a %s." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2), hud.btn_build)
+				return
+	var hall := world.hall()
+	if hall and Game.level < Defs.HALL.size() and Game.job_of(hall.uid).is_empty():
+		var cost := Bal.upgrade_cost("hall", Game.level)
+		if Game.free_builders() > 0 and Game.can_afford(cost):
+			_goal("Upgrade the Cookie Hall to level %d: new buildings!" % (Game.level + 1), "hall", _top(hall))
 			return
 	for kind in Defs.BUILD_ORDER:
-		if Game.count_of(kind) > 0 or kind == "tube" or Defs.BUILDINGS[kind]["cat"] == "decor":
-			continue
 		var d: Dictionary = Defs.BUILDINGS[kind]
-		if Game.level < int(d["lvl"]):
-			_goal("Reach Level %d to unlock the %s" % [int(d["lvl"]), d["name"]], "lock")
-			return
-		if Game.can_afford(Game.price_of(kind)):
+		if d["cat"] == "decor" or Game.count_of(kind) > 0 or not Game.unlocked(kind) or d.has("gems"):
+			continue
+		if Game.build_block(kind) == "":
 			_goal("New: build a %s. %s" % [d["name"], d["desc"]], d["icon"], null, hud.btn_build)
 		else:
-			_goal("Save $%s for a %s" % [Fmt.num(Game.price_of(kind)), d["name"]], d["icon"])
+			_goal("Next: a %s ($%s). %s" % [d["name"], Fmt.num(Game.price_of(kind)), d["desc"]], d["icon"])
 		return
 	if Game.count_of("palace") > 0 and not Game.won:
 		var pal := _first("palace") as PalaceB
-		_goal(pal.status(), "palace", pal.global_position)
+		if pal:
+			_goal(pal.status(), "palace", _top(pal))
+			return
+	if hall and Game.level < Defs.HALL.size():
+		_goal("Save $%s to upgrade the Cookie Hall to level %d." % [Fmt.num(Bal.upgrade_cost("hall", Game.level)), Game.level + 1], "hall")
 		return
 	_goal("", "")
 
 
 func _draw() -> void:
 	# pointer over a HUD button
-	if _target_ui and _target_ui.is_visible_in_tree():
+	if _target_ui and is_instance_valid(_target_ui) and _target_ui.is_visible_in_tree():
 		var r := _target_ui.get_global_rect()
 		var c := Vector2(r.get_center().x, r.position.y - 30 - absf(sin(_t * 5.0)) * 22)
 		_draw_pointer(c, Vector2(0, 1))

@@ -4,7 +4,6 @@ extends Building
 ## Cookies"). Deliver them on its pad for a big cash reward and gems.
 
 var inbox: Holder
-var zone: Zone
 var _rows: Array[Node3D] = []
 
 
@@ -14,8 +13,7 @@ func _build() -> void:
 	inbox.position = Vector3(0, 1.2, -0.5)
 	add_child(inbox)
 	inbox.landed.connect(_on_landed)
-	zone = add_zone(Zone.Kind.GIVE, [inbox], Vector2(0, 0.5), Vector2(2.2, 0.9), Pal.BRASS)
-	add_port(inbox, zone, "in")
+	add_port(inbox, null, "in")
 	Game.orders_changed.connect(_refresh_rows)
 	Game.refill_orders()
 	_refresh_rows.call_deferred()

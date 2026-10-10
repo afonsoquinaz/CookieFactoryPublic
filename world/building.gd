@@ -1,11 +1,12 @@
 class_name Building
 extends Node3D
 ## Base for everything you can place: position on the grid, rotation,
-## level and visual tier, interaction pads (zones), the holders workers and
-## the player move items through, colliders and walking solids.
+## level and visual tier, the entrance where its road arrives, the holders
+## porters take from and bring to, colliders and walking solids.
 ##
 ## Local frame: the building's centre at the origin, its front facing +Z.
 ## Size in cells comes from Defs.BUILDINGS[kind].size (x = width, y = depth).
+## A building still under construction (level 0) is a SiteB instead.
 
 signal changed
 
@@ -16,7 +17,7 @@ var kind := ""
 var def: Dictionary
 var level := 1
 var tier := -1
-## {holder, zone, dir ("in"/"out")} for the logistics broker
+## {holder, dir ("in"/"out")} for the logistics broker
 var ports: Array[Dictionary] = []
 var visual: Node3D
 var _body: StaticBody3D
@@ -28,16 +29,16 @@ static func create(w: World, b: Dictionary) -> Building:
 	var k: String = b["kind"]
 	var node: Building
 	var cat: String = Defs.BUILDINGS[k]["cat"]
-	if cat == "farm":
+	if int(b["lvl"]) <= 0:
+		node = SiteB.new()
+	elif cat == "farm":
 		node = FarmB.new()
-	elif k == "mixer":
-		node = MixerB.new()
-	elif k == "tube":
-		node = TubeB.new()
-	elif k == "hopper":
-		node = HopperB.new()
-	elif k == "oven":
-		node = OvenB.new()
+	elif k == "bakery":
+		node = BakeryB.new()
+	elif k == "hall":
+		node = HallB.new()
+	elif k == "hut":
+		node = HutB.new()
 	elif cat == "kitchen" or k == "packer" or k == "wrapper":
 		node = MachineB.new()
 	elif k == "pantry" or k == "rack":
@@ -206,17 +207,55 @@ func flash() -> void:
 	bump(0.06)
 
 
-# ---------------------------------------------------------------- ports + zones
+# ---------------------------------------------------------------- entrance
 
-func add_zone(kind_: Zone.Kind, holders: Array, at: Vector2, sz := Vector2(1.6, 1.2), col := Color(1, 1, 1)) -> Zone:
-	var z := Zone.make(kind_, holders, sz, "", col)
-	z.position = Vector3(at.x, 0, at.y)
-	add_child(z)
-	return z
+## Whether porters / builders come to this building (decor doesn't).
+func has_entrance() -> bool:
+	return Building.kind_has_entrance(kind)
 
 
-func add_port(h: Holder, z: Zone, dir: String) -> void:
-	ports.append({"holder": h, "zone": z, "dir": dir, "building": self})
+static func kind_has_entrance(k: String) -> bool:
+	return Defs.BUILDINGS[k]["cat"] != "decor"
+
+
+## The cell (odd widths) or two cells (even widths) in front of the middle of
+## the front edge, where the road arrives.
+func entrance_cells() -> Array[Vector2i]:
+	return Building.entrance_of(kind, cell(), rot())
+
+
+static func entrance_of(k: String, origin: Vector2i, r: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not kind_has_entrance(k):
+		return out
+	var sz: Vector2i = Defs.BUILDINGS[k]["size"]
+	var xf := Transform3D(Basis(Vector3.UP, Grid.yaw(r)), Grid.center_of(origin, sz, r))
+	var z := sz.y * Grid.CELL * 0.5 + Grid.CELL * 0.5
+	var xs := [0.0] if sz.x % 2 == 1 else [-Grid.CELL * 0.5, Grid.CELL * 0.5]
+	for x in xs:
+		out.append(Grid.cell_of(xf * Vector3(x, 0, z)))
+	return out
+
+
+## Direction (Roads.DIRS index) from the entrance toward the building.
+static func stub_dir(r: int) -> int:
+	return [3, 0, 1, 2][r % 4]
+
+
+## Where porters stand: the middle of the entrance, on the road.
+func door_pos() -> Vector3:
+	return to_world(0, size_m().y * 0.5 + Grid.CELL * 0.5)
+
+
+## Facing from the door toward the building.
+func inward() -> Vector3:
+	return -base_xf().basis.z
+
+
+# ---------------------------------------------------------------- ports
+
+func add_port(h: Holder, _z: Variant, dir: String) -> void:
+	ports.append({"holder": h, "dir": dir, "building": self})
 
 
 func out_ports() -> Array[Dictionary]:
@@ -245,11 +284,16 @@ func need(t: String) -> float:
 	return 0.0
 
 
-func in_zone_for(t: String) -> Zone:
+func in_holder_for(t: String) -> Holder:
 	for p in in_ports():
 		if (p["holder"] as Holder).can_accept(t):
-			return p["zone"]
+			return p["holder"]
 	return null
+
+
+## Whether the road reaches this building (porters only serve those).
+func on_road() -> bool:
+	return world != null and world.roads.connected.has(uid)
 
 
 # ---------------------------------------------------------------- save

@@ -13,8 +13,11 @@ func _ready() -> void:
 		Game.money = int(a["money"])
 	if a.has("level"):
 		Game.level = int(a["level"])
+		Game.hall()["lvl"] = Game.level
 	if a.has("demo"):
 		_demo_state()
+	if a.has("tut"):
+		Game.tutorial_step = int(a["tut"])
 	if a.has("showcase"):
 		_showcase(int(a.get("tier", "-1")))
 	world = World.new()
@@ -35,7 +38,7 @@ func _ready() -> void:
 		ui.call("skip_title")
 	if a.has("cam"):
 		var p: PackedStringArray = a["cam"].split(",")
-		world.player.global_position = Vector3(float(p[0]), 0, float(p[1]))
+		world.cam.global_position = Vector3(float(p[0]), 0, float(p[1]))
 		world.cam.snap()
 	if a.has("zoom"):
 		world.cam.zoom = float(a["zoom"])
@@ -44,15 +47,20 @@ func _ready() -> void:
 		var bot: Node = load("res://tests/bot.gd").new()
 		bot.set("world", world)
 		add_child(bot)
-	if a.has("route"):
-		world.show_route(a["route"])
 	if a.has("place"):
-		var pk: PackedStringArray = a["place"].split(":")
-		ui.call("start_placement", pk[0], pk[1] if pk.size() > 1 else "", 0)
+		ui.call("start_placement", a["place"], 0)
 	if a.has("select"):
 		for n in world.bnodes.values():
 			if n.kind == a["select"]:
-				ui.call("open_building", n)
+				world.cam.global_position = n.global_position + Vector3(0, 0, 3)
+				ui.call("select", n)
+				if a.has("info"):
+					ui.call("open_building", n)
+				break
+	if a.has("recipes"):
+		for n in world.bnodes.values():
+			if n is BakeryB:
+				ui.call("open_recipes", n)
 				break
 	if a.has("tscale"):
 		Engine.time_scale = float(a["tscale"])
@@ -70,65 +78,62 @@ func _ready() -> void:
 		add_child(load("res://dev/perf.gd").new())
 	if a.has("dbg"):
 		add_child(load("res://dev/dbg.gd").new())
-	if a.has("pp"):
-		add_child(load("res://dev/pp.gd").new())
 	if a.has("wdbg"):
 		add_child(load("res://dev/wdbg.gd").new())
 	Shot.attach(self)
 
 
-## A mid-game factory for screenshots and testing (--demo).
+## A mid-game empire for screenshots and testing (--demo).
 func _demo_state() -> void:
 	Game.reset_state()
 	Game.no_save = true
 	Game.money = 48000
-	Game.level = 12
+	Game.gems = 37
 	Game.tutorial_step = 99
-	Game.gems = 7
 	Game.stats["cookies"] = 900
 	Game.stats["earned"] = 30000.0
-	for c in [Vector2i(1, -1), Vector2i(1, 0), Vector2i(-2, -1), Vector2i(-2, 0), Vector2i(-1, 1), Vector2i(0, 1)]:
+	Game.level = 5
+	Game.hall()["lvl"] = 5
+	Game.obstacles.clear()
+	for c in [Vector2i(1, -1), Vector2i(1, 0), Vector2i(-2, -1), Vector2i(-2, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(-1, -2), Vector2i(-2, -2)]:
 		Game.land[Game.chunk_key(c)] = true
-	Game.land_bought_n = 6
+	Game.land_bought_n = 8
 	for b in Game.buildings:
-		b["lvl"] = 6 if b["kind"] != "tube" else 1
-	# a second line making chocolate chip: mixer, sugar, egg, chocolate hoppers, oven
-	var x := -2
-	var z := 0
-	Game.place("mixer", Vector2i(x, z), 0, {"lvl": 11}, false)
-	Game.place("hopper", Vector2i(x + 1, z), 0, {"ing": "sugar", "lvl": 8}, false)
-	Game.place("hopper", Vector2i(x + 2, z), 0, {"ing": "egg", "lvl": 8}, false)
-	Game.place("hopper", Vector2i(x + 3, z), 0, {"ing": "chocolate", "lvl": 8}, false)
-	Game.place("oven", Vector2i(x + 4, z), 0, {"lvl": 13}, false)
-	# farms and kitchens
-	Game.place("farm_sugar", Vector2i(-10, -6), 0, {"lvl": 12}, false)
-	Game.place("farm_egg", Vector2i(-14, -6), 0, {"lvl": 21}, false)
-	Game.place("farm_cocoa", Vector2i(-10, -2), 0, {"lvl": 8}, false)
-	Game.place("farm_milk", Vector2i(-14, -2), 0, {"lvl": 36}, false)
-	Game.place("chocolatier", Vector2i(-6, -2), 0, {"lvl": 6}, false)
-	Game.place("churn", Vector2i(-6, 1), 0, {"lvl": 2}, false)
-	Game.place("pantry", Vector2i(-9, 2), 0, {"lvl": 4}, false)
-	Game.place("rack", Vector2i(8, -1), 0, {"lvl": 4}, false)
-	Game.place("packer", Vector2i(8, 2), 0, {"lvl": 5}, false)
-	Game.place("shop", Vector2i(4, 3), 0, {"lvl": 13}, false)
-	Game.place("dock", Vector2i(11, -6), 0, {"lvl": 25}, false)
-	Game.place("cabin", Vector2i(-14, 2), 0, {"lvl": 3}, false)
-	Game.place("board", Vector2i(1, 4), 0, {}, false)
-	Game.place("well", Vector2i(-11, -3), 0, {}, false)
-	Game.place("flowers", Vector2i(3, 5), 0, {}, false)
-	Game.place("lamp", Vector2i(7, 3), 0, {}, false)
-	Game.place("tree", Vector2i(7, 5), 0, {}, false)
-	Game.place("fountain", Vector2i(-3, 5), 0, {}, false)
+		match b["kind"]:
+			"bakery": b["lvl"] = 8
+			"farm_wheat": b["lvl"] = 12
+			"dock": b["lvl"] = 9
+	Game.place("farm_sugar", Vector2i(-11, -7), 0, {"lvl": 10}, false)
+	Game.place("farm_egg", Vector2i(-15, -7), 0, {"lvl": 6}, false)
+	Game.place("farm_milk", Vector2i(-15, -2), 0, {"lvl": 5}, false)
+	Game.place("farm_cocoa", Vector2i(-6, -14), 0, {"lvl": 4}, false)
+	Game.place("hut", Vector2i(7, 3), 0, {}, false)
+	Game.place("chocolatier", Vector2i(-14, 3), 0, {"lvl": 3}, false)
+	Game.place("churn", Vector2i(-11, 3), 0, {"lvl": 2}, false)
+	Game.place("pantry", Vector2i(-6, 5), 0, {"lvl": 3}, false)
+	Game.place("shop", Vector2i(8, 4), 0, {"lvl": 6}, false)
+	Game.place("rack", Vector2i(8, -2), 0, {"lvl": 2}, false)
+	Game.place("cabin", Vector2i(-2, 9), 0, {"lvl": 2}, false)
+	Game.place("board", Vector2i(2, 9), 0, {}, false)
+	Game.place("dock", Vector2i(12, -2), 0, {"lvl": 4}, false)
+	Game.place("well", Vector2i(-12, -4), 0, {}, false)
+	Game.place("flowers", Vector2i(7, 7), 0, {}, false)
+	Game.place("lamp", Vector2i(11, 4), 0, {}, false)
+	Game.place("tree", Vector2i(12, 7), 0, {}, false)
+	Game.place("fountain", Vector2i(-1, 13), 0, {}, false)
+	var s := Game.place("farm_oats", Vector2i(3, -9), 0, {"lvl": 0}, false)
+	Game._start_job("build", int(s["uid"]), 90.0)
+	for b in Game.buildings:
+		if b["kind"] == "bakery":
+			Game._start_job("upgrade", int(b["uid"]), 600.0)
 	for r in ["sugar", "cocoa", "milk", "butter", "choc"]:
 		Game.known_recipes[r] = true
-	var roles := [["gatherer", 0], ["gatherer", 0], ["feeder", 0], ["feeder", 0], ["collector", 0], ["loader", 0], ["", 0]]
-	var i := 1
-	for r in roles:
-		Game.workers.append({"id": i, "role": r[0], "target": r[1]})
-		i += 1
-	Game.next_worker_id = i
-	Game.hired = i - 1
-	Game.player_state = {"x": 2.0, "z": 3.0, "carry": ["c:choc", "c:choc", "c:choc", "c:choc", "c:choc", "c:choc"]}
+	for i in 5:
+		Game.workers.append({"id": Game.next_worker_id, "role": "porter", "target": 0})
+		Game.next_worker_id += 1
+	Game.hired = 5
+	Game.obstacles["8,10"] = {"kind": "oak", "gems": 2}
+	Game.obstacles["13,9"] = {"kind": "rock", "gems": 1}
 
 
 ## Every building kind laid out in rows (--showcase[=tier]) for art reviews.
@@ -136,12 +141,14 @@ func _showcase(tier: int) -> void:
 	Game.reset_state()
 	Game.no_save = true
 	Game.buildings.clear()
+	Game.obstacles.clear()
 	Game.money = 1e12
-	Game.level = 60
+	Game.level = 15
 	Game.tutorial_step = 99
 	for x in range(-3, 3):
 		for y in range(-3, 3):
 			Game.land[Game.chunk_key(Vector2i(x, y))] = true
+	Game.place("hall", Vector2i(-2, 18), 0, {"lvl": 15 if tier < 0 else [1, 3, 6, 9, 12][tier]}, false)
 	var lv := [1, 5, 12, 25, 40]
 	var x0 := -22
 	var cx := x0
@@ -149,22 +156,17 @@ func _showcase(tier: int) -> void:
 	var row_h := 0
 	var i := 0
 	for kind in Defs.BUILD_ORDER:
-		if kind == "tube":
-			continue
 		var sz: Vector2i = Defs.BUILDINGS[kind]["size"]
 		if cx + sz.x > 22:
 			cx = x0
-			cy += row_h + 1
+			cy += row_h + 2
 			row_h = 0
 		var t := tier if tier >= 0 else i % 5
 		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "farm" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
 		var extra := {"lvl": l}
-		if kind == "hopper":
-			extra["ing"] = "chocolate"
 		if kind == "palace":
 			extra["stage"] = 4
 		Game.place(kind, Vector2i(cx, cy), 0, extra, false)
 		cx += sz.x + 1
 		row_h = maxi(row_h, sz.y)
 		i += 1
-	Game.player_state = {"x": 0.0, "z": -20.0}

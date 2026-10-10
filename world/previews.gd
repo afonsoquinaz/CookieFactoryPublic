@@ -9,7 +9,6 @@ static func mesh(kind: String, ing := "", t := 0) -> Mesh:
 static func _build(kind: String, ing: String, t := 0) -> Mesh:
 	var k := MeshKit.new()
 	var d: Dictionary = Defs.BUILDINGS[kind]
-	var tz := LineModule.TUBE_Z
 	match d["cat"]:
 		"farm":
 			var crop: String = d["crop"]
@@ -23,16 +22,25 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 			for i in 6:
 				k.add_mesh(cm, MeshKit.at(-1.8 + (i % 3) * 1.8, 0.07, cz - 0.8 + (i / 3) * 1.4))
 			k.add_mesh(MeshKit.cached("crate", FarmB.crate_mesh), MeshKit.at(0, 0, FarmB.CRATE_Z))
-		"line":
-			var len: float = d["size"].x * Grid.CELL
-			if kind != "oven":
-				k.add_mesh(LineArt.frame(len), MeshKit.at(0, 0, tz))
-			match kind:
-				"mixer": k.add_mesh(LineArt.mixer(t))
-				"hopper": k.add_mesh(LineArt.silo(ing if ing != "" else "sugar", t), MeshKit.at(0, LineModule.TUBE_Y + 0.47, tz))
-				"oven":
-					k.add_mesh(LineArt.oven(t))
-					k.add_mesh(LineArt.tray(t), MeshKit.at(OvenB.TRAY_POS.x, 0, OvenB.TRAY_POS.z))
+		"bake":
+			var bz := BakeryB.TUBE_Z - LineArt.TZ
+			k.add_mesh(TownArt.bakery_house(t, BakeryB.W, BakeryB.D))
+			var len := BakeryB.TUBE_X1 - BakeryB.TUBE_X0
+			k.add_mesh(LineArt.frame(len), MeshKit.at((BakeryB.TUBE_X0 + BakeryB.TUBE_X1) * 0.5, 0, BakeryB.TUBE_Z))
+			k.add_mesh(LineArt.mixer(t), MeshKit.at(BakeryB.MIXER_X, 0, bz))
+			k.add_mesh(LineArt.oven(t), MeshKit.at(BakeryB.OVEN_X, 0, bz))
+			k.add_mesh(LineArt.tray(t), MeshKit.at(BakeryB.TRAY_POS.x, 0, BakeryB.TRAY_POS.z))
+			k.add_mesh(TownArt.flour_bin(t), MeshKit.at(BakeryB.BIN_POS.x, 0, BakeryB.BIN_POS.z))
+			k.add_mesh(LineArt.silo(ing if ing != "" else "sugar", t), MeshKit.xf(Vector3(-0.7, LineArt.Y + 0.47, BakeryB.TUBE_Z), Vector3.ZERO, Vector3(0.62, 0.62, 0.62)))
+		"hall":
+			k.add_mesh(TownArt.hall(t, 1))
+		"staff":
+			if kind == "hut":
+				k.add_mesh(TownArt.hut())
+			else:
+				k.add_mesh(CabinB.mesh(t), MeshKit.at(0.3, 0, -0.65))
+		"wonder":
+			k.add_mesh(PalaceB.mesh(t))
 		"kitchen":
 			k.add_mesh(KitchenArt.machine(kind, t))
 			k.add_mesh(KitchenArt.part(kind, t), Transform3D(Basis.IDENTITY, KitchenArt.anim_pivot(kind, t)))
@@ -58,11 +66,6 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 					k.add_mesh(SalesArt.airship(t), MeshKit.at(0, 5.2, -0.6))
 				"shop": k.add_mesh(ShopB.mesh(t))
 				"board": k.add_mesh(BoardB.mesh())
-		"staff":
-			k.add_mesh(CabinB.mesh(t), MeshKit.at(0.3, 0, -0.65))
 		"decor":
-			if kind == "palace":
-				k.add_mesh(PalaceB.mesh(t))
-			else:
-				k.add_mesh(DecorB.mesh(kind))
+			k.add_mesh(DecorB.mesh(kind))
 	return k.commit()

@@ -10,8 +10,6 @@ const OUT_POS := Vector3(1.05, 0, 0.15)
 
 var inputs := {}               # item (or "*") -> Holder
 var output: Holder
-var in_zone: Zone
-var out_zone: Zone
 var crafting := false
 var _craft_t := 0.0
 var _pending: Array[String] = []
@@ -63,11 +61,9 @@ func _build() -> void:
 	output.max_visible = 24
 	output.position = Vector3(0, 0.78, 0)
 	ob.add_child(output)
-	in_zone = add_zone(Zone.Kind.GIVE, hs, Vector2(-0.95, 1.45), Vector2(1.7, 1.0), Pal.SAGE)
-	out_zone = add_zone(Zone.Kind.TAKE, [output], Vector2(0.95, 1.45), Vector2(1.7, 1.0), Pal.OCHRE)
 	for h3 in hs:
-		add_port(h3, in_zone, "in")
-	add_port(output, out_zone, "out")
+		add_port(h3, null, "in")
+	add_port(output, null, "out")
 	_out_label = UI3D.label("0", 26)
 	_out_label.position = OUT_POS + Vector3(0, 1.45, 0.1)
 	add_child(_out_label)
