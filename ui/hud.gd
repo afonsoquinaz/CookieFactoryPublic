@@ -1,34 +1,37 @@
 extends Control
-## The game HUD: a framed money counter with gems, a gold-star level badge
-## with its XP bar, the trending cookie, chunky buttons along the bottom
-## (Build, Staff, Research, Boost), a Drop button whenever you carry
-## something, toasts and popups. Tap a building to see and upgrade it; tap a
-## For Sale sign to buy land. Build mode hands the screen to Placement.
+## The game HUD, base-builder style. Top: money and gems, the builders chip
+## (busy / total), the Cookie Hall badge, settings. Bottom: Staff, Research,
+## Boost and a big Build button. Tap a building (or an obstacle, or a For Sale
+## sign) to select it: it lights up and an action bar replaces the bottom
+## buttons. Floating timers sit over everything being built. Build mode
+## hands the screen to Placement.
 
 var world: World
-var joystick: Joystick
+var pan: PanInput
 var goals: Goals
 var title: TitleMenu
 var placement: Placement
+var actions: ActionBar
+var timers: JobTimers
+var selected: Building
+var selected_ob := ""
 var _money_label: Label
 var _money_pill: Control
 var _income_label: Label
 var _gem_chip: PanelContainer
 var _gem_label: Label
+var _builders_chip: JuicyButton
 var _trend_chip: PanelContainer
 var _trend_icon: TextureRect
 var _trend_label: Label
-var _lvl_label: Label
-var _lvl_title: Label
-var _xp_fill: Control
-var _xp_back: Control
-var _level_box: Control
+var _hall_box: Control
+var _hall_label: Label
+var _hall_title: Label
 var _gear: JuicyButton
 var btn_build: JuicyButton
 var btn_staff: JuicyButton
 var btn_research: JuicyButton
 var _btn_rush: JuicyButton
-var _btn_drop: JuicyButton
 var _build_dot: Control
 var _research_dot: Control
 var _staff_dot: Label
@@ -38,7 +41,9 @@ var _shown_money := 0.0
 var _bar: HBoxContainer
 var _vignette: ColorRect
 var _rush_glow := 0.0
-var _xp_shown := 0.0
+var _sel_mark: MeshInstance3D
+var _route_mark: MeshInstance3D
+var _sel_t := 0.0
 var playing := false
 
 
@@ -53,39 +58,60 @@ func _ready() -> void:
 	vm.set_shader_parameter("color", Color(1.0, 0.78, 0.3))
 	_vignette.material = vm
 	add_child(_vignette)
-	joystick = Joystick.new()
-	joystick.tapped.connect(_on_tap)
-	add_child(joystick)
+	pan = PanInput.new()
+	pan.world = world
+	pan.tapped.connect(_on_tap)
+	add_child(pan)
+	timers = JobTimers.new()
+	timers.world = world
+	timers.picked.connect(_on_timer)
+	add_child(timers)
 	_build_top()
 	_build_bottom()
+	actions = ActionBar.new()
+	actions.action.connect(_on_action)
+	actions.visible = false
+	add_child(actions)
 	_toast_box = Kit.vbox(8)
 	add_child(_toast_box)
 	goals = Goals.new()
 	goals.hud = self
 	goals.world = world
 	add_child(goals)
+	_sel_mark = MeshInstance3D.new()
+	_sel_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sel_mark.material_override = Mats.flat(Color(1.0, 0.86, 0.42, 0.95))
+	_sel_mark.visible = false
+	world.add_child(_sel_mark)
+	_route_mark = MeshInstance3D.new()
+	_route_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_route_mark.material_override = Mats.flat(Color(1.0, 0.92, 0.6, 0.85))
+	_route_mark.visible = false
+	world.add_child(_route_mark)
 	_shown_money = Game.money
 	Game.money_changed.connect(_on_money)
 	Game.gems_changed.connect(func(g):
 		_gem_label.text = str(g)
 		Kit.bounce(_gem_chip, 0.15))
-	Game.xp_changed.connect(func(_x, _n, _l): _update_level())
-	Game.level_up.connect(_on_level_up)
+	Game.hall_upgraded.connect(_on_hall_up)
 	Game.toast.connect(toast)
 	Game.rush_changed.connect(_on_rush)
-	Game.building_added.connect(_on_built)
+	Game.building_built.connect(_on_built)
+	Game.job_done.connect(_on_job_done)
 	Game.discovered.connect(_on_discovered)
 	Game.trend_changed.connect(_on_trend)
-	Game.land_bought.connect(func(_c): toast("New land! Build on it.", "land"))
+	Game.land_bought.connect(func(_c): toast("New land! Clear it and build on it.", "land"))
+	Game.obstacle_cleared.connect(func(_k, g): toast("Cleared!%s" % ("  +%d gems" % g if g > 0 else ""), "gem" if g > 0 else "hammer"))
 	world.sold.connect(_on_sold)
 	Game.victory.connect(func():
 		Sfx.play("levelup")
+		var c := world.cam.global_position
 		for i in 3:
-			Fx.burst(get_tree().current_scene, world.player.global_position + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
+			Fx.burst(get_tree().current_scene, c + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
 		_popup("Cookie Empire!", "The Grand Cookie Palace is complete. Your cookies are a legend from coast to coast.",
 			"%s cookies sold  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["cookies"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
 			"palace", "Keep baking"))
-	_update_level()
+	_update_hall()
 	_on_trend(Game.trending)
 	_gem_label.text = str(Game.gems)
 
@@ -97,31 +123,31 @@ func show_title() -> void:
 	title.play.connect(_start_playing)
 	add_child(title)
 	_set_hud_visible(false)
-	world.player.input_enabled = false
 
 
 func _start_playing() -> void:
 	playing = true
 	_set_hud_visible(true)
-	world.player.input_enabled = true
-	for c in [_money_pill, _level_box, _gear]:
+	for c in [_money_pill, _hall_box, _gear, _builders_chip]:
 		Kit.pop_in(c, 0.2)
-	if Game.offline_reward > 0:
-		_offline_popup.call_deferred(Game.offline_reward)
+	_welcome_back.call_deferred()
 
 
 func skip_title() -> void:
 	playing = true
 	_set_hud_visible(true)
+	_welcome_back.call_deferred()
+
+
+func _welcome_back() -> void:
 	if Game.offline_reward > 0:
-		_offline_popup.call_deferred(Game.offline_reward)
+		_offline_popup(Game.offline_reward)
 
 
 func _set_hud_visible(on: bool) -> void:
-	for c in [_money_pill, _level_box, _gear, _bar, goals, joystick, _btn_drop, _gem_chip, _trend_chip]:
+	for c in [_money_pill, _hall_box, _gear, _bar, goals, pan, _gem_chip, _trend_chip, _builders_chip, timers]:
 		c.visible = on
 	if on:
-		_gem_chip.visible = Game.gems > 0 or Game.count_of("board") > 0
 		_trend_chip.visible = Game.trending != ""
 
 
@@ -158,6 +184,12 @@ func _build_top() -> void:
 	gh.add_child(Kit.icon("gem", 34))
 	_gem_label = Kit.game("0", 22, Kit.WHITE, 5)
 	gh.add_child(_gem_label)
+	# builders: busy / total
+	_builders_chip = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(118, 60))
+	_builders_chip.set_icon("builder", 40)
+	_builders_chip.set_text_value("0/0")
+	_builders_chip.pressed.connect(_on_builders)
+	add_child(_builders_chip)
 	# trending cookie
 	_trend_chip = PanelContainer.new()
 	_trend_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
@@ -169,44 +201,42 @@ func _build_top() -> void:
 	th.add_child(_trend_icon)
 	_trend_label = Kit.game("", 17, Color(1.0, 0.9, 0.55), 5)
 	th.add_child(_trend_label)
-	# level
-	var lb := Control.new()
-	lb.custom_minimum_size = Vector2(240, 84)
-	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(lb)
-	_level_box = lb
-	_xp_back = Panel.new()
-	_xp_back.add_theme_stylebox_override("panel", Kit.skin("track", 18))
-	_xp_back.position = Vector2(54, 18)
-	_xp_back.size = Vector2(180, 32)
-	_xp_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lb.add_child(_xp_back)
-	_xp_fill = Panel.new()
-	_xp_fill.add_theme_stylebox_override("panel", Kit.skin("fill_gold", 18))
-	_xp_fill.size = Vector2(40, 32)
-	_xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_xp_back.add_child(_xp_fill)
+	# Cookie Hall badge
+	var hb := Control.new()
+	hb.custom_minimum_size = Vector2(190, 84)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hb)
+	_hall_box = hb
+	var back := Panel.new()
+	back.add_theme_stylebox_override("panel", Kit.skin("bar", 30))
+	back.position = Vector2(40, 12)
+	back.size = Vector2(150, 56)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_child(back)
 	var star := Kit.icon("star", 84)
-	star.position = Vector2(0, -6)
-	lb.add_child(star)
-	_lvl_label = Kit.game("1", 30, Kit.WHITE, 7)
-	_lvl_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_lvl_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_lvl_label.position = Vector2(0, 10)
-	_lvl_label.size = Vector2(84, 60)
-	lb.add_child(_lvl_label)
-	_lvl_title = Kit.game("", 17, Kit.WHITE, 5)
-	_lvl_title.position = Vector2(64, 52)
-	lb.add_child(_lvl_title)
+	star.position = Vector2(-6, -6)
+	hb.add_child(star)
+	_hall_label = Kit.game("1", 30, Kit.WHITE, 7)
+	_hall_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hall_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hall_label.position = Vector2(-6, 6)
+	_hall_label.size = Vector2(84, 60)
+	hb.add_child(_hall_label)
+	var hl := Kit.game("Cookie Hall", 15, Color(1.0, 0.86, 0.5), 4)
+	hl.position = Vector2(80, 14)
+	hb.add_child(hl)
+	_hall_title = Kit.game("", 17, Kit.WHITE, 5)
+	_hall_title.position = Vector2(80, 34)
+	hb.add_child(_hall_title)
 	_gear = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(72, 72))
 	_gear.set_glyph("settings", 34)
 	_gear.pressed.connect(func(): open_sheet(SettingsPanel.new()))
 	add_child(_gear)
 
 
-func _update_level() -> void:
-	_lvl_label.text = str(Game.level)
-	_lvl_title.text = Defs.level_title(Game.level)
+func _update_hall() -> void:
+	_hall_label.text = str(Game.level)
+	_hall_title.text = Defs.level_title(Game.level)
 
 
 func _on_money(_value: float, delta: float) -> void:
@@ -224,34 +254,37 @@ func _on_trend(rid: String) -> void:
 		toast("Customers are crazy about %s right now: it sells for more!" % Defs.recipe(rid)["name"], "ck_" + rid)
 
 
+func _on_builders() -> void:
+	if Game.jobs.is_empty():
+		toast("Your builders are free: build or upgrade something!", "builder")
+		return
+	var j: Dictionary = Game.jobs[0]
+	world.cam.fly_to(world.job_center(j))
+	_on_timer(j)
+
+
 # ---------------------------------------------------------------- bottom
 
 func _build_bottom() -> void:
 	_bar = Kit.hbox(12)
 	_bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(_bar)
-	btn_build = _big_button("Build", "hammer", Kit.BRASS)
-	btn_build.pressed.connect(open_build)
 	btn_staff = _big_button("Staff", "hire", Kit.CHARCOAL)
 	btn_staff.pressed.connect(open_staff)
 	btn_research = _big_button("Research", "research", Kit.CHARCOAL)
 	btn_research.pressed.connect(func(): open_sheet(ResearchPanel.new()))
 	_btn_rush = _big_button("Boost", "boost", Kit.TERRACOTTA)
 	_btn_rush.pressed.connect(_rush)
+	btn_build = _big_button("Build", "hammer", Kit.BRASS)
+	btn_build.custom_minimum_size = Vector2(160, 128)
+	btn_build.pressed.connect(open_build)
 	_build_dot = _dot(btn_build)
 	_research_dot = _dot(btn_research)
 	_staff_dot = _dot(btn_staff).get_child(0)
-	_btn_drop = Kit.juicy("Drop", Kit.TERRACOTTA, Kit.TERRACOTTA_EDGE, 18, Vector2(150, 64))
-	_btn_drop.set_glyph("delete", 26)
-	_btn_drop.pressed.connect(func():
-		world.player.discard_all()
-		toast("Hands emptied", ""))
-	_btn_drop.visible = false
-	add_child(_btn_drop)
 
 
 func _big_button(t: String, icon: String, face: Color) -> JuicyButton:
-	var b := Kit.juicy("", face, face, 18, Vector2(138, 116))
+	var b := Kit.juicy("", face, face, 18, Vector2(128, 116))
 	b.row.queue_free()
 	var v := Kit.vbox(-4)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -276,7 +309,7 @@ func _dot(b: Control) -> Control:
 	var p := Panel.new()
 	p.add_theme_stylebox_override("panel", Kit.box(Color(0.86, 0.26, 0.2), 16, 3, Kit.WHITE))
 	p.size = Vector2(34, 34)
-	p.position = Vector2(112, -8)
+	p.position = Vector2(100, -8)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.z_index = 2
 	var l := Kit.game("!", 18, Kit.WHITE, 4)
@@ -292,7 +325,6 @@ func _show_button(b: JuicyButton, on: bool) -> void:
 	if on and not b.visible:
 		b.visible = true
 		Kit.pop_in.call_deferred(b)
-		Sfx.play("open", -6.0)
 	elif not on:
 		b.visible = false
 
@@ -300,12 +332,16 @@ func _show_button(b: JuicyButton, on: bool) -> void:
 var _dot_cd := 0.0
 
 func _update_buttons(dt: float) -> void:
+	var sel := selected != null or selected_ob != ""
+	_bar.visible = not sel and placement == null
+	actions.visible = sel and placement == null and _sheet == null
 	_show_button(btn_build, true)
-	_show_button(btn_staff, Game.level >= 2 or Game.count_of("cabin") > 0)
+	_show_button(btn_staff, true)
 	_show_button(btn_research, int(Game.stats["cookies"]) > 0)
-	_show_button(_btn_rush, Game.level >= 3)
-	_btn_drop.visible = world.player.carry.count() > 0 and _sheet == null and placement == null
-	_gem_chip.visible = Game.gems > 0 or Game.count_of("board") > 0
+	_show_button(_btn_rush, Game.level >= 2)
+	_gem_chip.visible = true
+	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
+	_builders_chip.set_colors(Kit.SAGE if Game.free_builders() > 0 else Kit.CHARCOAL, Kit.SAGE_EDGE)
 	_dot_cd -= dt
 	if _dot_cd <= 0.0:
 		_dot_cd = 0.5
@@ -314,20 +350,17 @@ func _update_buttons(dt: float) -> void:
 			if not Game.research_maxed(id) and Game.can_afford(Game.research_cost(id)):
 				any = true
 				break
-		_research_dot.visible = any
+		_research_dot.visible = any and _sheet == null
 		var can_build := false
-		for kind in Defs.BUILD_ORDER:
-			if Game.unlocked(kind) and Game.count_of(kind) == 0 and Game.can_afford(Game.price_of(kind)) and Defs.BUILDINGS[kind]["cat"] != "decor":
-				can_build = true
-				break
-		_build_dot.visible = can_build
-		var idle := Game.idle_workers()
-		_staff_dot.get_parent().visible = idle > 0 or (Game.can_hire() and Game.can_afford(Game.hire_price()))
-		_staff_dot.text = str(idle) if idle > 0 else "+"
-	if _sheet != null:
-		_build_dot.visible = false
-		_research_dot.visible = false
-		_staff_dot.get_parent().visible = false
+		if Game.free_builders() > 0:
+			for kind in Defs.BUILD_ORDER:
+				if Defs.BUILDINGS[kind]["cat"] != "decor" and Game.count_of(kind) == 0 and Game.build_block(kind) == "":
+					can_build = true
+					break
+		_build_dot.visible = can_build and _sheet == null
+		var free_hire := Game.can_hire() and Game.can_afford(Game.hire_price())
+		_staff_dot.get_parent().visible = free_hire and _sheet == null
+		_staff_dot.text = "+"
 	var rl: Label = _btn_rush.get_meta("label")
 	if Game.rush_active():
 		rl.text = "x2  %ds" % ceili(Game.rush_time)
@@ -353,60 +386,253 @@ func _on_rush(active: bool) -> void:
 
 
 func open_build() -> void:
+	deselect()
 	var p := BuildPanel.new()
-	p.chosen.connect(func(kind, ing): start_placement.call_deferred(kind, ing, 0))
+	p.chosen.connect(func(kind): start_placement.call_deferred(kind, 0))
 	open_sheet(p)
 
 
 func open_staff() -> void:
-	var p := StaffPanel.new()
-	p.world = world
-	p.preview_role.connect(func(r): world.show_route(r))
-	p.closed.connect(func(): world.show_route(""))
+	deselect()
+	open_sheet(StaffPanel.new())
+
+
+func open_building(n: Building, focus := "") -> void:
+	var p := BuildingPanel.new().setup(world, n, focus)
+	p.move_requested.connect(func(uid): start_placement.call_deferred(n.kind, uid))
 	open_sheet(p)
 
 
-func open_building(n: Building) -> void:
-	var p := BuildingPanel.new().setup(world, n)
-	p.move_requested.connect(func(uid): start_placement.call_deferred(n.kind, "", uid))
-	open_sheet(p)
+func open_recipes(n: BakeryB) -> void:
+	open_sheet(RecipePanel.new().setup(n))
 
 
 func open_sheet(s: Sheet) -> void:
 	if is_instance_valid(_sheet):
 		_sheet.queue_free()
 	_sheet = s
-	joystick.visible = false
-	world.player.input_enabled = false
+	pan.visible = false
 	goals.visible = false
+	timers.visible = false
 	s.closed.connect(func():
 		if _sheet == s:
 			_sheet = null
 		if placement == null:
-			joystick.visible = playing
-			world.player.input_enabled = playing
+			pan.visible = playing
 			goals.visible = playing
-			world.cam.zoom = 1.0)
+			timers.visible = playing)
 	add_child(s)
-	world.cam.zoom = 1.2
+
+
+# ---------------------------------------------------------------- selection
+
+func select(n: Building) -> void:
+	selected_ob = ""
+	selected = n
+	_sel_t = 0.0
+	n.flash()
+	Sfx.play("click")
+	_refresh_actions()
+
+
+func select_obstacle(key: String) -> void:
+	selected = null
+	selected_ob = key
+	_sel_t = 0.0
+	Sfx.play("click")
+	var n: Node3D = world.obst_nodes.get(key)
+	if n:
+		var tw := n.create_tween()
+		n.scale = Vector3(1.08, 0.9, 1.08)
+		tw.tween_property(n, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_refresh_actions()
+
+
+func deselect() -> void:
+	selected = null
+	selected_ob = ""
+	_sel_mark.visible = false
+	_route_mark.visible = false
+
+
+func _refresh_actions() -> void:
+	if selected_ob != "":
+		var ob: Dictionary = Game.obstacles.get(selected_ob, {})
+		if ob.is_empty():
+			deselect()
+			return
+		var j := Game.job_of_obstacle(selected_ob)
+		var name: String = Defs.OBSTACLES[ob["kind"]]["name"]
+		var btns := []
+		if j.is_empty():
+			actions.set_title(name, "Clear it to make room%s" % ("  ·  hides gems!" if int(ob["gems"]) > 0 else ""))
+			btns.append(["clear", "hammer", "Clear $%s" % Fmt.num(Game.obstacle_price()), Kit.SAGE, Game.clear_block(selected_ob) == ""])
+		else:
+			actions.set_title(name, "Being cleared: %s left" % Fmt.time(Game.job_left(j)))
+			btns.append(["finish", "gem", _finish_label(j), Kit.BRASS, true])
+		actions.set_buttons(btns, "ob" + selected_ob)
+		_mark_cells(Game.obstacle_cells(selected_ob, ob))
+		return
+	var n := selected
+	if not is_instance_valid(n):
+		deselect()
+		return
+	var d: Dictionary = n.def
+	var j2 := Game.job_of(n.uid)
+	var sub := ""
+	if n is SiteB:
+		sub = "Under construction"
+	elif Bal.max_level(n.kind) > 1:
+		sub = "Level %d" % n.level
+		if n is HallB:
+			sub += "  ·  %s" % Defs.level_title(n.level)
+	if not j2.is_empty():
+		sub += ("  ·  " if sub != "" else "") + ("Upgrading" if j2["type"] == "upgrade" else "Building") + ": %s left" % Fmt.time(Game.job_left(j2))
+	elif n.has_entrance() and not n.on_road() and not n is SiteB:
+		sub += "  ·  No road! Clear the space in front"
+	actions.set_title(d["name"], sub)
+	var b := []
+	b.append(["info", "research", "Info", Kit.CHARCOAL])
+	if not j2.is_empty():
+		b.append(["finish", "gem", _finish_label(j2), Kit.BRASS])
+	elif not n is SiteB and Bal.max_level(n.kind) > 1 and n.level < Bal.max_level(n.kind):
+		var cap := n.level >= Bal.level_cap(n.kind, Game.level)
+		b.append(["upgrade", "hammer" if not cap else "lock", ("$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level))) if not cap else "Hall %d" % (Game.level + 1), Kit.SAGE, not cap])
+	if n is BakeryB:
+		b.append(["recipe", "ck_" + (n as BakeryB).recipe, "Bake", Kit.BRASS])
+	if (n is FarmB or n is BakeryB or n is MachineB) and not n is SiteB:
+		b.append(["staff", "farmer" if n is FarmB else "chef", "Staff", Kit.CHARCOAL])
+	if n is PalaceB and j2.is_empty() and not (n as PalaceB).complete():
+		b.append(["stage", "palace", "Next stage", Kit.BRASS, (n as PalaceB).can_advance()])
+	if not n is SiteB and n.kind != "hall":
+		b.append(["move", "move", "Move", Kit.CHARCOAL])
+	actions.set_buttons(b, "b%d" % n.uid)
+	_mark_cells(Grid.cells(n.cell(), n.size(), n.rot()))
+	_mark_route(n)
+
+
+func _finish_label(j: Dictionary) -> String:
+	var g := Bal.finish_gems(Game.job_left(j))
+	return "Free!" if g == 0 else "%d gems" % g
+
+
+## Little glowing stones along the selected building's road to the Hall.
+func _mark_route(n: Building) -> void:
+	var h := world.hall()
+	if h == null or n == h or not n.has_entrance() or not n.on_road():
+		_route_mark.visible = false
+		return
+	var key := "%d_%d" % [n.uid, world.roads.cells.size()]
+	if _route_mark.get_meta("key", "") == key:
+		_route_mark.visible = true
+		return
+	_route_mark.set_meta("key", key)
+	var r := world.roads.route(n.entrance_cells()[0], h.entrance_cells()[0])
+	var k := MeshKit.new()
+	for i in r.size():
+		var p := Grid.cell_center(r[i])
+		k.cyl(0.16, 0.04, Color.WHITE, MeshKit.at(p.x, 0.07, p.z), 10)
+		if i + 1 < r.size():
+			var q := (p + Grid.cell_center(r[i + 1])) * 0.5
+			k.cyl(0.11, 0.04, Color.WHITE, MeshKit.at(q.x, 0.07, q.z), 8)
+	_route_mark.mesh = k.commit()
+	_route_mark.visible = true
+
+
+## A glowing outline around the selected footprint.
+func _mark_cells(cells: Array) -> void:
+	if cells.is_empty():
+		_sel_mark.visible = false
+		return
+	var mn := Vector2i(1 << 20, 1 << 20)
+	var mx := Vector2i(-(1 << 20), -(1 << 20))
+	for c in cells:
+		mn = Vector2i(mini(mn.x, c.x), mini(mn.y, c.y))
+		mx = Vector2i(maxi(mx.x, c.x), maxi(mx.y, c.y))
+	var a := Vector2(mn) * Grid.CELL
+	var b := Vector2(mx + Vector2i.ONE) * Grid.CELL
+	var k := MeshKit.new()
+	var w := 0.14
+	var cx := (a.x + b.x) * 0.5
+	var cz := (a.y + b.y) * 0.5
+	k.rbox(Vector3(b.x - a.x, 0.03, w), 0.05, Color.WHITE, MeshKit.at(cx, 0.08, a.y))
+	k.rbox(Vector3(b.x - a.x, 0.03, w), 0.05, Color.WHITE, MeshKit.at(cx, 0.08, b.y))
+	k.rbox(Vector3(w, 0.03, b.y - a.y), 0.05, Color.WHITE, MeshKit.at(a.x, 0.08, cz))
+	k.rbox(Vector3(w, 0.03, b.y - a.y), 0.05, Color.WHITE, MeshKit.at(b.x, 0.08, cz))
+	_sel_mark.mesh = k.commit()
+	_sel_mark.visible = true
+
+
+func _on_action(id: String) -> void:
+	var n := selected
+	match id:
+		"info":
+			open_building(n)
+		"upgrade":
+			open_building(n, "upgrade")
+		"recipe":
+			open_recipes(n as BakeryB)
+		"staff":
+			open_building(n, "staff")
+		"move":
+			start_placement(n.kind, n.uid)
+		"stage":
+			if (n as PalaceB).advance():
+				Sfx.play("upgrade")
+				toast("Builders started on %s!" % Defs.PALACE_STAGES[(n as PalaceB).stage() + 1]["name"], "palace")
+			else:
+				Sfx.play("deny")
+				toast((n as PalaceB).advance_block(), "palace")
+		"clear":
+			if Game.clear_obstacle(selected_ob):
+				Sfx.play("upgrade", -4.0)
+			else:
+				Sfx.play("deny")
+				toast(Game.clear_block(selected_ob), "hammer")
+		"finish":
+			var j := Game.job_of_obstacle(selected_ob) if selected_ob != "" else Game.job_of(n.uid)
+			_finish(j)
+	_refresh_actions.call_deferred()
+
+
+func _finish(j: Dictionary) -> void:
+	if j.is_empty():
+		return
+	var g := Bal.finish_gems(Game.job_left(j))
+	if Game.finish_now(j):
+		Sfx.play("cash" if g > 0 else "upgrade")
+	else:
+		Sfx.play("deny")
+		toast("Not enough gems (%d needed). Orders and obstacles give gems." % g, "gem")
+
+
+func _on_timer(j: Dictionary) -> void:
+	if Game.job_left(j) <= Bal.FREE_FINISH:
+		_finish(j)
+		return
+	if str(j.get("ob", "")) != "":
+		select_obstacle(j["ob"])
+	else:
+		var b := world.building(int(j["uid"]))
+		if b:
+			select(b)
 
 
 # ---------------------------------------------------------------- build mode
 
-func start_placement(kind: String, ing := "", move_uid := 0) -> void:
+func start_placement(kind: String, move_uid := 0) -> void:
 	if placement:
 		placement.finish(false)
-	placement = Placement.new().setup(world, kind, ing, move_uid)
+	deselect()
+	placement = Placement.new().setup(world, kind, move_uid)
 	placement.finished.connect(func(placed):
 		placement = null
 		_set_hud_visible(true)
-		world.cam.zoom = 1.0
 		if placed and move_uid == 0:
-			toast("%s built!" % Defs.BUILDINGS[kind]["name"], Defs.BUILDINGS[kind]["icon"]))
-	for c in [_bar, joystick, goals, _btn_drop, _trend_chip]:
+			toast(("%s: a builder is on it!" % Defs.BUILDINGS[kind]["name"]) if Game.jobs.size() > 0 and not Defs.is_instant(kind) else "%s built!" % Defs.BUILDINGS[kind]["name"], Defs.BUILDINGS[kind]["icon"]))
+	for c in [_bar, pan, goals, _trend_chip, timers, actions]:
 		c.visible = false
 	add_child(placement)
-	world.cam.zoom = 1.35
 
 
 # ---------------------------------------------------------------- taps in the world
@@ -424,16 +650,24 @@ func _on_tap(pos: Vector2) -> void:
 		var p: Vector3 = o + d * ((y - o.y) / d.y)
 		var chunk = world.terrain.sign_near(p, 1.6)
 		if chunk != null:
+			deselect()
 			_land_popup(chunk)
 			return
-	# buildings: test along the ray from a little above the ground
-	for y in [1.2, 0.6, 0.0]:
+	# buildings and obstacles: test along the ray from a little above the ground
+	for y in [2.0, 1.2, 0.6, 0.0]:
 		var p2: Vector3 = o + d * ((y - o.y) / d.y)
 		var b := world.building_at(p2)
 		if b:
-			Sfx.play("click")
-			open_building(b)
+			if b == selected:
+				open_building(b)
+			else:
+				select(b)
 			return
+		var key := world.obstacle_at(p2)
+		if key != "":
+			select_obstacle(key)
+			return
+	deselect()
 
 
 func _land_popup(chunk: Vector2i) -> void:
@@ -465,18 +699,19 @@ func _layout() -> void:
 	_gem_chip.position = Vector2(40, 88 + top)
 	_gear.size = _gear.custom_minimum_size
 	_gear.position = Vector2(vs.x - _gear.size.x - 14, 14 + top)
-	_level_box.size = _level_box.custom_minimum_size
-	_level_box.position = Vector2(_gear.position.x - _level_box.size.x - 10, 12 + top)
+	_hall_box.size = _hall_box.custom_minimum_size
+	_hall_box.position = Vector2(_gear.position.x - _hall_box.size.x - 8, 12 + top)
+	_builders_chip.size = _builders_chip.custom_minimum_size
+	_builders_chip.position = Vector2(vs.x - _builders_chip.size.x - 14, 96 + top)
 	_trend_chip.size = _trend_chip.get_combined_minimum_size()
-	_trend_chip.position = Vector2(vs.x - _trend_chip.size.x - 14, 92 + top)
+	_trend_chip.position = Vector2(_gem_chip.position.x + _gem_chip.size.x + 12, 92 + top)
 	var bs := _bar.get_combined_minimum_size()
 	_bar.size = Vector2(vs.x, bs.y)
 	_bar.position = Vector2(0, vs.y - bs.y - 30)
-	_btn_drop.size = _btn_drop.custom_minimum_size
-	_btn_drop.position = Vector2(18, _bar.position.y - _btn_drop.size.y - 18)
+	actions.layout(vs)
 	_toast_box.size = Vector2(minf(vs.x - 40, 600), 0)
-	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 200 + top)
-	goals.layout(vs, top + (40.0 if _trend_chip.visible else 0.0))
+	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 230 + top)
+	goals.layout(vs, top + 56.0)
 
 
 func _process(dt: float) -> void:
@@ -487,11 +722,17 @@ func _process(dt: float) -> void:
 	_money_label.text = Fmt.num(roundf(_shown_money))
 	var inc := Game.recent_income()
 	_income_label.text = ("+%s/min" % Fmt.num(inc * 60.0)) if inc > 0.05 else ""
-	var f := Game.xp / maxf(1.0, Bal.xp_needed(Game.level))
-	_xp_shown = move_toward(_xp_shown, f, dt * 1.5) if f >= _xp_shown else f
-	_xp_fill.size.x = maxf(30.0, _xp_back.size.x * _xp_shown)
 	if playing and placement == null:
 		_update_buttons(dt)
+	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
+	if (selected != null or selected_ob != "") and placement == null:
+		_sel_t += dt
+		var m := _sel_mark.material_override as StandardMaterial3D
+		m.albedo_color.a = 0.6 + sin(_sel_t * 5.0) * 0.3
+		var m2 := _route_mark.material_override as StandardMaterial3D
+		m2.albedo_color.a = 0.45 + sin(_sel_t * 4.0 - 1.0) * 0.3
+		if int(_sel_t * 2.0) != int((_sel_t - dt) * 2.0):
+			_refresh_actions()
 	_rush_glow = move_toward(_rush_glow, 1.0 if Game.rush_active() else 0.0, dt * 2.0)
 	(_vignette.material as ShaderMaterial).set_shader_parameter("strength", _rush_glow)
 	_vignette.visible = _rush_glow > 0.001
@@ -543,9 +784,25 @@ func _on_sold(amount: float, _count: int, where: Vector3) -> void:
 			Kit.bounce(_money_pill, 0.04))
 
 
-func _on_built(b: Dictionary) -> void:
-	if b["kind"] == "cabin" and Game.count_of("cabin") == 1:
-		toast("Tap Staff to hire your first worker", "hire")
+func _on_built(uid: int) -> void:
+	var b := Game.building(uid)
+	if b.is_empty():
+		return
+	toast("%s is ready!" % Defs.BUILDINGS[b["kind"]]["name"], Defs.BUILDINGS[b["kind"]]["icon"])
+
+
+func _on_job_done(j: Dictionary) -> void:
+	if j["type"] == "clear":
+		if selected_ob == str(j.get("ob", "")):
+			deselect()
+	if selected and int(j.get("uid", 0)) == selected.uid:
+		_refresh_actions.call_deferred()
+	if j["type"] == "build" and selected and selected.uid == int(j["uid"]):
+		# the site was replaced by the real building: keep it selected
+		var nb := world.building(int(j["uid"]))
+		if nb:
+			selected = nb
+			_refresh_actions.call_deferred()
 
 
 func _on_discovered(rid: String) -> void:
@@ -553,22 +810,24 @@ func _on_discovered(rid: String) -> void:
 	_popup("New cookie!", r["name"], "Sells for $%s each" % Fmt.num(Bal.item_value("c:" + rid)), "ck_" + rid, "Yum!")
 
 
-func _on_level_up(level: int, reward: float) -> void:
+func _on_hall_up(level: int, gems: int) -> void:
+	_update_hall()
 	Sfx.play("levelup", -2.0)
-	Kit.bounce(_level_box, 0.2)
-	var unlocks := []
-	for id in Defs.BUILD_ORDER:
-		if int(Defs.BUILDINGS[id]["lvl"]) == level:
-			unlocks.append(Defs.BUILDINGS[id]["name"])
-	var lines := ["+$%s reward" % Fmt.num(reward)]
-	if unlocks.size() > 0:
-		lines.append("New: " + ", ".join(unlocks))
-	_popup("Level %d!" % level, Defs.level_title(level), "\n".join(lines), "star", "Awesome!")
-	Fx.burst(get_tree().current_scene, world.player.global_position + Vector3(0, 2, 0), Pal.GOLD, 26)
+	Kit.bounce(_hall_box, 0.2)
+	var lines := []
+	for u in HallB.unlocks_at(level):
+		lines.append(u[1])
+	if gems > 0:
+		lines.append("+%d gems" % gems)
+	_popup("Cookie Hall %d!" % level, Defs.level_title(level), "\n".join(lines.slice(0, 6)), "hall", "Awesome!")
+	var h := world.hall()
+	if h:
+		Fx.burst(get_tree().current_scene, h.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
 
 
 func _offline_popup(amount: float) -> void:
-	_popup("Welcome back!", "Your staff kept baking while you were away", "+$%s" % Fmt.num(amount), "cash", "Collect", func():
+	var away := Fmt.time(Game.offline_seconds)
+	_popup("Welcome back!", "You were away %s. Your staff kept baking and your builders kept building." % away, "+$%s" % Fmt.num(amount), "cash", "Collect", func():
 		Game.add_money(amount)
 		Game.offline_reward = 0
 		Sfx.play("cash"))
@@ -601,7 +860,7 @@ func _popup(head: String, sub: String, text: String, icon: String, btn_text: Str
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(s)
-	var t := Kit.game(text, 26, Color(0.3, 0.55, 0.22), 0)
+	var t := Kit.game(text, 24, Color(0.3, 0.55, 0.22), 0)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(t)

@@ -7,6 +7,7 @@ extends Node3D
 ## calls). Chunks next to your land show a "For sale" sign you can tap.
 
 const TEX_N := 128
+const ROAD_N := 256                     # road texture: one texel per grid cell
 const RADIUS := 2                       # decor chunks around the focus
 const CHUNK_M := Bal.CHUNK * Grid.CELL  # 16 m
 
@@ -17,6 +18,8 @@ var _mat: ShaderMaterial
 var _own_img: Image
 var _own_tex: ImageTexture
 var _biome_tex: ImageTexture
+var _road_img: Image
+var _road_tex: ImageTexture
 var _origin := Vector2i(-TEX_N / 2, -TEX_N / 2)
 var _focus_chunk := Vector2i(99999, 99999)
 var _mmis := {}                         # decor kind -> MultiMeshInstance3D
@@ -74,6 +77,11 @@ func _ready() -> void:
 	_mat.set_shader_parameter("tex_origin", Vector2(_origin))
 	_mat.set_shader_parameter("tex_n", float(TEX_N))
 	_mat.set_shader_parameter("chunk_m", CHUNK_M)
+	_road_img = Image.create(ROAD_N, ROAD_N, false, Image.FORMAT_R8)
+	_road_tex = ImageTexture.create_from_image(_road_img)
+	_mat.set_shader_parameter("road_tex", _road_tex)
+	_mat.set_shader_parameter("road_origin", Vector2(-ROAD_N / 2, -ROAD_N / 2))
+	_mat.set_shader_parameter("road_n", float(ROAD_N))
 	refresh_land()
 	# a big flat collider so taps and the player always find the ground
 	var body := StaticBody3D.new()
@@ -93,6 +101,20 @@ func refresh_land() -> void:
 		if t.x >= 0 and t.y >= 0 and t.x < TEX_N and t.y < TEX_N:
 			_own_img.set_pixel(t.x, t.y, Color(1, 0, 0))
 	_own_tex.update(_own_img)
+	_dirty = true
+
+
+## Paints the road network into the ground (cell -> bits, see Roads).
+func set_roads(cells: Dictionary) -> void:
+	if _road_img == null:
+		return
+	_road_img.fill(Color(0, 0, 0))
+	var o := Vector2i(-ROAD_N / 2, -ROAD_N / 2)
+	for c in cells:
+		var t: Vector2i = c - o
+		if t.x >= 0 and t.y >= 0 and t.x < ROAD_N and t.y < ROAD_N:
+			_road_img.set_pixel(t.x, t.y, Color(float(int(cells[c])) / 255.0, 0, 0))
+	_road_tex.update(_road_img)
 	_dirty = true
 
 
@@ -163,7 +185,7 @@ func _chunk_decor(c: Vector2i, per: Dictionary) -> void:
 			var p := Vector3(x0 + rng.randf() * CHUNK_M, 0, z0 + rng.randf() * CHUNK_M)
 			var s := rng.randf_range(smin, smax)
 			var rot := rng.randf() * TAU
-			if world and world.grid.at(Grid.cell_of(p)) != 0:
+			if world and (world.grid.blocked(Grid.cell_of(p)) or world.roads.is_road(Grid.cell_of(p))):
 				continue
 			per[kind].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3(s, s, s)), p))
 	add.call("tuft", 40, 0.8, 1.4)

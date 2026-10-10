@@ -1,15 +1,11 @@
 class_name Worker
 extends Node3D
-## A hired worker. Their role reads at a glance (outfit, hat, tool, a coloured
-## ring under their feet and a role badge). Haulers ask the World's broker
-## for the best job they're allowed to do ("take 6 milk from the Dairy Barn
-## to the Butter Churn"), walk there on the grid, load up, deliver, repeat:
-##   gatherer  farm crates  -> kitchens, the pantry (or hoppers if no feeders)
-##   feeder    pantry, kitchens -> mixers, hoppers, kitchens
-##   collector ovens -> packers, racks (or sales if no loaders)
-##   loader    racks, packers -> vans, trains, airships, shops, orders
-## Chefs stand at their oven / machine and work it. Resting workers sit at a
-## cabin.
+## A member of staff walking around the empire.
+##   porter  asks the World's broker for the most useful delivery ("6 wheat
+##           from the Wheat Field to the Bakery"), walks there along the
+##           roads, loads up at the entrance, delivers, repeats.
+##   chef    stands at their bakery or kitchen and works it.
+## Staff with nothing to do rest on the Cookie Hall's benches.
 
 enum S { DECIDE, GO_TAKE, TAKING, GO_GIVE, GIVING, WAIT, REST, STATION }
 
@@ -23,18 +19,18 @@ var _job := {}
 var _item := ""
 var _want := 0
 var _reserved := 0
-var _take_zone: Zone
-var _give_zone: Zone
+var _src: Building
+var _src_holder: Holder
 var _dst: Building
 var _path := PackedVector3Array()
 var _pi := 0
-var _path_cd := 0.0
 var _goal := Vector3.INF
 var _timer := 0.0
+var _xfer := 0.0
 var _badge: Node3D
-var _ring: MeshInstance3D
 var _bubble: Label3D
 var _greet_t := 0.0
+var _stuck := 0
 
 
 func setup(p_world: World, p_data: Dictionary) -> void:
@@ -58,36 +54,31 @@ func apply_role() -> void:
 	if _badge:
 		_badge.queue_free()
 		_badge = null
-	if _ring:
-		_ring.queue_free()
 	ch = Character.new()
 	add_child(ch)
-	ch.setup(role if role != "" else "idle", int(data["id"]) * 13 + 5)
+	ch.setup(_look(), int(data["id"]) * 13 + 5)
 	ch.scale = Vector3.ONE * 0.95
-	if role == "loader":
+	if role == "porter":
 		ch.carry_mount.position = Vector3(0, 0.06, 0.6)
 	carry = Holder.new().setup(Bal.worker_carry(), [], Holder.Layout.COLUMN)
 	carry.sway = 0.05
 	ch.carry_mount.add_child(carry)
 	carry.changed.connect(func(): ch.carrying = carry.count() > 0)
-	var col := Color(0.8, 0.8, 0.85)
-	if role != "":
-		col = Defs.ROLES[role]["color"]
+	if role == "chef":
+		var col: Color = Defs.ROLES[role]["color"]
 		_badge = UI3D.badge(Defs.ROLES[role]["icon"], col.darkened(0.2), 0.5)
 		_badge.position = Vector3(0, 2.05, 0)
 		add_child(_badge)
-	_ring = MeshInstance3D.new()
-	var k := MeshKit.new()
-	k.torus(0.4, 0.04, Color(1, 1, 1), Transform3D.IDENTITY, 24, 4)
-	_ring.mesh = k.commit()
-	_ring.scale = Vector3.ONE * 1.3
-	_ring.material_override = Mats.flat(Color(col.r, col.g, col.b, 0.95))
-	_ring.position.y = 0.05
-	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_ring)
 	state = S.DECIDE
-	if is_inside_tree():
-		Fx.ring(get_tree().current_scene, global_position, col, 1.6)
+	_path = PackedVector3Array()
+
+
+func _look() -> String:
+	match role:
+		"porter": return "loader"
+		"chef": return "chef"
+		"farmer": return "farmer"
+	return "idle"
 
 
 func greet() -> void:
@@ -107,8 +98,8 @@ func refresh() -> void:
 
 ## Drops any reservation (job cancelled / worker removed).
 func release() -> void:
-	if _reserved > 0 and _job.has("src_holder"):
-		world.unreserve(_job["src_holder"], _item, _reserved)
+	if _reserved > 0 and is_instance_valid(_src_holder):
+		world.unreserve(_src_holder, _item, _reserved)
 	_reserved = 0
 
 
@@ -124,51 +115,68 @@ func _process(dt: float) -> void:
 			ch.work = ""
 		return
 	if _badge:
-		_badge.position.y = 2.05 + carry.count() * 0.04 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
-	_bubble.visible = state == S.WAIT or state == S.REST
+		_badge.position.y = 2.05 + sin(Time.get_ticks_msec() * 0.004 + data["id"]) * 0.04
+	_bubble.visible = state == S.WAIT and _bubble.text != ""
 	match state:
 		S.DECIDE:
 			_decide()
 		S.GO_TAKE:
-			if not is_instance_valid(_take_zone):
+			if not is_instance_valid(_src):
 				_abort()
-			elif _walk_to(_take_zone, dt):
+			elif _walk_to_door(_src, dt):
 				state = S.TAKING
 				_timer = 0.0
 		S.TAKING:
 			ch.move_speed = 0.0
-			ch.work = _anim(true)
-			if not is_instance_valid(_take_zone):
+			ch.face(_src.inward() if is_instance_valid(_src) else Vector3.FORWARD, dt, 8.0)
+			if not is_instance_valid(_src) or not is_instance_valid(_src_holder):
 				_abort()
 				return
 			var have := carry.count_of(_item) + carry.incoming
 			if have >= _want or carry.space() <= 0:
 				_after_take()
 				return
-			if _take_zone.tick(self, carry, dt, 0.12, _item):
-				_timer = 0.0
-			else:
-				_timer += dt
-			if _timer > 1.0:
+			_xfer -= dt
+			if _xfer <= 0.0:
+				_xfer = 0.1
+				if _src_holder.has(_item) and Holder.fly(_src_holder, carry, _item, 0.32):
+					if _reserved > 0:
+						world.unreserve(_src_holder, _item, 1)
+						_reserved -= 1
+					Sfx.play("pop", -10.0, 1.0 + carry.count() * 0.03)
+					_timer = 0.0
+				else:
+					_timer += 0.1
+			if _timer > 0.8:
 				_after_take()
 		S.GO_GIVE:
-			if not is_instance_valid(_give_zone):
+			if not is_instance_valid(_dst):
 				_redirect()
-			elif _walk_to(_give_zone, dt):
+			elif _walk_to_door(_dst, dt):
 				state = S.GIVING
 				_timer = 0.0
 		S.GIVING:
 			ch.move_speed = 0.0
-			ch.work = _anim(false)
-			if not is_instance_valid(_give_zone):
+			if not is_instance_valid(_dst):
 				_redirect()
 				return
+			ch.face(_dst.inward(), dt, 8.0)
 			if carry.count() == 0 and carry.incoming == 0:
 				state = S.DECIDE
 				return
-			var moved := _give_zone.tick(self, carry, dt, 0.12, _item)
-			_timer = 0.0 if moved else _timer + dt
-			if _timer > 1.0:
+			_xfer -= dt
+			if _xfer <= 0.0:
+				_xfer = 0.1
+				var moved := false
+				for i in range(carry.items.size() - 1, -1, -1):
+					var t := carry.items[i]
+					var h := _dst.in_holder_for(t)
+					if h and Holder.fly(carry, h, t, 0.34):
+						moved = true
+						Sfx.play("drop", -8.0)
+						break
+				_timer = 0.0 if moved else _timer + 0.1
+			if _timer > 0.6:
 				_redirect()
 		S.WAIT:
 			ch.move_speed = 0.0
@@ -182,42 +190,35 @@ func _process(dt: float) -> void:
 			_station(dt)
 
 
-func _anim(taking: bool) -> String:
-	match role:
-		"gatherer": return "pick" if taking else "scoop"
-		"feeder": return "scoop"
-		"collector": return "pick" if taking else ""
-		"loader": return "push"
-	return ""
-
-
 # ---------------------------------------------------------------- decisions
 
 func _decide() -> void:
 	release()
 	_bubble.text = ""
 	match role:
-		"":
-			state = S.REST
-			_bubble.text = "z z"
-			return
 		"chef":
 			state = S.STATION
 			return
+		"porter":
+			pass
+		_:
+			state = S.REST
+			return
 	if carry.count() > 0:
-		_item = carry.items[carry.items.size() - 1]
 		_redirect()
 		return
-	var job := world.find_job(role, global_position, carry.space())
+	var job := world.find_job(global_position, carry.space())
 	if job.is_empty():
-		_wait("...")
+		state = S.REST
+		_timer = 1.5
 		return
 	_job = job
 	_item = job["item"]
 	_want = int(job["count"])
 	_reserved = _want
-	world.reserve(job["src_holder"], _item, _want)
-	_take_zone = job["src_zone"]
+	_src = job["src"]
+	_src_holder = job["src_holder"]
+	world.reserve(_src_holder, _item, _want)
 	_dst = job["dst"]
 	_goal = Vector3.INF
 	state = S.GO_TAKE
@@ -226,14 +227,12 @@ func _decide() -> void:
 func _after_take() -> void:
 	release()
 	if carry.count() + carry.incoming == 0:
-		_wait("...")
+		_wait("")
 		return
-	if is_instance_valid(_dst) and _dst.need(_item) > 0.0:
-		_give_zone = _dst.in_zone_for(_item)
-		if _give_zone:
-			_goal = Vector3.INF
-			state = S.GO_GIVE
-			return
+	if is_instance_valid(_dst) and _dst.on_road() and _dst.need(_item) > 0.0:
+		_goal = Vector3.INF
+		state = S.GO_GIVE
+		return
 	_redirect()
 
 
@@ -243,17 +242,30 @@ func _redirect() -> void:
 		state = S.DECIDE
 		return
 	_item = carry.items[carry.items.size() - 1]
-	var d := world.find_dest(role, _item, global_position)
+	var d := world.find_dest(_item, global_position)
 	if d == null:
-		_wait("FULL" if role in ["collector", "loader"] else "...")
+		# nobody wants it and storage is full: leave the surplus and get back to work
+		_stuck += 1
+		if _stuck >= 3:
+			_stuck = 0
+			_dump()
+			state = S.DECIDE
+			return
+		_wait("FULL")
 		return
+	_stuck = 0
 	_dst = d
-	_give_zone = d.in_zone_for(_item)
-	if _give_zone == null:
-		_wait("...")
-		return
 	_goal = Vector3.INF
 	state = S.GO_GIVE
+
+
+## Drops what we carry (it's surplus nobody can use right now).
+func _dump() -> void:
+	if carry.count() == 0:
+		return
+	var root := get_tree().current_scene
+	Fx.puff(root, global_position + Vector3(0, 0.6, 0), Pal.CREAM, 6)
+	carry.clear_all()
 
 
 func _abort() -> void:
@@ -270,35 +282,28 @@ func _wait(txt: String) -> void:
 
 # ---------------------------------------------------------------- moving
 
-func _zone_point(z: Zone) -> Vector3:
-	var off := Vector3(fmod(float(data["id"]) * 0.37, 0.6) - 0.3, 0, fmod(float(data["id"]) * 0.53, 0.4) - 0.2)
-	return z.global_position + z.global_transform.basis * (off * Vector3(z.size.x / 1.8, 0, z.size.y / 1.4))
+## A spot at the entrance (a little spread so porters don't stack).
+func _door_point(b: Building) -> Vector3:
+	var off := (fmod(float(data["id"]) * 0.37, 0.8) - 0.4)
+	return b.door_pos() + b.base_xf().basis.x * off
 
 
-func _walk_to(z: Zone, dt: float) -> bool:
-	if z.contains(global_position, -0.1):
-		ch.move_speed = 0.0
-		return true
-	return _walk_point(_zone_point(z), dt)
-
-
-func _walk_point(target: Vector3, dt: float) -> bool:
-	_path_cd -= dt
-	if _goal.distance_to(target) > 0.4 or _path_cd <= 0.0:
+func _walk_to_door(b: Building, dt: float) -> bool:
+	var target := _door_point(b)
+	if _goal.distance_to(target) > 0.3:
 		_goal = target
-		_path_cd = 2.0
-		_path = world.grid.path(global_position, target)
+		_path = world.road_path(global_position, b)
+		_path.append(target)
 		_pi = 0
-	while _pi < _path.size() and Vector2(_path[_pi].x - global_position.x, _path[_pi].z - global_position.z).length() < 0.2:
+	return _follow(dt)
+
+
+func _follow(dt: float) -> bool:
+	while _pi < _path.size() and Vector2(_path[_pi].x - global_position.x, _path[_pi].z - global_position.z).length() < 0.15:
 		_pi += 1
 	if _pi >= _path.size():
-		var rest := target - global_position
-		rest.y = 0
-		if rest.length() < 0.12:
-			ch.move_speed = 0.0
-			return true
-		_path = PackedVector3Array([target])
-		_pi = 0
+		ch.move_speed = 0.0
+		return true
 	var to := _path[_pi] - global_position
 	to.y = 0
 	var spd := _speed()
@@ -307,15 +312,30 @@ func _walk_point(target: Vector3, dt: float) -> bool:
 		ch.face(to, dt, 10.0)
 	global_position.y = 0.0
 	ch.move_speed = clampf(spd / 4.0, 0.5, 1.0)
-	ch.work = "push" if role == "loader" else ""
+	ch.work = "push" if role == "porter" else ""
 	return false
 
 
+func _walk_point(target: Vector3, dt: float) -> bool:
+	if _goal.distance_to(target) > 0.3:
+		_goal = target
+		_path = world.road_path_to_point(global_position, target)
+		_pi = 0
+	return _follow(dt)
+
+
 func _rest(dt: float) -> void:
+	_timer -= dt
+	if role == "porter" and _timer <= 0.0:
+		_timer = 1.0
+		if carry.count() > 0 or not world.find_job(global_position, carry.space()).is_empty():
+			state = S.DECIDE
+			return
 	var seat := world.rest_seat(self)
 	var to := seat - global_position
 	to.y = 0
 	if to.length() > 0.15:
+		ch.work = ""
 		_walk_point(seat, dt)
 	else:
 		ch.move_speed = 0.0
@@ -327,9 +347,11 @@ func _rest(dt: float) -> void:
 func _station(dt: float) -> void:
 	var b: Building = world.building(int(data.get("target", 0)))
 	if b == null:
-		_wait("?")
+		state = S.REST
 		return
-	var spot := b.to_world(-0.3 + fmod(float(data["id"]) * 0.7, 1.2), 0.45 if not b is OvenB else 0.55)
+	var spot := b.to_world(-0.3 + fmod(float(data["id"]) * 0.7, 1.2), 0.45)
+	if b is BakeryB:
+		spot = b.to_world(BakeryB.OVEN_X - 1.2 + fmod(float(data["id"]) * 0.7, 1.4), 0.4)
 	var to := spot - global_position
 	to.y = 0
 	if to.length() > 0.15:
@@ -337,4 +359,4 @@ func _station(dt: float) -> void:
 	else:
 		ch.move_speed = 0.0
 		ch.work = "scoop"
-		ch.face(-b.global_transform.basis.z, dt, 5.0)
+		ch.face(b.inward(), dt, 5.0)

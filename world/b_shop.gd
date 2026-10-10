@@ -5,7 +5,6 @@ extends Building
 ## Flower beds, lamps, benches and trees nearby bring more customers.
 
 var display: Holder
-var zone: Zone
 var _spawn_t := 3.0
 var _customers: Array[Customer] = []
 var _label: Label3D
@@ -19,8 +18,7 @@ func _build() -> void:
 	display.max_visible = 40
 	display.position = Vector3(-1.3, 0.86, -0.05)
 	add_child(display)
-	zone = add_zone(Zone.Kind.GIVE, [display], Vector2(-1.3, 1.35), Vector2(2.2, 1.1), Pal.TERRACOTTA)
-	add_port(display, zone, "in")
+	add_port(display, null, "in")
 	_label = UI3D.label("0/20", 28)
 	_label.position = Vector3(-1.3, 1.75, 0.2)
 	add_child(_label)

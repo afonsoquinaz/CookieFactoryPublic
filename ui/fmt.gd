@@ -23,4 +23,6 @@ static func time(sec: float) -> String:
 		return "%ds" % s
 	if s < 3600:
 		return "%dm %02ds" % [s / 60, s % 60]
-	return "%dh %02dm" % [s / 3600, (s % 3600) / 60]
+	if s < 86400:
+		return "%dh %02dm" % [s / 3600, (s % 3600) / 60]
+	return "%dd %dh" % [s / 86400, (s % 86400) / 3600]

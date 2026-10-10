@@ -10,6 +10,8 @@ const SUB := 2                     # path nodes per cell side (1 m)
 const STEP := CELL / SUB
 
 var occ := {}                      # Vector2i -> uid
+var obst := {}                     # Vector2i -> obstacle key
+var _obst_cells := {}              # key -> Array[Vector2i]
 var _cells_of := {}                # uid -> Array[Vector2i]
 var _solids := {}                  # uid -> Array[Rect2] (world xz)
 var astar := AStarGrid2D.new()
@@ -77,6 +79,37 @@ func clear(uid: int) -> void:
 
 func at(c: Vector2i) -> int:
 	return int(occ.get(c, 0))
+
+
+## Taken by a building or an obstacle.
+func blocked(c: Vector2i) -> bool:
+	return occ.has(c) or obst.has(c)
+
+
+func obstacle_at(c: Vector2i) -> String:
+	return str(obst.get(c, ""))
+
+
+func set_obstacle(key: String, cells: Array[Vector2i]) -> void:
+	clear_obstacle(key)
+	_obst_cells[key] = cells
+	var rects: Array[Rect2] = []
+	for c in cells:
+		obst[c] = key
+		rects.append(Rect2(Vector2(c.x * CELL + 0.3, c.y * CELL + 0.3), Vector2(CELL - 0.6, CELL - 0.6)))
+	set_solids(_obst_id(key), rects)
+
+
+func clear_obstacle(key: String) -> void:
+	for c in _obst_cells.get(key, []):
+		if obst.get(c, "") == key:
+			obst.erase(c)
+	_obst_cells.erase(key)
+	remove_solids(_obst_id(key))
+
+
+static func _obst_id(key: String) -> int:
+	return -1 - (absi(hash(key)) % 1000000)
 
 
 ## Free of other buildings (ignore = uid allowed to overlap, e.g. itself when moving).

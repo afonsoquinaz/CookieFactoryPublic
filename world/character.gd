@@ -51,7 +51,7 @@ var _blink := 2.0
 const LOOKS := {
 	"farmer": ["straw", "hoe"], "gatherer": ["cap", "basket"], "feeder": ["hardhat", "scoop"],
 	"collector": ["bandana", "tray"], "loader": ["redcap", "dolly"], "chef": ["chef", "whisk"],
-	"customer": ["none", ""], "player": ["baker", ""],
+	"customer": ["none", ""], "player": ["baker", ""], "builder": ["hardhat", "hammer"],
 }
 const CASUAL := [Color(0.42, 0.55, 0.68), Color(0.78, 0.5, 0.42), Color(0.55, 0.62, 0.45), Color(0.86, 0.76, 0.5),
 	Color(0.62, 0.48, 0.62), Color(0.92, 0.9, 0.84), Color(0.36, 0.42, 0.5), Color(0.82, 0.62, 0.62)]
@@ -88,6 +88,12 @@ func setup(p_look: String, p_seed := 0) -> void:
 			outfit = "vest"
 			outfit_col = Color(0.44, 0.52, 0.34)    # field vest
 			pants = Color(0.52, 0.44, 0.34)
+		"builder":
+			shirt = Color(0.86, 0.82, 0.74)
+			outfit = "overalls"
+			outfit_col = Color(0.88, 0.56, 0.24)    # orange work overalls
+			pants = outfit_col
+			hands = Color(0.62, 0.5, 0.36)
 		"feeder":
 			shirt = Color(0.56, 0.6, 0.66)
 			outfit = "hivis"
@@ -368,6 +374,9 @@ static func build_tool(tool: String) -> Mesh:
 			k.rbox(Vector3(0.46, 0.025, 0.32), 0.01, Pal.STEEL_DARK, MeshKit.at(0, -0.01, 0.16))
 			for x in [-0.13, 0.0, 0.13]:
 				Items.cookie_into(k, "choc", 0.055, 0.03, MeshKit.at(x, 0.005, 0.16))
+		"hammer":
+			k.cyl(0.025, 0.36, Pal.WOOD, MeshKit.at(0, -0.12, 0.02), 6)
+			k.rbox(Vector3(0.08, 0.08, 0.2), 0.02, Pal.STEEL_DARK, MeshKit.at(0, 0.24, 0.06))
 		"whisk":
 			k.cyl(0.022, 0.2, Pal.WOOD, MeshKit.at(0, -0.05, 0.02), 6)
 			for i in 4:

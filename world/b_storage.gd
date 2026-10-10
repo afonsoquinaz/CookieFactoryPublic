@@ -1,12 +1,9 @@
 class_name StorageB
 extends Building
 ## Pantry (any ingredients) and Cookie Rack (cookies, boxes, gifts): buffers
-## that let workers keep things moving. Drop things on the left pad, take
-## them from the right pad.
+## near where things are made or sold, so porters keep things moving.
 
 var store: Holder
-var in_zone: Zone
-var out_zone: Zone
 var _label: Label3D
 
 
@@ -19,10 +16,8 @@ func _build() -> void:
 	store.max_visible = 48
 	store.position = Vector3(0, 0.62, -0.2)
 	add_child(store)
-	in_zone = add_zone(Zone.Kind.GIVE, [store], Vector2(-0.95, 1.45), Vector2(1.7, 1.0), Pal.SAGE)
-	out_zone = add_zone(Zone.Kind.TAKE, [store], Vector2(0.95, 1.45), Vector2(1.7, 1.0), Pal.OCHRE)
-	add_port(store, in_zone, "in")
-	add_port(store, out_zone, "out")
+	add_port(store, null, "in")
+	add_port(store, null, "out")
 	_label = UI3D.label("0/30", 28)
 	_label.position = Vector3(0, 3.2, -0.6)
 	add_child(_label)
@@ -53,12 +48,7 @@ func _update() -> void:
 func need(t: String) -> float:
 	if not store.can_accept(t):
 		return 0.0
-	# a buffer only helps if someone empties it
-	if kind == "rack" and Game.workers_with("loader") == 0:
-		return 0.0
-	if kind == "pantry" and Game.workers_with("feeder") == 0:
-		return 0.0
-	return 0.15 * (1.0 - float(store.count()) / maxf(1.0, store.capacity))
+	return 0.12 * (1.0 - float(store.count()) / maxf(1.0, store.capacity))
 
 
 func save_contents() -> Dictionary:
