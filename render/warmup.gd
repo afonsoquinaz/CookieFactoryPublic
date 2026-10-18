@@ -40,11 +40,11 @@ func _plan() -> void:
 		steps.append(_ghost.bind(kind))
 	# materials that only show up now and then
 	steps.append(_materials)
-	# items: ingredients, then cookies, boxes and gifts of every recipe
+	# items: resources, then tokens, batches and agent runs of every model
 	for t in Defs.ITEMS:
 		steps.append(_item.bind(t))
 	for r in Defs.RECIPES:
-		steps.append(_cookie.bind(r["id"]))
+		steps.append(_token.bind(r["id"]))
 	# people
 	for look in Character.LOOKS:
 		steps.append(_person.bind(look))
@@ -118,7 +118,7 @@ func _building(kind: String, lvl: int) -> void:
 	_uid -= 1
 	var c := Grid.cell_of(_stage.global_position)
 	var d := {"uid": _uid, "kind": kind, "cell": [c.x, c.y], "rot": 0, "lvl": lvl, "data": {}}
-	if kind == "palace":
+	if kind == "mega":
 		d["stage"] = 4 if lvl > 0 else 0
 	var n := Building.create(world, d)
 	n.process_mode = Node.PROCESS_MODE_DISABLED
@@ -156,8 +156,8 @@ func _item(t: String) -> void:
 	_show(n)
 
 
-func _cookie(rid: String) -> void:
-	for p in ["c:", "b:", "g:"]:
+func _token(rid: String) -> void:
+	for p in ["t:", "b:", "a:"]:
 		_item(p + rid)
 
 
@@ -181,7 +181,7 @@ func _effects() -> void:
 	Fx.coins(_stage, p, 3)
 	Fx.ring(_stage, p, Pal.MINT, 1.0)
 	UI3D.pop_text(_stage, p + Vector3(0, 2, 0), "+$1", Color(1.0, 0.88, 0.3), 80)
-	var b := UI3D.badge("wheat", Pal.STEEL_DARK, 0.6)
+	var b := UI3D.badge("power", Pal.STEEL_DARK, 0.6)
 	_stage.add_child(b)
 	_show(b)
 	var ic := UI3D.icon("gem")
@@ -199,12 +199,12 @@ func _panel(which: String, arg: String) -> void:
 		"research": s = ResearchPanel.new()
 		"settings": s = SettingsPanel.new()
 		"recipes":
-			var bs := world.buildings_of("bakery")
+			var bs := world.buildings_of("server")
 			if bs.is_empty():
 				return
 			s = RecipePanel.new().setup(bs[0])
 		"building":
-			var bs2 := world.buildings_of("bakery")
+			var bs2 := world.buildings_of("server")
 			if bs2.is_empty():
 				return
 			s = BuildingPanel.new().setup(world, bs2[0], "")

@@ -8,7 +8,7 @@ extends RefCounted
 ## Paths only run over free land you own, so they go around buildings, never
 ## through them, and turn as little as they can.
 ##
-## Porters walk only on roads (a cell-sized A* over road cells), so a
+## Couriers walk only on roads (a cell-sized A* over road cells), so a
 ## building whose entrance is walled in gets no deliveries until you make
 ## room.
 

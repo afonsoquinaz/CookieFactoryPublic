@@ -2,11 +2,11 @@ class_name BuildPanel
 extends Sheet
 ## The build menu: everything you can place, by tab. Everything is
 ## available from the start; each card shows the price, how long a builder
-## needs, how many you have, and what a kitchen needs to be useful.
+## needs, how many you have, and what a lab needs to be useful.
 
 signal chosen(kind: String)
 
-static var last_tab := "farm"
+static var last_tab := "source"
 var _tabs := {}
 var _grid: GridContainer
 
@@ -99,7 +99,7 @@ func _card(kind: String) -> Control:
 	var t := Game.build_time_of(kind)
 	if t > 0.0 and not full:
 		tv.add_child(Kit.label("Build time %s" % Fmt.time(t), 14, Kit.MUTED, 0, false))
-	# a kitchen is only useful once something makes what it needs
+	# a lab is only useful once something makes what it needs
 	var missing := []
 	for i in d.get("in", {}):
 		if not Game.can_make(i):

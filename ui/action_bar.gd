@@ -2,7 +2,7 @@ class_name ActionBar
 extends Control
 ## What you can do with the selected thing, base-builder style: its name and
 ## level on a ribbon, and a row of big round buttons underneath (Info,
-## Upgrade with its price, Bake for a bakery, Staff, Move, Finish now with
+## Upgrade with its price, Model for a server, Staff, Move, Finish now with
 ## gems while a builder is busy on it, Clear for an obstacle...).
 
 signal action(id: String)

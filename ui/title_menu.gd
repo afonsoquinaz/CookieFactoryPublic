@@ -1,6 +1,6 @@
 class_name TitleMenu
 extends Control
-## The title screen: the island slowly drifts by under the Cookie Empire
+## The title screen: the island slowly drifts by under the Token Empire
 ## crest and a big PLAY button. Tapping it swoops the camera down to you.
 
 signal play
@@ -41,7 +41,7 @@ func _ready() -> void:
 	em.custom_minimum_size = Vector2(150, 150)
 	em.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_crest.add_child(em)
-	var t1 := Kit.game("COOKIE", 62, Color(1.0, 0.93, 0.78), 11)
+	var t1 := Kit.game("TOKEN", 62, Color(0.7, 0.96, 1.0), 11)
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_crest.add_child(t1)
 	var ribbon := PanelContainer.new()

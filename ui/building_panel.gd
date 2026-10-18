@@ -15,7 +15,7 @@ var _up_box: VBoxContainer
 var _status: Label
 var _staff_label: Label
 var _sell_confirm := false
-var _palace_btn: JuicyButton
+var _mega_btn: JuicyButton
 var _staff_card: Control
 var _up_card: Control
 
@@ -51,12 +51,12 @@ func _build() -> void:
 	body.add_child(info_card)
 	_lines_box = Kit.vbox(6)
 	info_card.add_child(_lines_box)
-	# staff (farmers on farms, chefs on bakeries and kitchens)
+	# staff (technicians on sources, engineers on servers and labs)
 	var staff_role := ""
-	if node is FarmB:
-		staff_role = "farmer"
-	elif node is BakeryB or node is MachineB:
-		staff_role = "chef"
+	if node is SourceB:
+		staff_role = "tech"
+	elif node is ServerB or node is MachineB:
+		staff_role = "engineer"
 	if staff_role != "":
 		var sc := Sheet.row_box()
 		_staff_card = sc
@@ -79,14 +79,14 @@ func _build() -> void:
 		var plus := Kit.juicy("", Kit.SAGE, Kit.SAGE_EDGE, 22, Vector2(64, 56))
 		plus.set_glyph("add", 30)
 		plus.pressed.connect(func():
-			if staff_role == "farmer" and Game.workers_with("farmer", node.uid) >= Bal.MAX_FARMERS:
-				Game.toast.emit("This farm has all the farmers it can use", "farmer")
+			if staff_role == "tech" and Game.workers_with("tech", node.uid) >= Bal.MAX_TECHS:
+				Game.toast.emit("This source has all the technicians it can use", "tech")
 				Sfx.play("deny")
 				return
-			if not Game.assign_porter(staff_role, node.uid):
+			if not Game.assign_courier(staff_role, node.uid):
 				Sfx.play("deny")
 				Kit.shake(plus)
-				Game.toast.emit("Hire more staff first (Staff > Hire). One porter always stays a porter.", "hire")
+				Game.toast.emit("Hire more staff first (Staff > Hire). One courier always stays a courier.", "hire")
 				return
 			Sfx.play("hire")
 			_refresh())
@@ -102,19 +102,19 @@ func _build() -> void:
 		_upgrade_btn.sound = ""
 		_upgrade_btn.pressed.connect(_upgrade)
 		body.add_child(_upgrade_btn)
-	if node is PalaceB:
-		_palace_btn = Kit.juicy("", Kit.BRASS, Kit.BRASS_EDGE, 22, Vector2(0, 74))
-		_palace_btn.sound = ""
-		_palace_btn.pressed.connect(func():
-			var p := node as PalaceB
+	if node is MegaB:
+		_mega_btn = Kit.juicy("", Kit.BRASS, Kit.BRASS_EDGE, 22, Vector2(0, 74))
+		_mega_btn.sound = ""
+		_mega_btn.pressed.connect(func():
+			var p := node as MegaB
 			if p.advance():
 				Sfx.play("levelup")
 				_refresh()
 			else:
 				Sfx.play("deny")
-				Kit.shake(_palace_btn)
-				Game.toast.emit(p.advance_block(), "palace"))
-		body.add_child(_palace_btn)
+				Kit.shake(_mega_btn)
+				Game.toast.emit(p.advance_block(), "mega"))
+		body.add_child(_mega_btn)
 	# move / sell
 	if not node is SiteB:
 		var row := Kit.hbox(10)
@@ -133,7 +133,7 @@ func _build() -> void:
 			if _protected():
 				Sfx.play("deny")
 				Kit.shake(sell)
-				Game.toast.emit("You need at least one of these to keep baking", "lock")
+				Game.toast.emit("You need at least one of these to keep serving", "lock")
 				return
 			if not _sell_confirm:
 				_sell_confirm = true
@@ -161,9 +161,9 @@ func _scroll_to(c: Control) -> void:
 	Kit.bounce(c, 0.04)
 
 
-## The last bakery, wheat field, van or builder's hut can't be sold.
+## The last server, solar farm, API depot or builder's hut can't be sold.
 func _protected() -> bool:
-	return node.kind in ["bakery", "farm_wheat", "dock", "hut"] and Game.count_of(node.kind) <= 1
+	return node.kind in ["server", "src_power", "van", "hut"] and Game.count_of(node.kind) <= 1
 
 
 func _on_money(_v: float, _d: float) -> void:
@@ -191,7 +191,7 @@ func _refresh() -> void:
 		c.queue_free()
 	var lines := node.info()
 	if node.has_entrance() and not node.on_road() and not node is SiteB:
-		lines.push_front(["lock", "No road reaches its entrance: clear the space in front so porters can come."])
+		lines.push_front(["lock", "No road reaches its entrance: clear the space in front so couriers can come."])
 	for line in lines:
 		var h := Kit.hbox(10)
 		h.add_child(Kit.icon(line[0], 40))
@@ -202,22 +202,22 @@ func _refresh() -> void:
 		h.add_child(l)
 		_lines_box.add_child(h)
 	if _staff_label:
-		var role := "farmer" if node is FarmB else "chef"
+		var role := "tech" if node is SourceB else "engineer"
 		var n := Game.workers_with(role, node.uid)
-		_staff_label.text = ("%d farmer%s (+1 who comes with the farm)" % [n, "s" if n != 1 else ""]) if role == "farmer" else ("%d chef%s: x%.1f speed" % [n, "s" if n != 1 else "", Bal.chef_boost(n)])
+		_staff_label.text = ("%d technician%s (+1 who comes with the source)" % [n, "s" if n != 1 else ""]) if role == "tech" else ("%d engineer%s: x%.1f speed" % [n, "s" if n != 1 else "", Bal.engineer_boost(n)])
 	if _up_box:
 		_refresh_upgrade()
-	if _palace_btn:
-		var p := node as PalaceB
+	if _mega_btn:
+		var p := node as MegaB
 		if p.complete():
-			_palace_btn.set_text_value("Complete!")
-			_palace_btn.set_colors(Kit.PAPER_DARK, Kit.LINE)
+			_mega_btn.set_text_value("Complete!")
+			_mega_btn.set_colors(Kit.PAPER_DARK, Kit.LINE)
 		elif p.building_stage():
-			_palace_btn.set_text_value("Builders at work: %s" % Fmt.time(Game.job_left(Game.job_of(p.uid))))
-			_palace_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
+			_mega_btn.set_text_value("Builders at work: %s" % Fmt.time(Game.job_left(Game.job_of(p.uid))))
+			_mega_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
 		else:
-			_palace_btn.set_text_value("Build %s  $%s  ·  %s" % [Defs.PALACE_STAGES[p.stage() + 1]["name"], Fmt.num(p.next_cost()), Fmt.time(p.next_time())])
-			_palace_btn.set_colors(Kit.BRASS if p.can_advance() else Kit.GREY, Kit.BRASS_EDGE if p.can_advance() else Kit.GREY_EDGE)
+			_mega_btn.set_text_value("Build %s  $%s  ·  %s" % [Defs.MEGA_STAGES[p.stage() + 1]["name"], Fmt.num(p.next_cost()), Fmt.time(p.next_time())])
+			_mega_btn.set_colors(Kit.BRASS if p.can_advance() else Kit.GREY, Kit.BRASS_EDGE if p.can_advance() else Kit.GREY_EDGE)
 
 
 func _refresh_upgrade() -> void:
@@ -227,7 +227,7 @@ func _refresh_upgrade() -> void:
 	var j := Game.job_of(node.uid)
 	if not j.is_empty():
 		_up_box.add_child(Kit.game("Upgrading to Lv %d" % (l + 1), 22, Kit.INK, 0))
-		_up_box.add_child(Kit.label("%s left. Finish now for %s." % [Fmt.time(Game.job_left(j)), "free" if Bal.finish_gems(Game.job_left(j)) == 0 else "%d gems" % Bal.finish_gems(Game.job_left(j))], 17, Kit.MUTED, 0))
+		_up_box.add_child(Kit.label("%s left. Finish now for %s." % [Fmt.time(Game.job_left(j)), "free" if Bal.finish_gems(Game.job_left(j)) == 0 else "%d sparks" % Bal.finish_gems(Game.job_left(j))], 17, Kit.MUTED, 0))
 		_upgrade_btn.set_icon("gem", 30)
 		var g := Bal.finish_gems(Game.job_left(j))
 		_upgrade_btn.set_text_value("Finish now" if g == 0 else "Finish  %d" % g)

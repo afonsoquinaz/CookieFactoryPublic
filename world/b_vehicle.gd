@@ -1,11 +1,12 @@
 class_name VehicleB
 extends Building
 ## Sells what you load into it, then drives off and comes back:
-##   dock     Delivery Van: drives out along its road onto the High Street and
-##            off to town in the eastbound lane, comes back in the westbound
-##            one, drives into its bay and the turntable turns it around
-##   train    Rail Depot: a freight train leaves into the tunnel, big loads
-##   airship  Airship Mast: an airship floats up into the clouds; gifts x2
+##   van        API Depot: the van drives out along its road onto the High
+##              Street and off to town in the eastbound lane, comes back in
+##              the westbound one, drives into its bay and the turntable
+##              turns it around
+##   hyperloop  Hyperloop Station: a pod slides into the tube, big loads
+##   droneport  Drone Port: a cargo drone lifts off into the sky; agents x2
 ## It leaves when full, or a few seconds after its last load.
 
 enum S { PARKED, LEAVING, AWAY, RETURNING, TURNING }
@@ -30,14 +31,14 @@ var _vtier := -1
 
 func _build() -> void:
 	cargo = Holder.new().setup(10, [], Holder.Layout.GRID)
-	cargo.accept_cat = ["cookie", "box", "gift"]
+	cargo.accept_cat = ["token", "batch", "agent"]
 	vehicle = Node3D.new()
 	add_child(vehicle)
 	_vbody = Node3D.new()
 	vehicle.add_child(_vbody)
 	_vmesh = Mats.inst(null, _vbody)
 	match kind:
-		"dock":
+		"van":
 			_park = Vector3(0, 0.1, SalesArt.BAY_Z)
 			_turn = Node3D.new()
 			_turn.position = Vector3(0, 0.02, SalesArt.BAY_Z)
@@ -50,23 +51,23 @@ func _build() -> void:
 			cargo.grid = Vector2i(4, 3)
 			cargo.cell = Vector2(0.36, 0.38)
 			cargo.position = Vector3(-0.55, 0.92, 0)
-		"train":
+		"hyperloop":
 			_park = Vector3(0.4, 0.12, -1.4)
 			cargo.grid = Vector2i(6, 3)
 			cargo.cell = Vector2(0.34, 0.34)
 			cargo.position = Vector3(0.95, 0.7, 0)
-		"airship":
+		"droneport":
 			_park = Vector3(0, 5.2, -0.6)
 			cargo.grid = Vector2i(4, 3)
 			cargo.cell = Vector2(0.34, 0.34)
 			cargo.position = Vector3(0, -1.15, 0)
 	cargo.max_visible = 60
 	_vbody.add_child(cargo)
-	vehicle.position = _park if kind != "dock" else Vector3(0, 0.08, 0)
+	vehicle.position = _park if kind != "van" else Vector3(0, 0.08, 0)
 	cargo.landed.connect(_on_load)
 	add_port(cargo, null, "in")
 	_label = UI3D.label("0/10", 30)
-	_label.position = Vector3(0, 3.4 if kind != "airship" else 7.2, -0.6)
+	_label.position = Vector3(0, 3.4 if kind != "droneport" else 7.2, -0.6)
 	add_child(_label)
 
 
@@ -84,14 +85,14 @@ func _wheel(p: Vector3) -> void:
 
 func solid_rects() -> Array[Rect2]:
 	match kind:
-		"dock": return [Rect2(-2.0, -3.0, 4.0, 1.5)]
-		"train": return [Rect2(-3.0, -3.0, 6.0, 3.9)]
+		"van": return [Rect2(-2.0, -3.0, 4.0, 1.5)]
+		"hyperloop": return [Rect2(-3.0, -3.0, 6.0, 3.9)]
 	return [Rect2(-2.2, -3.0, 4.4, 3.6)]
 
 
 func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("%s_site_%d" % [kind, t], func(): return SalesArt.site(kind, t)), root)
-	if kind == "dock":
+	if kind == "van":
 		for c in _turn.get_children():
 			if c != vehicle:
 				c.queue_free()
@@ -104,33 +105,33 @@ func _set_vehicle_tier(t: int) -> void:
 		return
 	_vtier = t
 	match kind:
-		"dock": _vmesh.mesh = MeshKit.cached("van_%d" % t, func(): return SalesArt.van(t))
-		"train": _vmesh.mesh = MeshKit.cached("train_%d" % t, func(): return SalesArt.train(t))
-		"airship": _vmesh.mesh = MeshKit.cached("airship_%d" % t, func(): return SalesArt.airship(t))
+		"van": _vmesh.mesh = MeshKit.cached("van_%d" % t, func(): return SalesArt.van(t))
+		"hyperloop": _vmesh.mesh = MeshKit.cached("train_%d" % t, func(): return SalesArt.train(t))
+		"droneport": _vmesh.mesh = MeshKit.cached("airship_%d" % t, func(): return SalesArt.airship(t))
 
 
 func _on_level() -> void:
 	match kind:
-		"dock": cargo.capacity = Bal.truck_cap(level)
-		"train": cargo.capacity = Bal.train_cap(level)
-		"airship": cargo.capacity = Bal.airship_cap(level)
+		"van": cargo.capacity = Bal.van_cap(level)
+		"hyperloop": cargo.capacity = Bal.loop_cap(level)
+		"droneport": cargo.capacity = Bal.drone_cap(level)
 	_update_label()
 
 
 func trip_time() -> float:
 	match kind:
-		"train": return Bal.train_trip(level)
-		"airship": return Bal.airship_trip(level)
-	return Bal.truck_trip(level)
+		"hyperloop": return Bal.loop_trip(level)
+		"droneport": return Bal.drone_trip(level)
+	return Bal.van_trip(level)
 
 
 func need(t: String) -> float:
 	if state != S.PARKED or not cargo.can_accept(t):
 		return 0.0
 	var f := float(cargo.count()) / maxf(1.0, cargo.capacity)
-	# airships love gifts; everyone prefers topping up a nearly full load
+	# drones love agent runs; everyone prefers topping up a nearly full load
 	var w := 0.6 + f * 0.6
-	if kind == "airship" and Defs.cat(t) == "gift":
+	if kind == "droneport" and Defs.cat(t) == "agent":
 		w += 0.6
 	return w
 
@@ -146,7 +147,7 @@ func _on_load(_t2: String) -> void:
 func _update_label() -> void:
 	match state:
 		S.PARKED:
-			var left := Bal.TRUCK_IDLE_DEPART - _idle
+			var left := Bal.VAN_IDLE_DEPART - _idle
 			_label.text = "%d/%d" % [cargo.count(), cargo.capacity] + ("  %ds" % ceili(left) if cargo.count() > 0 and left < 4.0 else "")
 		S.LEAVING, S.AWAY:
 			_label.text = "Back in %ds" % ceili(maxf(0.0, _timer))
@@ -156,13 +157,13 @@ func _update_label() -> void:
 
 func _process(dt: float) -> void:
 	super(dt)
-	if kind == "dock":
+	if kind == "van":
 		_process_van(dt)
 		return
 	var mult := Game.speed_mult()
 	match state:
 		S.PARKED:
-			if kind == "airship":
+			if kind == "droneport":
 				vehicle.position.y = _park.y + sin(_t * 1.2) * 0.12
 			else:
 				_vbody.position.y = sin(_t * 12.0) * 0.006
@@ -192,7 +193,7 @@ func _process(dt: float) -> void:
 func _check_depart(dt: float) -> void:
 	if cargo.count() > 0 and cargo.incoming == 0:
 		_idle += dt
-		if (cargo.space() <= 0 and _idle > 0.5) or _idle >= Bal.TRUCK_IDLE_DEPART:
+		if (cargo.space() <= 0 and _idle > 0.5) or _idle >= Bal.VAN_IDLE_DEPART:
 			_depart()
 	_update_label()
 
@@ -354,7 +355,7 @@ func _park_van() -> void:
 
 func _move_out(dt: float) -> bool:
 	match kind:
-		"train":
+		"hyperloop":
 			# down the ramp into the tunnel
 			vehicle.position.x -= dt * (1.5 + (_park.x - vehicle.position.x) * 1.4)
 			vehicle.position.y = _park.y - maxf(0.0, _park.x - vehicle.position.x) * 0.55
@@ -367,7 +368,7 @@ func _move_out(dt: float) -> bool:
 
 func _start_return() -> void:
 	match kind:
-		"train":
+		"hyperloop":
 			vehicle.position = _park + Vector3(-6.0, -3.3, 0)
 		_:
 			vehicle.position = _park + Vector3(-6.0, 22.0, 0)
@@ -389,8 +390,8 @@ func _depart() -> void:
 	var mult := 1.0
 	var gift := 1.0
 	match kind:
-		"train": mult = Bal.TRAIN_MULT
-		"airship": gift = Bal.AIRSHIP_GIFT_MULT
+		"hyperloop": mult = Bal.LOOP_MULT
+		"droneport": gift = Bal.DRONE_AGENT_MULT
 	var amount := Game.sell(cargo.items.duplicate(), mult, gift)
 	var where := vehicle.global_position + Vector3(0, 2.0, 0)
 	world.sold.emit(amount, n, where)
@@ -402,7 +403,7 @@ func _depart() -> void:
 	state = S.LEAVING
 	_timer = trip_time()
 	_idle = 0.0
-	if kind == "dock":
+	if kind == "van":
 		if _plan_route(false):
 			Sfx.play("engine", -10.0)
 		else:
@@ -421,14 +422,14 @@ func load_contents(d: Dictionary) -> void:
 
 func status() -> String:
 	match kind:
-		"train": return "Sells for 15% more. Takes huge loads."
-		"airship": return "Gifts sell for double."
+		"hyperloop": return "Sells for 15% more. Takes huge loads."
+		"droneport": return "Agent runs sell for double."
 	return "Leaves when full, or 3s after the last load."
 
 
 func info() -> Array:
 	return [
-		["truck" if kind == "dock" else kind, "Carries %d" % cargo.capacity],
+		[kind, "Carries %d" % cargo.capacity],
 		["clock", "Trip %.0fs" % trip_time()],
 	]
 
@@ -439,13 +440,13 @@ func upgrade_info() -> Array:
 	var cap_next := 0
 	var t_next := 0.0
 	match kind:
-		"dock":
-			cap_next = Bal.truck_cap(n)
-			t_next = Bal.truck_trip(n)
-		"train":
-			cap_next = Bal.train_cap(n)
-			t_next = Bal.train_trip(n)
+		"van":
+			cap_next = Bal.van_cap(n)
+			t_next = Bal.van_trip(n)
+		"hyperloop":
+			cap_next = Bal.loop_cap(n)
+			t_next = Bal.loop_trip(n)
 		_:
-			cap_next = Bal.airship_cap(n)
-			t_next = Bal.airship_trip(n)
+			cap_next = Bal.drone_cap(n)
+			t_next = Bal.drone_trip(n)
 	return [["Carries", str(cap_now), str(cap_next)], ["Trip", "%.0fs" % trip_time(), "%.0fs" % t_next]]

@@ -1,8 +1,8 @@
 class_name Goals
 extends Control
-## Guides the player, lightly. Three first hints (upgrade the Bakery, finish
+## Guides the player, lightly. Three first hints (upgrade the server, finish
 ## a short job free, open Build); after that it stays out of the way and only
-## speaks up when something is wrong (a building without a road, a Bakery
+## speaks up when something is wrong (a building without a road, a server
 ## missing an ingredient). What to build and upgrade is the player's call.
 ## A goal card sits under the top bar, a brass pin bobs over the place to
 ## look at in the world (an edge arrow when it's off screen) and a pulsing
@@ -118,51 +118,51 @@ func _evaluate() -> void:
 	if hud.placement != null:
 		_goal("", "")
 		return
-	var bakery := _first("bakery") as BakeryB
+	var server := _first("server") as ServerB
 	match Game.tutorial_step:
 		0:
-			if bakery == null or bakery.level >= 2 or not Game.job_of(bakery.uid).is_empty():
+			if server == null or server.level >= 2 or not Game.job_of(server.uid).is_empty():
 				_advance()
 				return
-			_look(bakery)
-			if not hud.selected is BakeryB:
-				_goal("Porters bring wheat to your Bakery and cookies to the van. Tap the Bakery!", "bakery", _top(bakery))
-			elif Game.money < Bal.upgrade_cost("bakery", 1):
-				_goal("The van is selling your first cookies...", "truck")
+			_look(server)
+			if not hud.selected is ServerB:
+				_goal("Couriers bring power to your garage server and tokens to the API van. Tap the server!", "server", _top(server))
+			elif Game.money < Bal.upgrade_cost("server", 1):
+				_goal("The API van is selling your first tokens...", "van")
 			else:
 				_goal("Upgrade it: a builder makes it faster.", "hammer", null, hud.actions.find("upgrade"))
 		1:
-			if bakery == null or bakery.level >= 2 or Game.job_of(bakery.uid).is_empty():
+			if server == null or server.level >= 2 or Game.job_of(server.uid).is_empty():
 				_advance()
 				return
-			_goal("Jobs with 30 s or less left finish free. Tap the timer!", "builder", _top(bakery))
+			_goal("Jobs with 30 s or less left finish free. Tap the timer!", "builder", _top(server))
 		2:
 			if hud.get("_sheet") is BuildPanel or Game.buildings.size() > 7:
 				_advance()
 				return
-			_goal("Build whatever you like: farms, kitchens, shops... You decide where to invest!", "hammer", null, hud.btn_build)
+			_goal("Build whatever you like: sources, labs, a café... You decide where to invest!", "hammer", null, hud.btn_build)
 		_:
 			_free_goal()
 
 
-## Only problems: a building without a road, a Bakery missing an ingredient,
-## and the Palace while it's being built.
+## Only problems: a building without a road, a server missing a resource,
+## and the Megacluster while it's being built.
 func _free_goal() -> void:
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
 			_goal("%s has no road: clear the space in front of its entrance." % n.def["name"], "lock", _top(n))
 			return
 	for n2 in world.bnodes.values():
-		if n2 is BakeryB and (n2 as BakeryB).chosen() != "":
-			var m := (n2 as BakeryB).missing()
+		if n2 is ServerB and (n2 as ServerB).chosen() != "":
+			var m := (n2 as ServerB).missing()
 			if not m.is_empty():
 				var p := Defs.producer_of(m[0])
-				_goal("A Bakery needs %s: build a %s, or set it to Auto." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2))
+				_goal("A server needs %s: build a %s, or set it to Auto." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2))
 				return
-	if Game.count_of("palace") > 0 and not Game.won:
-		var pal := _first("palace") as PalaceB
+	if Game.count_of("mega") > 0 and not Game.won:
+		var pal := _first("mega") as MegaB
 		if pal:
-			_goal(pal.status(), "palace", _top(pal))
+			_goal(pal.status(), "mega", _top(pal))
 			return
 	_goal("", "")
 

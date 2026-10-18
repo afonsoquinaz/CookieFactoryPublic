@@ -1,16 +1,17 @@
 class_name StorageB
 extends Building
-## Pantry (any ingredients) and Cookie Rack (cookies, boxes, gifts): buffers
-## near where things are made or sold, so porters keep things moving.
+## Supply Depot (any resources) and Token Cache (tokens, batches, agent
+## runs): buffers near where things are made or sold, so couriers keep
+## things moving.
 
 var store: Holder
 var _label: Label3D
 
 
 func _build() -> void:
-	var pantry := kind == "pantry"
+	var pantry := kind == "depot"
 	store = Holder.new().setup(30, [], Holder.Layout.GRID)
-	store.accept_cat = ["raw", "proc"] if pantry else ["cookie", "box", "gift"]
+	store.accept_cat = ["raw", "proc"] if pantry else ["token", "batch", "agent"]
 	store.grid = Vector2i(4, 2)
 	store.cell = Vector2(0.44, 0.4)
 	store.max_visible = 48
@@ -36,7 +37,7 @@ func _visual(root: Node3D, t: int) -> void:
 
 
 func _on_level() -> void:
-	store.capacity = Bal.pantry_cap(level) if kind == "pantry" else Bal.rack_cap(level)
+	store.capacity = Bal.depot_cap(level) if kind == "depot" else Bal.cache_cap(level)
 	_update()
 
 
@@ -72,51 +73,57 @@ func info() -> Array:
 
 
 func upgrade_info() -> Array:
-	if kind == "pantry":
-		return [["Holds", str(Bal.pantry_cap(level)), str(Bal.pantry_cap(level + 1))]]
-	return [["Holds", str(Bal.rack_cap(level)), str(Bal.rack_cap(level + 1))]]
+	if kind == "depot":
+		return [["Holds", str(Bal.depot_cap(level)), str(Bal.depot_cap(level + 1))]]
+	return [["Holds", str(Bal.cache_cap(level)), str(Bal.cache_cap(level + 1))]]
 
 
-## Low platform for the stock in front + shelving behind, richer per tier.
+## Low platform for the stock in front + racking behind, richer per tier:
+## the depot has crates and canisters, the cache glowing storage blades.
 static func mesh(k_: String, t: int) -> Mesh:
 	var k := MeshKit.new()
-	var pantry := k_ == "pantry"
-	var wood: Color = [Pal.WOOD, Pal.WOOD, Pal.WOOD_DARK, Pal.STEEL_DARK, Color(0.3, 0.2, 0.15)][t]
-	var light: Color = [Pal.WOOD_LIGHT, Pal.WOOD_LIGHT, Pal.CREAM, Pal.STEEL, Pal.CREAM][t]
+	var depot := k_ == "depot"
+	var frame: Color = [Pal.WOOD, Color(0.36, 0.38, 0.42), Color(0.92, 0.93, 0.94), Color(0.5, 0.54, 0.6), Color(0.17, 0.18, 0.21)][t]
+	var light: Color = [Pal.WOOD_LIGHT, Color(0.72, 0.74, 0.78), Color(0.84, 0.86, 0.88), Color(0.72, 0.76, 0.82), Color(0.3, 0.32, 0.36)][t]
+	var accent := Color(0.96, 0.7, 0.3) if depot else Color(0.4, 0.82, 0.98)
 	# stock platform
-	k.rbox(Vector3(2.2, 0.5, 1.2), 0.05, wood, MeshKit.at(0, 0.25, -0.2))
+	k.rbox(Vector3(2.2, 0.5, 1.2), 0.05, frame, MeshKit.at(0, 0.25, -0.2))
 	k.rbox(Vector3(2.1, 0.06, 1.1), 0.02, light, MeshKit.at(0, 0.53, -0.2))
-	# shelving unit behind
+	if t >= 2:
+		k.rbox(Vector3(2.0, 0.03, 0.03), 0.01, Items.lit(accent, 0.45), MeshKit.at(0, 0.4, 0.41))
+	# racking behind
 	var h := 2.0 + t * 0.2
-	k.rbox(Vector3(3.6, h, 0.6), 0.06, wood, MeshKit.at(0, h * 0.5, -1.55))
+	k.rbox(Vector3(3.6, h, 0.6), 0.06, frame, MeshKit.at(0, h * 0.5, -1.55))
 	for i in 3:
 		var y := 0.5 + i * (h - 0.6) / 2.0
 		k.rbox(Vector3(3.4, 0.06, 0.5), 0.02, light, MeshKit.at(0, y, -1.3))
 		for j in 6:
 			var x := -1.4 + j * 0.56
-			if pantry:
+			if depot:
+				var ing: String = Defs.RAW[(i * 6 + j) % Defs.RAW.size()]
 				if (i + j) % 2 == 0:
-					k.cyl(0.11, 0.26, Color(0.85, 0.9, 0.9, 0.55), MeshKit.at(x, y + 0.03, -1.3), 8, 0.02)
-					k.cyl(0.115, 0.04, Pal.BRASS if t >= 3 else Pal.WOOD_DARK, MeshKit.at(x, y + 0.29, -1.3), 8)
+					Items.resource_into(k, ing, MeshKit.at(x, y + 0.03, -1.3))
 				else:
-					k.ellipsoid(Vector3(0.16, 0.16, 0.13), Color(0.86, 0.8, 0.66), MeshKit.at(x, y + 0.15, -1.3), 8, 5)
+					k.rbox(Vector3(0.42, 0.3, 0.36), 0.03, Pal.WOOD_LIGHT if t < 2 else Color(0.86, 0.88, 0.9), MeshKit.at(x, y + 0.18, -1.3))
+					k.rbox(Vector3(0.12, 0.12, 0.01), 0.02, Defs.item_color(ing), MeshKit.at(x, y + 0.2, -1.115))
 			else:
-				k.rbox(Vector3(0.44, 0.03, 0.36), 0.01, Pal.STEEL_DARK if t < 4 else Pal.BRASS, MeshKit.at(x, y + 0.03, -1.3))
+				# storage blades with status lights and a token or two on the shelf
+				k.rbox(Vector3(0.46, 0.34, 0.4), 0.03, Color(0.2, 0.21, 0.24) if t != 2 else Color(0.9, 0.91, 0.92), MeshKit.at(x, y + 0.2, -1.35))
 				for c in 3:
-					Items.cookie_into(k, ["choc", "sugar", "butter", "jam"][(i + j + c) % 4], 0.06, 0.03, MeshKit.at(x - 0.12 + c * 0.12, y + 0.05, -1.3))
-	# awning / crown per tier
+					k.rbox(Vector3(0.04, 0.04, 0.01), 0.01, Items.lit([Color(0.4, 0.9, 1.0), Color(0.5, 1.0, 0.6), Color(1.0, 0.8, 0.4)][(i + j + c) % 3], 0.4), MeshKit.at(x - 0.12 + c * 0.08, y + 0.3, -1.145))
+				Items.token_into(k, ["pico", "chat7", "code13", "wiki13"][(i + j) % 4], 0.06, 0.03, MeshKit.at(x + 0.12, y + 0.06, -1.12))
+	# canopy / crown per tier
 	if t >= 1:
-		for i in 8:
-			var c2 := (Pal.SAGE if pantry else Pal.TERRACOTTA) if i % 2 == 0 else Pal.CREAM
-			k.rbox(Vector3(0.48, 0.05, 0.7), 0.015, c2, MeshKit.xf(Vector3(-1.68 + i * 0.48, h + 0.2, -1.2), Vector3(-18, 0, 0)))
+		k.rbox(Vector3(3.8, 0.08, 1.0), 0.03, frame.darkened(0.1), MeshKit.xf(Vector3(0, h + 0.2, -1.2), Vector3(-10, 0, 0)))
+		k.rbox(Vector3(3.8, 0.05, 0.06), 0.02, accent, MeshKit.xf(Vector3(0, h + 0.16, -0.72), Vector3(-10, 0, 0)))
 	if t >= 2:
 		for sx in [-1.0, 1.0]:
-			k.cyl(0.06, h + 0.3, wood, MeshKit.at(sx * 1.8, 0, -0.95), 8, 0.02)
+			k.cyl(0.06, h + 0.3, frame.darkened(0.15), MeshKit.at(sx * 1.8, 0, -0.95), 8, 0.02)
 	if t >= 3:
-		k.rbox(Vector3(3.7, 0.12, 0.7), 0.03, Pal.STEEL_DARK, MeshKit.at(0, h + 0.05, -1.55))
 		for sx in [-1.0, 1.0]:
-			k.sphere(0.12, Color(1.0, 0.92, 0.7, 0.4), MeshKit.at(sx * 1.5, h + 0.45, -1.0), 8, 5)
+			k.sphere(0.12, Items.lit(accent.lightened(0.3), 0.4), MeshKit.at(sx * 1.5, h + 0.45, -1.0), 8, 5)
 	if t >= 4:
 		k.rbox(Vector3(1.2, 0.5, 0.08), 0.08, Pal.BRASS, MeshKit.at(0, h + 0.75, -1.55))
-		k.rbox(Vector3(1.0, 0.36, 0.09), 0.06, Pal.CHOCO, MeshKit.at(0, h + 0.75, -1.55))
+		k.rbox(Vector3(1.0, 0.36, 0.09), 0.06, Color(0.12, 0.12, 0.14), MeshKit.at(0, h + 0.75, -1.55))
+		k.rbox(Vector3(0.7, 0.08, 0.02), 0.02, Items.lit(accent, 0.45), MeshKit.at(0, h + 0.75, -1.5))
 	return k.commit()

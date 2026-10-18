@@ -1,30 +1,31 @@
 class_name RecipePanel
 extends Sheet
-## Choose what a Bakery bakes. Auto keeps it on the best recipe your farms
-## and kitchens can supply. Each recipe shows its price, the ingredients it
-## needs (faded when you don't make them yet) and what's still missing: a
-## bigger bakery (more silos) or the farms and kitchens that make its ingredients.
+## Choose the model a server serves. Auto keeps it on the best model your
+## sources and labs can feed. Each model shows its size, latency and token
+## price, the resources it needs (faded when you don't make them yet) and
+## what's still missing: a bigger server (more bays) or the sources and labs
+## that make its resources.
 
-var bakery: BakeryB
+var server: ServerB
 
 
 func _init() -> void:
-	title = "What to bake"
+	title = "Which model to serve"
 	title_icon = "recipe"
 	height_frac = 0.72
 
 
-func setup(b: BakeryB) -> RecipePanel:
-	bakery = b
+func setup(b: ServerB) -> RecipePanel:
+	server = b
 	return self
 
 
 func _build() -> void:
-	var tip := Kit.label("This bakery has %d silo%s. Every recipe needs wheat plus one silo per ingredient." % [bakery.slots(), "s" if bakery.slots() > 1 else ""], 16, Kit.MUTED, 0, false)
+	var tip := Kit.label("This server has %d module bay%s. Every model needs power plus one bay per resource." % [server.slots(), "s" if server.slots() > 1 else ""], 16, Kit.MUTED, 0, false)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tip.custom_minimum_size.x = 400
 	body.add_child(tip)
-	body.add_child(_row("", "Auto", "Always the best recipe you can make right now (%s)" % Defs.recipe(bakery.auto_recipe())["name"], true, "recipe"))
+	body.add_child(_row("", "Auto", "Always the best model you can feed right now (%s)" % Defs.recipe(server.auto_recipe())["name"], true, "recipe"))
 	for r in Defs.RECIPES:
 		body.add_child(_recipe_row(r))
 
@@ -53,9 +54,9 @@ func _recipe_row(r: Dictionary) -> Control:
 	var box := Sheet.row_box()
 	var h := Kit.hbox(10)
 	box.add_child(h)
-	var ic := Kit.icon("ck_" + id, 66)
+	var ic := Kit.icon("tk_" + id, 66)
 	if not known:
-		ic.modulate = Color(0.25, 0.18, 0.14, 0.6)
+		ic.modulate = Color(0.14, 0.18, 0.24, 0.6)
 	h.add_child(ic)
 	var v := Kit.vbox(2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -63,18 +64,23 @@ func _recipe_row(r: Dictionary) -> Control:
 	var top := Kit.hbox(8)
 	v.add_child(top)
 	top.add_child(Kit.game(r["name"], 21, Kit.INK, 0))
-	top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("c:" + id)), 19, Color(0.3, 0.52, 0.22), 0))
+	top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("t:" + id)), 19, Color(0.16, 0.56, 0.5), 0))
+	var snappy := Bal.latency_bonus(id)
+	var tag := Kit.label("%s params  ·  %d ms%s  ·  %s" % [r["params"], int(r["lat"]), ("  (+%d%% at cafés)" % roundi(snappy * 100)) if snappy > 0.0 else "", r["tag"]], 14, Kit.MUTED, 0, false)
+	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tag.custom_minimum_size.x = 240
+	v.add_child(tag)
 	var row := Kit.hbox(3)
 	v.add_child(row)
-	row.add_child(Kit.icon("wheat", 28))
+	row.add_child(Kit.icon("power", 28))
 	for i in ings:
 		var ii := Kit.icon(i, 28)
 		if not Game.can_make(i):
 			ii.modulate = Color(1, 1, 1, 0.35)
 		row.add_child(ii)
 	var why := ""
-	if ings.size() > bakery.slots():
-		why = "Needs %d silos: Bakery level %d" % [ings.size(), Defs.slots_level(ings.size())]
+	if ings.size() > server.slots():
+		why = "Needs %d bays: server level %d" % [ings.size(), Defs.slots_level(ings.size())]
 	else:
 		var missing := []
 		for i in ings:
@@ -89,20 +95,20 @@ func _recipe_row(r: Dictionary) -> Control:
 		v.add_child(w)
 	if Game.trending == id:
 		v.add_child(Kit.label("Trending now: sells for more!", 14, Kit.SAGE_EDGE, 0))
-	var ok := ings.size() <= bakery.slots()
+	var ok := ings.size() <= server.slots()
 	h.add_child(_pick(id, ok))
 	return box
 
 
 func _pick(id: String, ok: bool) -> Control:
-	var cur := bakery.chosen() == id
-	var b := Kit.juicy("Baking" if cur else "Bake", Kit.BRASS if cur else (Kit.SAGE if ok else Kit.GREY), Kit.SAGE_EDGE, 20, Vector2(120, 60))
+	var cur := server.chosen() == id
+	var b := Kit.juicy("Serving" if cur else "Serve", Kit.BRASS if cur else (Kit.SAGE if ok else Kit.GREY), Kit.SAGE_EDGE, 20, Vector2(120, 60))
 	b.pressed.connect(func():
 		if not ok:
 			Sfx.play("deny")
 			Kit.shake(b)
 			return
-		bakery.choose(id)
+		server.choose(id)
 		Sfx.play("upgrade", -4.0)
 		close())
 	return b

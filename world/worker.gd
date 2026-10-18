@@ -1,10 +1,10 @@
 class_name Worker
 extends Node3D
 ## A member of staff walking around the empire.
-##   porter  asks the World's broker for the most useful delivery ("6 wheat
-##           from the Wheat Field to the Bakery"), walks there along the
+##   courier  asks the World's broker for the most useful delivery ("6 power
+##           cells from the Solar Farm to the server"), walks there along the
 ##           roads, loads up at the entrance, delivers, repeats.
-##   chef    stands at their bakery or kitchen and works it.
+##   engineer stands at their server or lab and works it.
 ## Staff with nothing to do rest on the Staff Cabins' benches.
 
 enum S { DECIDE, GO_TAKE, TAKING, GO_GIVE, GIVING, WAIT, REST, STATION }
@@ -58,13 +58,13 @@ func apply_role() -> void:
 	add_child(ch)
 	ch.setup(_look(), int(data["id"]) * 13 + 5)
 	ch.scale = Vector3.ONE * 0.95
-	if role == "porter":
+	if role == "courier":
 		ch.carry_mount.position = Vector3(0, 0.06, 0.6)
 	carry = Holder.new().setup(Bal.worker_carry(), [], Holder.Layout.COLUMN)
 	carry.sway = 0.05
 	ch.carry_mount.add_child(carry)
 	carry.changed.connect(func(): ch.carrying = carry.count() > 0)
-	if role == "chef":
+	if role == "engineer":
 		var col: Color = Defs.ROLES[role]["color"]
 		_badge = UI3D.badge(Defs.ROLES[role]["icon"], col.darkened(0.2), 0.5)
 		_badge.position = Vector3(0, 2.05, 0)
@@ -75,9 +75,9 @@ func apply_role() -> void:
 
 func _look() -> String:
 	match role:
-		"porter": return "loader"
-		"chef": return "chef"
-		"farmer": return "farmer"
+		"courier": return "courier"
+		"engineer": return "engineer"
+		"tech": return "tech"
 	return "idle"
 
 
@@ -196,10 +196,10 @@ func _decide() -> void:
 	release()
 	_bubble.text = ""
 	match role:
-		"chef":
+		"engineer":
 			state = S.STATION
 			return
-		"porter":
+		"courier":
 			pass
 		_:
 			state = S.REST
@@ -282,7 +282,7 @@ func _wait(txt: String) -> void:
 
 # ---------------------------------------------------------------- moving
 
-## A spot at the entrance (a little spread so porters don't stack).
+## A spot at the entrance (a little spread so couriers don't stack).
 func _door_point(b: Building) -> Vector3:
 	var off := (fmod(float(data["id"]) * 0.37, 0.8) - 0.4)
 	return b.door_pos() + b.base_xf().basis.x * off
@@ -312,7 +312,7 @@ func _follow(dt: float) -> bool:
 		ch.face(to, dt, 10.0)
 	global_position.y = 0.0
 	ch.move_speed = clampf(spd / 4.0, 0.5, 1.0)
-	ch.work = "push" if role == "porter" else ""
+	ch.work = "push" if role == "courier" else ""
 	return false
 
 
@@ -326,7 +326,7 @@ func _walk_point(target: Vector3, dt: float) -> bool:
 
 func _rest(dt: float) -> void:
 	_timer -= dt
-	if role == "porter" and _timer <= 0.0:
+	if role == "courier" and _timer <= 0.0:
 		_timer = 1.0
 		if carry.count() > 0 or not world.find_job(global_position, carry.space()).is_empty():
 			state = S.DECIDE
@@ -343,15 +343,15 @@ func _rest(dt: float) -> void:
 		ch.face(world.rest_face(self), dt, 4.0)
 
 
-## Chefs stand in front of their machine and work it.
+## Engineers stand in front of their machine and work it.
 func _station(dt: float) -> void:
 	var b: Building = world.building(int(data.get("target", 0)))
 	if b == null:
 		state = S.REST
 		return
 	var spot := b.to_world(-0.3 + fmod(float(data["id"]) * 0.7, 1.2), 0.45)
-	if b is BakeryB:
-		spot = b.to_world(BakeryB.OVEN_X - 1.2 + fmod(float(data["id"]) * 0.7, 1.4), 0.4)
+	if b is ServerB:
+		spot = b.to_world(ServerB.CORE_X - 1.2 + fmod(float(data["id"]) * 0.7, 1.4), 0.4)
 	var to := spot - global_position
 	to.y = 0
 	if to.length() > 0.15:

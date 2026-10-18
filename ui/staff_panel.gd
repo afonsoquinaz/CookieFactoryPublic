@@ -1,8 +1,8 @@
 class_name StaffPanel
 extends Sheet
-## Your staff. Everyone you hire starts as a porter (they carry everything
-## along the roads, no setup needed). On a farm, bakery or kitchen, + turns a
-## porter into a farmer or chef who works there. Staff Cabins decide how
+## Your staff. Everyone you hire starts as a courier (they carry everything
+## along the roads, no setup needed). On a source, server or lab, + turns a
+## courier into a technician or engineer who works there. Staff Housing decides how
 ## many people you can house.
 
 var _hire_btn: JuicyButton
@@ -43,7 +43,7 @@ func _build() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
 	v.add_child(Kit.game("Builders  ×%d" % Game.builders(), 24, Kit.INK, 0))
-	var d := Kit.label("Build and upgrade. Each Builder's Hut houses one; more huts cost gems (Build > Town).", 15, Kit.MUTED, 0, false)
+	var d := Kit.label("Build and upgrade. Each Builder's Hut houses one; more huts cost sparks (Build > Campus).", 15, Kit.MUTED, 0, false)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.custom_minimum_size.x = 300
 	v.add_child(d)
@@ -69,8 +69,8 @@ func _card(role: String) -> Control:
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 300
 	mid.add_child(desc)
-	if role != "porter":
-		mid.add_child(Kit.label("Tap a %s in the world, then Staff, then +." % ("farm" if role == "farmer" else "bakery or kitchen"), 15, Kit.TERRACOTTA_EDGE, 0))
+	if role != "courier":
+		mid.add_child(Kit.label("Tap a %s in the world, then Staff, then +." % ("source" if role == "tech" else "server or lab"), 15, Kit.TERRACOTTA_EDGE, 0))
 	_cards[role] = cnt
 	return box
 
@@ -78,12 +78,12 @@ func _card(role: String) -> Control:
 func _refresh() -> void:
 	if not is_instance_valid(_staff_label):
 		return
-	_staff_label.text = "%d / %d housed" % [Game.workers.size(), Game.cabin_capacity()]
+	_staff_label.text = "%d / %d housed" % [Game.workers.size(), Game.dorm_capacity()]
 	if not Game.can_hire():
 		_hire_btn.set_text_value("Full: build a Cabin")
 		_hire_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
 	else:
-		_hire_btn.set_text_value("Hire porter  $" + Fmt.num(Game.hire_price()))
+		_hire_btn.set_text_value("Hire courier  $" + Fmt.num(Game.hire_price()))
 		var ok := Game.can_afford(Game.hire_price())
 		_hire_btn.set_colors(Kit.SAGE if ok else Kit.GREY, Kit.SAGE_EDGE if ok else Kit.GREY_EDGE)
 	for role in _cards:
@@ -94,7 +94,7 @@ func _hire() -> void:
 	if not Game.can_hire():
 		Sfx.play("deny")
 		Kit.shake(_hire_btn)
-		Game.toast.emit("No room: build or upgrade a Staff Cabin", "cabin")
+		Game.toast.emit("No room: build or upgrade a Staff Cabin", "dorm")
 		return
 	var w := Game.hire()
 	if w.is_empty():

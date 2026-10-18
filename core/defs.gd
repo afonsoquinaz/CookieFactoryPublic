@@ -1,85 +1,91 @@
 class_name Defs
-## Static game definitions: items, recipes, buildings, worker roles, biomes.
+## Static game definitions: resources, models, buildings, staff roles, biomes.
 ## Everything data-like lives here or in Bal so new content is a table entry.
 ##
+## Token Empire follows the AI supply chain: sources make raw resources
+## (power, web data, silicon, labels...), labs turn them into better ones
+## (GPUs, datasets, fine-tunes...), and an Inference Server feeds every
+## request through the modules its model needs and puts out tokens.
+##
 ## Item ids:
-##   ingredients    "wheat", "butter", ...            (raw from farms, processed in kitchens)
-##   cookies        "c:<recipe>"   e.g. "c:choc"
-##   cookie boxes   "b:<recipe>"   (6 cookies, packed)
-##   gift boxes     "g:<recipe>"   (a wrapped box)
+##   resources      "power", "gpu", ...             (raw from sources, refined in labs)
+##   tokens         "t:<model>"  e.g. "t:chat7"
+##   token batches  "b:<model>"  (6 tokens, batched)
+##   agent runs     "a:<model>"  (a batch wrapped into an agent workflow)
 
-const RAW: Array[String] = ["wheat", "sugar", "cocoa", "egg", "milk", "oats", "berry", "hazelnut", "honey", "vanilla", "cinnamon", "orange"]
-const PROCESSED: Array[String] = ["butter", "chocolate", "jam", "caramel", "praline", "candied"]
+const RAW: Array[String] = ["power", "data", "coolant", "silicon", "copper", "code", "labels", "feedback", "rare", "papers", "fiber", "experts"]
+const PROCESSED: Array[String] = ["gpu", "dataset", "finetune", "hbm", "reward", "synth"]
 
 ## h = stacking height (m) in a carry column.
 const ITEMS := {
-	"wheat": {"name": "Wheat", "h": 0.2, "color": Color(0.86, 0.7, 0.38)},
-	"sugar": {"name": "Sugar Cane", "h": 0.18, "color": Color(0.6, 0.7, 0.42)},
-	"cocoa": {"name": "Cocoa Pods", "h": 0.2, "color": Color(0.7, 0.42, 0.26)},
-	"egg": {"name": "Eggs", "h": 0.19, "color": Color(0.9, 0.84, 0.72)},
-	"milk": {"name": "Milk", "h": 0.31, "color": Color(0.62, 0.72, 0.8)},
-	"oats": {"name": "Oats", "h": 0.22, "color": Color(0.84, 0.76, 0.56)},
-	"berry": {"name": "Strawberries", "h": 0.18, "color": Color(0.82, 0.3, 0.3)},
-	"hazelnut": {"name": "Hazelnuts", "h": 0.17, "color": Color(0.62, 0.42, 0.26)},
-	"honey": {"name": "Honey", "h": 0.26, "color": Color(0.92, 0.66, 0.2)},
-	"vanilla": {"name": "Vanilla", "h": 0.14, "color": Color(0.36, 0.26, 0.2)},
-	"cinnamon": {"name": "Cinnamon", "h": 0.15, "color": Color(0.66, 0.38, 0.22)},
-	"orange": {"name": "Oranges", "h": 0.2, "color": Color(0.94, 0.56, 0.2)},
-	"butter": {"name": "Butter", "h": 0.16, "color": Color(0.97, 0.88, 0.52)},
-	"chocolate": {"name": "Chocolate", "h": 0.1, "color": Color(0.36, 0.22, 0.15)},
-	"jam": {"name": "Jam", "h": 0.24, "color": Color(0.72, 0.16, 0.22)},
-	"caramel": {"name": "Caramel", "h": 0.14, "color": Color(0.82, 0.52, 0.22)},
-	"praline": {"name": "Praline", "h": 0.13, "color": Color(0.46, 0.3, 0.2)},
-	"candied": {"name": "Candied Orange", "h": 0.12, "color": Color(0.95, 0.6, 0.25)},
+	"power": {"name": "Power Cells", "h": 0.22, "color": Color(0.46, 0.82, 0.52)},
+	"data": {"name": "Web Data", "h": 0.2, "color": Color(0.36, 0.74, 0.92)},
+	"coolant": {"name": "Coolant", "h": 0.28, "color": Color(0.42, 0.68, 0.9)},
+	"silicon": {"name": "Silicon", "h": 0.2, "color": Color(0.62, 0.66, 0.72)},
+	"copper": {"name": "Copper", "h": 0.16, "color": Color(0.84, 0.5, 0.3)},
+	"code": {"name": "Code", "h": 0.12, "color": Color(0.5, 0.42, 0.78)},
+	"labels": {"name": "Labels", "h": 0.16, "color": Color(0.96, 0.78, 0.34)},
+	"feedback": {"name": "Feedback", "h": 0.2, "color": Color(0.94, 0.52, 0.56)},
+	"rare": {"name": "Rare Earths", "h": 0.2, "color": Color(0.72, 0.46, 0.8)},
+	"papers": {"name": "Research", "h": 0.16, "color": Color(0.95, 0.93, 0.86)},
+	"fiber": {"name": "Bandwidth", "h": 0.2, "color": Color(0.98, 0.64, 0.86)},
+	"experts": {"name": "Expert Data", "h": 0.18, "color": Color(0.86, 0.68, 0.32)},
+	"gpu": {"name": "GPUs", "h": 0.14, "color": Color(0.3, 0.62, 0.42)},
+	"dataset": {"name": "Datasets", "h": 0.24, "color": Color(0.28, 0.6, 0.86)},
+	"finetune": {"name": "Fine-Tunes", "h": 0.14, "color": Color(0.96, 0.6, 0.3)},
+	"hbm": {"name": "HBM Memory", "h": 0.1, "color": Color(0.24, 0.36, 0.56)},
+	"reward": {"name": "Reward Models", "h": 0.2, "color": Color(0.94, 0.76, 0.3)},
+	"synth": {"name": "Synthetic Data", "h": 0.22, "color": Color(0.66, 0.42, 0.92)},
 }
 
-## Cookie recipes. A Bakery bakes the recipe you choose (or the best one you
-## can make); every recipe needs wheat plus its ingredients, one silo each.
-## Order = how they unlock (each needs its ingredients' buildings).
+## Models. An Inference Server serves the model you choose (or the best one
+## it can feed); every request burns power plus a dose of each module's
+## resource, one module bay each. Order = how they unlock.
+## params / lat (ms) / tag are flavour for the model picker.
 const RECIPES := [
-	{"id": "shortbread", "name": "Shortbread", "ings": [], "price": 3.0},
-	{"id": "sugar", "name": "Sugar Cookie", "ings": ["sugar"], "price": 6.0},
-	{"id": "cocoa", "name": "Cocoa Crinkle", "ings": ["sugar", "cocoa"], "price": 11.0},
-	{"id": "milk", "name": "Milk Biscuit", "ings": ["sugar", "egg", "milk"], "price": 17.0},
-	{"id": "butter", "name": "Butter Ring", "ings": ["sugar", "egg", "butter"], "price": 24.0},
-	{"id": "choc", "name": "Chocolate Chip", "ings": ["sugar", "egg", "chocolate"], "price": 30.0},
-	{"id": "oat", "name": "Oat Crumble", "ings": ["sugar", "oats", "butter"], "price": 38.0},
-	{"id": "double", "name": "Double Chocolate", "ings": ["sugar", "egg", "cocoa", "chocolate"], "price": 48.0},
-	{"id": "jam", "name": "Jam Thumbprint", "ings": ["sugar", "butter", "jam"], "price": 60.0},
-	{"id": "hazel", "name": "Hazelnut Crunch", "ings": ["sugar", "egg", "hazelnut", "chocolate"], "price": 80.0},
-	{"id": "honey", "name": "Honey Oat", "ings": ["oats", "honey", "butter", "egg"], "price": 98.0},
-	{"id": "caramel", "name": "Caramel Stroopwafel", "ings": ["sugar", "egg", "butter", "caramel"], "price": 125.0},
-	{"id": "vanilla", "name": "Vanilla Sablé", "ings": ["sugar", "egg", "butter", "milk", "vanilla"], "price": 170.0},
-	{"id": "praline", "name": "Praline Dream", "ings": ["sugar", "egg", "butter", "chocolate", "praline"], "price": 220.0},
-	{"id": "cinnamon", "name": "Cinnamon Swirl", "ings": ["sugar", "egg", "butter", "milk", "cinnamon"], "price": 270.0},
-	{"id": "florentine", "name": "Orange Florentine", "ings": ["honey", "hazelnut", "chocolate", "candied"], "price": 340.0},
-	{"id": "royal", "name": "Royal Empire", "ings": ["sugar", "egg", "butter", "milk", "vanilla", "praline", "caramel"], "price": 600.0},
+	{"id": "pico", "name": "Pico 1B", "ings": [], "price": 3.0, "params": "1B", "lat": 15, "tag": "Runs on a gaming GPU. Tiny, local, instant."},
+	{"id": "mini", "name": "Mini 3B", "ings": ["data"], "price": 6.0, "params": "3B", "lat": 22, "tag": "Knows a little about everything on the web."},
+	{"id": "chat7", "name": "Chat 7B", "ings": ["data", "coolant"], "price": 11.0, "params": "7B", "lat": 35, "tag": "A friendly chat model. Runs warm."},
+	{"id": "chat13", "name": "Chat 13B", "ings": ["data", "coolant", "gpu"], "price": 17.0, "params": "13B", "lat": 55, "tag": "Bigger, smarter, needs real accelerators."},
+	{"id": "wiki13", "name": "Wiki 13B", "ings": ["data", "gpu", "dataset"], "price": 24.0, "params": "13B", "lat": 60, "tag": "Trained on clean data. Fewer made-up facts."},
+	{"id": "code13", "name": "Code 13B", "ings": ["data", "gpu", "code"], "price": 30.0, "params": "13B", "lat": 60, "tag": "Writes code, fixes bugs, explains regex."},
+	{"id": "tool30", "name": "Tool 30B", "ings": ["data", "code", "dataset"], "price": 38.0, "params": "30B", "lat": 80, "tag": "Calls tools and APIs on its own."},
+	{"id": "vision70", "name": "Vision 70B", "ings": ["data", "coolant", "gpu", "dataset"], "price": 48.0, "params": "70B", "lat": 110, "tag": "Sees images, reads charts."},
+	{"id": "assist70", "name": "Assist 70B", "ings": ["data", "dataset", "finetune"], "price": 60.0, "params": "70B", "lat": 110, "tag": "Fine-tuned to follow instructions."},
+	{"id": "code70", "name": "Code 70B", "ings": ["data", "gpu", "code", "finetune"], "price": 80.0, "params": "70B", "lat": 120, "tag": "Ships whole features. Writes the tests too."},
+	{"id": "align70", "name": "Aligned 70B", "ings": ["feedback", "finetune", "gpu", "coolant"], "price": 98.0, "params": "70B", "lat": 120, "tag": "Helpful, honest, harmless, tuned on feedback."},
+	{"id": "long120", "name": "Long 120B", "ings": ["data", "gpu", "coolant", "hbm"], "price": 125.0, "params": "120B", "lat": 180, "tag": "A million tokens of context. Needs a lot of memory."},
+	{"id": "reason200", "name": "Reason 200B", "ings": ["data", "gpu", "dataset", "coolant", "papers"], "price": 170.0, "params": "200B", "lat": 260, "tag": "Thinks step by step before it answers."},
+	{"id": "sage400", "name": "Sage 400B", "ings": ["data", "gpu", "dataset", "finetune", "reward"], "price": 220.0, "params": "400B", "lat": 320, "tag": "Polished by reinforcement learning from feedback."},
+	{"id": "omni400", "name": "Omni 400B", "ings": ["data", "gpu", "coolant", "hbm", "fiber"], "price": 270.0, "params": "400B", "lat": 340, "tag": "Text, images, audio and video, all at once."},
+	{"id": "moe", "name": "Expert MoE", "ings": ["papers", "hbm", "gpu", "synth"], "price": 340.0, "params": "8x220B", "lat": 300, "tag": "A mixture of experts, trained on synthetic data."},
+	{"id": "frontier", "name": "Frontier 1T", "ings": ["data", "coolant", "gpu", "finetune", "papers", "reward", "hbm"], "price": 600.0, "params": "1T", "lat": 450, "tag": "The best model in the world. For now."},
 ]
 
-## Cookie looks (dough tone, top colour, decoration style) per recipe.
-const COOKIE_LOOK := {
-	"shortbread": {"base": Color(0.93, 0.8, 0.55), "deco": "pricks", "shape": "square"},
-	"sugar": {"base": Color(0.95, 0.84, 0.62), "deco": "sparkle", "shape": "round"},
-	"cocoa": {"base": Color(0.38, 0.24, 0.17), "deco": "crinkle", "shape": "round"},
-	"milk": {"base": Color(0.97, 0.9, 0.74), "deco": "flower", "shape": "round"},
-	"butter": {"base": Color(0.94, 0.78, 0.48), "deco": "ring", "shape": "ring"},
-	"choc": {"base": Color(0.86, 0.64, 0.38), "deco": "chips", "shape": "round"},
-	"oat": {"base": Color(0.8, 0.62, 0.4), "deco": "oats", "shape": "rustic"},
-	"double": {"base": Color(0.3, 0.19, 0.13), "deco": "white_chips", "shape": "round"},
-	"jam": {"base": Color(0.93, 0.78, 0.52), "deco": "jam", "shape": "round"},
-	"hazel": {"base": Color(0.78, 0.56, 0.34), "deco": "nuts", "shape": "round"},
-	"honey": {"base": Color(0.86, 0.64, 0.32), "deco": "glaze", "shape": "rustic"},
-	"caramel": {"base": Color(0.86, 0.62, 0.34), "deco": "waffle", "shape": "flat"},
-	"vanilla": {"base": Color(0.97, 0.88, 0.7), "deco": "specks", "shape": "round"},
-	"praline": {"base": Color(0.62, 0.42, 0.28), "deco": "swirl", "shape": "round"},
-	"cinnamon": {"base": Color(0.86, 0.64, 0.42), "deco": "spiral", "shape": "round"},
-	"florentine": {"base": Color(0.86, 0.58, 0.26), "deco": "lace", "shape": "flat"},
-	"royal": {"base": Color(0.98, 0.95, 0.88), "deco": "royal", "shape": "round"},
+## Token looks per model: colour, coin shape and the glyph on its face.
+const MODEL_LOOK := {
+	"pico": {"base": Color(0.62, 0.82, 0.68), "glyph": "dot", "shape": "round"},
+	"mini": {"base": Color(0.46, 0.76, 0.9), "glyph": "dots", "shape": "round"},
+	"chat7": {"base": Color(0.4, 0.62, 0.92), "glyph": "bubble", "shape": "round"},
+	"chat13": {"base": Color(0.36, 0.48, 0.88), "glyph": "bubble2", "shape": "hex"},
+	"wiki13": {"base": Color(0.92, 0.9, 0.84), "glyph": "book", "shape": "hex"},
+	"code13": {"base": Color(0.42, 0.36, 0.7), "glyph": "brackets", "shape": "square"},
+	"tool30": {"base": Color(0.86, 0.6, 0.3), "glyph": "gear", "shape": "hex"},
+	"vision70": {"base": Color(0.32, 0.72, 0.72), "glyph": "eye", "shape": "round"},
+	"assist70": {"base": Color(0.96, 0.64, 0.38), "glyph": "star", "shape": "hex"},
+	"code70": {"base": Color(0.3, 0.26, 0.56), "glyph": "brackets2", "shape": "square"},
+	"align70": {"base": Color(0.94, 0.56, 0.62), "glyph": "heart", "shape": "round"},
+	"long120": {"base": Color(0.26, 0.4, 0.62), "glyph": "wave", "shape": "wide"},
+	"reason200": {"base": Color(0.64, 0.46, 0.86), "glyph": "steps", "shape": "hex"},
+	"sage400": {"base": Color(0.96, 0.82, 0.4), "glyph": "medal", "shape": "round"},
+	"omni400": {"base": Color(0.92, 0.5, 0.78), "glyph": "prism", "shape": "hex"},
+	"moe": {"base": Color(0.48, 0.3, 0.72), "glyph": "cubes", "shape": "square"},
+	"frontier": {"base": Color(0.98, 0.94, 0.86), "glyph": "crown", "shape": "star"},
 }
 
-const COOKIE_H := 0.085
-const BOX_H := 0.26
-const GIFT_H := 0.34
+const TOKEN_H := 0.085
+const BATCH_H := 0.26
+const AGENT_H := 0.34
 
 # ---------------------------------------------------------------- buildings
 ## size = footprint in grid cells (Grid.CELL m), x = width, y = depth (front
@@ -87,234 +93,243 @@ const GIFT_H := 0.34
 ## the front edge, where the road arrives).
 ## Everything can be built from the start: what to invest in is up to you.
 ## cost = first purchase, growth = price factor per copy you already own;
-## gems = price in gems instead (builder huts); limit = most copies you can
+## gems = price in sparks instead (builder huts); limit = most copies you can
 ## have (none = unlimited). up = upgrade cost 1 -> 2, max = top level,
 ## time = seconds to build it.
 const TABS := [
-	["farm", "Farms", "farm"],
-	["bake", "Bakery", "bakery"],
-	["pack", "Storage", "storage"],
-	["sell", "Sales", "truck"],
-	["town", "Town", "builder"],
-	["decor", "Decor", "flowers"],
+	["source", "Sources", "src_power"],
+	["server", "Compute", "server"],
+	["pack", "Storage", "depot"],
+	["sell", "Sales", "van"],
+	["town", "Campus", "builder"],
+	["decor", "Decor", "planter"],
 ]
 
-const FARM_TIERS: Array[int] = [1, 5, 10, 20, 35]
+const SOURCE_TIERS: Array[int] = [1, 5, 10, 20, 35]
 const MACHINE_TIERS: Array[int] = [1, 5, 12, 25, 40]
-const BAKERY_TIERS: Array[int] = [1, 5, 12, 22, 32]
+const SERVER_TIERS: Array[int] = [1, 5, 12, 22, 32]
 
 const BUILDINGS := {
-	# ---- town
+	# ---- campus
 	"hut": {"name": "Builder's Hut", "cat": "staff", "tab": "town", "icon": "builder", "size": Vector2i(2, 2), "limit": 5, "cost": 0, "growth": 1.0, "up": 0, "max": 1, "time": 0,
 		"gems": [0, 0, 60, 150, 300], "desc": "Each hut houses a builder. More builders, more things built at once."},
-	"cabin": {"name": "Staff Cabin", "cat": "staff", "tab": "town", "icon": "cabin", "size": Vector2i(2, 2), "cost": 150, "growth": 2.5, "up": 90, "max": 20, "time": 30,
-		"desc": "Houses more staff: porters, farmers and chefs."},
+	"dorm": {"name": "Staff Housing", "cat": "staff", "tab": "town", "icon": "dorm", "size": Vector2i(2, 2), "cost": 150, "growth": 2.5, "up": 90, "max": 20, "time": 30,
+		"desc": "Houses more staff: couriers, technicians and engineers."},
 
-	# ---- farms (3x3)
-	"farm_wheat": {"name": "Wheat Field", "cat": "farm", "tab": "farm", "icon": "wheat", "crop": "wheat", "size": Vector2i(3, 3), "cost": 30, "growth": 2.2, "up": 12, "max": 60, "time": 5,
-		"desc": "Golden wheat. Every cookie starts with it."},
-	"farm_sugar": {"name": "Sugar Cane Field", "cat": "farm", "tab": "farm", "icon": "sugar", "crop": "sugar", "size": Vector2i(3, 3), "cost": 40, "growth": 2.2, "up": 18, "max": 60, "time": 5,
-		"desc": "Sweetens every recipe after the first."},
-	"farm_cocoa": {"name": "Cocoa Grove", "cat": "farm", "tab": "farm", "icon": "cocoa", "crop": "cocoa", "size": Vector2i(3, 3), "cost": 120, "growth": 2.2, "up": 30, "max": 60, "time": 10,
-		"desc": "Cocoa pods for crinkles, and for chocolate."},
-	"farm_egg": {"name": "Hen House", "cat": "farm", "tab": "farm", "icon": "egg", "crop": "egg", "size": Vector2i(3, 3), "cost": 250, "growth": 2.2, "up": 45, "max": 60, "time": 20,
-		"desc": "Fresh eggs for richer doughs."},
-	"farm_milk": {"name": "Dairy Barn", "cat": "farm", "tab": "farm", "icon": "milk", "crop": "milk", "size": Vector2i(3, 3), "cost": 400, "growth": 2.2, "up": 70, "max": 60, "time": 30,
-		"desc": "Milk for biscuits, and for the butter churn."},
-	"farm_oats": {"name": "Oat Field", "cat": "farm", "tab": "farm", "icon": "oats", "crop": "oats", "size": Vector2i(3, 3), "cost": 1500, "growth": 2.2, "up": 250, "max": 60, "time": 60,
-		"desc": "Hearty oats for crumbles."},
-	"farm_berry": {"name": "Strawberry Patch", "cat": "farm", "tab": "farm", "icon": "berry", "crop": "berry", "size": Vector2i(3, 3), "cost": 3000, "growth": 2.2, "up": 600, "max": 60, "time": 90,
-		"desc": "Sweet berries for the jam kettle."},
-	"farm_hazelnut": {"name": "Hazel Orchard", "cat": "farm", "tab": "farm", "icon": "hazelnut", "crop": "hazelnut", "size": Vector2i(3, 3), "cost": 12000, "growth": 2.2, "up": 2200, "max": 60, "time": 300,
-		"desc": "Crunchy hazelnuts."},
-	"farm_honey": {"name": "Bee Meadow", "cat": "farm", "tab": "farm", "icon": "beehive", "crop": "honey", "size": Vector2i(3, 3), "cost": 30000, "growth": 2.2, "up": 5000, "max": 60, "time": 600,
-		"desc": "Hives make honey. Flower beds nearby make them busier."},
-	"farm_vanilla": {"name": "Orchid Greenhouse", "cat": "farm", "tab": "farm", "icon": "greenhouse", "crop": "vanilla", "size": Vector2i(3, 3), "cost": 150000, "growth": 2.2, "up": 30000, "max": 60, "time": 1200,
-		"desc": "Precious vanilla pods."},
-	"farm_cinnamon": {"name": "Spice Garden", "cat": "farm", "tab": "farm", "icon": "cinnamon", "crop": "cinnamon", "size": Vector2i(3, 3), "cost": 1.2e6, "growth": 2.2, "up": 2.8e5, "max": 60, "time": 1800,
-		"desc": "Cinnamon bark, warm and fragrant."},
-	"farm_orange": {"name": "Orange Grove", "cat": "farm", "tab": "farm", "icon": "orange", "crop": "orange", "size": Vector2i(3, 3), "cost": 6.0e6, "growth": 2.2, "up": 1.6e6, "max": 60, "time": 3600,
-		"desc": "Sunny oranges for candied peel."},
+	# ---- sources (3x3): raw resources
+	"src_power": {"name": "Solar Farm", "cat": "source", "tab": "source", "icon": "src_power", "res": "power", "size": Vector2i(3, 3), "cost": 30, "growth": 2.2, "up": 12, "max": 60, "time": 5,
+		"desc": "Panels charge power cells. Every request burns power."},
+	"src_data": {"name": "Web Crawler", "cat": "source", "tab": "source", "icon": "src_data", "res": "data", "size": Vector2i(3, 3), "cost": 40, "growth": 2.2, "up": 18, "max": 60, "time": 5,
+		"desc": "Crawls the web for text. Every model after the first needs data."},
+	"src_coolant": {"name": "Cooling Tower", "cat": "source", "tab": "source", "icon": "src_coolant", "res": "coolant", "size": Vector2i(3, 3), "cost": 120, "growth": 2.2, "up": 30, "max": 60, "time": 10,
+		"desc": "Chills coolant for the bigger, hotter models."},
+	"src_silicon": {"name": "Silicon Works", "cat": "source", "tab": "source", "icon": "src_silicon", "res": "silicon", "size": Vector2i(3, 3), "cost": 250, "growth": 2.2, "up": 45, "max": 60, "time": 20,
+		"desc": "Melts sand and pulls pure silicon crystals, for chips and memory."},
+	"src_copper": {"name": "Copper Mine", "cat": "source", "tab": "source", "icon": "src_copper", "res": "copper", "size": Vector2i(3, 3), "cost": 400, "growth": 2.2, "up": 70, "max": 60, "time": 30,
+		"desc": "Copper for the wiring inside every chip."},
+	"src_code": {"name": "Code Commons", "cat": "source", "tab": "source", "icon": "src_code", "res": "code", "size": Vector2i(3, 3), "cost": 1500, "growth": 2.2, "up": 250, "max": 60, "time": 60,
+		"desc": "Open-source developers write code for coding models."},
+	"src_labels": {"name": "Labeling Studio", "cat": "source", "tab": "source", "icon": "src_labels", "res": "labels", "size": Vector2i(3, 3), "cost": 3000, "growth": 2.2, "up": 600, "max": 60, "time": 90,
+		"desc": "People label examples, for the fine-tune lab."},
+	"src_feedback": {"name": "Feedback Lounge", "cat": "source", "tab": "source", "icon": "src_feedback", "res": "feedback", "size": Vector2i(3, 3), "cost": 12000, "growth": 2.2, "up": 2200, "max": 60, "time": 300,
+		"desc": "Raters compare answers and say which is better."},
+	"src_rare": {"name": "Rare Earth Mine", "cat": "source", "tab": "source", "icon": "src_rare", "res": "rare", "size": Vector2i(3, 3), "cost": 30000, "growth": 2.2, "up": 5000, "max": 60, "time": 600,
+		"desc": "Glittering rare earths for memory chips. Decor nearby keeps the miners happy."},
+	"src_papers": {"name": "Research Campus", "cat": "source", "tab": "source", "icon": "src_papers", "res": "papers", "size": Vector2i(3, 3), "cost": 150000, "growth": 2.2, "up": 30000, "max": 60, "time": 1200,
+		"desc": "Researchers turn ideas into papers. Precious."},
+	"src_fiber": {"name": "Fiber Hub", "cat": "source", "tab": "source", "icon": "src_fiber", "res": "fiber", "size": Vector2i(3, 3), "cost": 1.2e6, "growth": 2.2, "up": 2.8e5, "max": 60, "time": 1800,
+		"desc": "Spools of fibre-optic bandwidth for multimodal models."},
+	"src_experts": {"name": "Expert Network", "cat": "source", "tab": "source", "icon": "src_experts", "res": "experts", "size": Vector2i(3, 3), "cost": 6.0e6, "growth": 2.2, "up": 1.6e6, "max": 60, "time": 3600,
+		"desc": "Doctors, lawyers and professors write expert examples."},
 
-	# ---- the bakery: one building, a whole production line inside
-	"bakery": {"name": "Bakery", "cat": "bake", "tab": "bake", "icon": "bakery", "size": Vector2i(5, 3), "cost": 400, "growth": 8.0, "up": 40, "max": 40, "time": 10,
-		"desc": "Mixer, glass tube, ingredient silos and an oven in one. Choose what it bakes; upgrades add silos for richer recipes."},
+	# ---- compute: the inference server, a whole serving stack in one building
+	"server": {"name": "Inference Server", "cat": "server", "tab": "server", "icon": "server", "size": Vector2i(5, 3), "cost": 400, "growth": 8.0, "up": 40, "max": 40, "time": 10,
+		"desc": "Router, request bus, module bays and a GPU core in one. Choose the model it serves; upgrades add bays for bigger models."},
 
-	# ---- kitchens (2x2): turn ingredients into better ones
-	"churn": {"name": "Butter Churn", "cat": "kitchen", "tab": "bake", "icon": "churn", "size": Vector2i(2, 2), "cost": 600, "growth": 2.4, "up": 110, "max": 50, "time": 60,
-		"in": {"milk": 2}, "out": {"butter": 1}, "craft": 3.0, "desc": "Milk becomes butter."},
-	"chocolatier": {"name": "Chocolatier", "cat": "kitchen", "tab": "bake", "icon": "chocolatier", "size": Vector2i(2, 2), "cost": 900, "growth": 2.4, "up": 170, "max": 50, "time": 90,
-		"in": {"cocoa": 2, "sugar": 1}, "out": {"chocolate": 2}, "craft": 3.5, "desc": "Cocoa and sugar become chocolate."},
-	"kettle": {"name": "Jam Kettle", "cat": "kitchen", "tab": "bake", "icon": "kettle", "size": Vector2i(2, 2), "cost": 5000, "growth": 2.4, "up": 900, "max": 50, "time": 300,
-		"in": {"berry": 2, "sugar": 1}, "out": {"jam": 1}, "craft": 4.0, "desc": "Strawberries and sugar become jam."},
-	"caramel_pot": {"name": "Caramel Pot", "cat": "kitchen", "tab": "bake", "icon": "caramel_pot", "size": Vector2i(2, 2), "cost": 60000, "growth": 2.4, "up": 13000, "max": 50, "time": 900,
-		"in": {"sugar": 2, "butter": 1}, "out": {"caramel": 1}, "craft": 4.5, "desc": "Sugar and butter become caramel."},
-	"roaster": {"name": "Praline Roaster", "cat": "kitchen", "tab": "bake", "icon": "roaster", "size": Vector2i(2, 2), "cost": 400000, "growth": 2.4, "up": 75000, "max": 50, "time": 1800,
-		"in": {"hazelnut": 2, "chocolate": 1}, "out": {"praline": 1}, "craft": 5.0, "desc": "Hazelnuts and chocolate become praline."},
-	"candy": {"name": "Candy Kitchen", "cat": "kitchen", "tab": "bake", "icon": "candy", "size": Vector2i(2, 2), "cost": 1.0e7, "growth": 2.4, "up": 2.5e6, "max": 50, "time": 3600,
-		"in": {"orange": 1, "sugar": 2}, "out": {"candied": 1}, "craft": 5.0, "desc": "Oranges and sugar become candied peel."},
+	# ---- labs (2x2): turn resources into better ones
+	"fab": {"name": "Chip Fab", "cat": "lab", "tab": "server", "icon": "fab", "size": Vector2i(2, 2), "cost": 600, "growth": 2.4, "up": 110, "max": 50, "time": 60,
+		"in": {"silicon": 2, "copper": 1}, "out": {"gpu": 1}, "craft": 3.0, "desc": "Silicon and copper become GPUs."},
+	"refinery": {"name": "Data Refinery", "cat": "lab", "tab": "server", "icon": "refinery", "size": Vector2i(2, 2), "cost": 900, "growth": 2.4, "up": 170, "max": 50, "time": 90,
+		"in": {"data": 3}, "out": {"dataset": 2}, "craft": 3.5, "desc": "Cleans and dedupes web data into datasets."},
+	"tune_lab": {"name": "Fine-Tune Lab", "cat": "lab", "tab": "server", "icon": "tune_lab", "size": Vector2i(2, 2), "cost": 5000, "growth": 2.4, "up": 900, "max": 50, "time": 300,
+		"in": {"labels": 2, "dataset": 1}, "out": {"finetune": 1}, "craft": 4.0, "desc": "Labels and a dataset become a fine-tune."},
+	"hbm_works": {"name": "HBM Works", "cat": "lab", "tab": "server", "icon": "hbm_works", "size": Vector2i(2, 2), "cost": 60000, "growth": 2.4, "up": 13000, "max": 50, "time": 900,
+		"in": {"silicon": 2, "rare": 1}, "out": {"hbm": 1}, "craft": 4.5, "desc": "Silicon and rare earths become stacked HBM memory."},
+	"rlhf_gym": {"name": "RLHF Gym", "cat": "lab", "tab": "server", "icon": "rlhf_gym", "size": Vector2i(2, 2), "cost": 400000, "growth": 2.4, "up": 75000, "max": 50, "time": 1800,
+		"in": {"feedback": 2, "finetune": 1}, "out": {"reward": 1}, "craft": 5.0, "desc": "Feedback and a fine-tune train a reward model."},
+	"synth_lab": {"name": "Synth Lab", "cat": "lab", "tab": "server", "icon": "synth_lab", "size": Vector2i(2, 2), "cost": 1.0e7, "growth": 2.4, "up": 2.5e6, "max": 50, "time": 3600,
+		"in": {"experts": 1, "data": 2}, "out": {"synth": 1}, "craft": 5.0, "desc": "Expert seeds and web data grow into synthetic data."},
 
 	# ---- storage + packing (2x2)
-	"pantry": {"name": "Pantry", "cat": "pack", "tab": "pack", "icon": "pantry", "size": Vector2i(2, 2), "cost": 200, "growth": 2.0, "up": 45, "max": 40, "time": 30,
-		"desc": "Stores ingredients close to where they're needed."},
-	"rack": {"name": "Cookie Rack", "cat": "pack", "tab": "pack", "icon": "rack", "size": Vector2i(2, 2), "cost": 300, "growth": 2.0, "up": 100, "max": 40, "time": 30,
-		"desc": "Stores cookies, boxes and gifts until they're sold."},
-	"packer": {"name": "Box Packer", "cat": "pack", "tab": "pack", "icon": "packer", "size": Vector2i(2, 2), "cost": 2500, "growth": 2.4, "up": 400, "max": 50, "time": 300,
-		"desc": "Packs 6 cookies into a box worth 25% more."},
-	"wrapper": {"name": "Gift Wrapper", "cat": "pack", "tab": "pack", "icon": "wrapper", "size": Vector2i(2, 2), "cost": 200000, "growth": 2.4, "up": 48000, "max": 50, "time": 1800,
-		"desc": "Wraps boxes into gifts worth 60% more."},
+	"depot": {"name": "Supply Depot", "cat": "pack", "tab": "pack", "icon": "depot", "size": Vector2i(2, 2), "cost": 200, "growth": 2.0, "up": 45, "max": 40, "time": 30,
+		"desc": "Stores resources close to where they're needed."},
+	"cache": {"name": "Token Cache", "cat": "pack", "tab": "pack", "icon": "cache", "size": Vector2i(2, 2), "cost": 300, "growth": 2.0, "up": 100, "max": 40, "time": 30,
+		"desc": "Stores tokens, batches and agents until they're sold."},
+	"batcher": {"name": "Batcher", "cat": "pack", "tab": "pack", "icon": "batcher", "size": Vector2i(2, 2), "cost": 2500, "growth": 2.4, "up": 400, "max": 50, "time": 300,
+		"desc": "Batches 6 tokens into a response worth 25% more."},
+	"agent_studio": {"name": "Agent Studio", "cat": "pack", "tab": "pack", "icon": "agent_studio", "size": Vector2i(2, 2), "cost": 200000, "growth": 2.4, "up": 48000, "max": 50, "time": 1800,
+		"desc": "Wraps a batch into an agent run worth 60% more."},
 
 	# ---- sales
-	"dock": {"name": "Delivery Van", "cat": "sell", "tab": "sell", "icon": "truck", "size": Vector2i(2, 3), "cost": 300, "growth": 3.0, "up": 45, "max": 50, "time": 10,
-		"desc": "Porters load cookies; the van drives off and sells them."},
-	"shop": {"name": "Cookie Shop", "cat": "sell", "tab": "sell", "icon": "market", "size": Vector2i(3, 2), "cost": 500, "growth": 3.0, "up": 75, "max": 50, "time": 60,
-		"desc": "Customers walk in and pay 30% more. Decor nearby brings more of them."},
-	"board": {"name": "Order Board", "cat": "sell", "tab": "sell", "icon": "board", "size": Vector2i(2, 1), "limit": 1, "cost": 800, "growth": 1.0, "up": 0, "max": 1, "time": 120,
-		"desc": "Special orders: deliver them for big rewards and gems."},
-	"train": {"name": "Rail Depot", "cat": "sell", "tab": "sell", "icon": "train", "size": Vector2i(3, 3), "cost": 20000, "growth": 3.0, "up": 3500, "max": 50, "time": 3600,
-		"desc": "A freight train takes huge loads to the city."},
-	"airship": {"name": "Airship Mast", "cat": "sell", "tab": "sell", "icon": "airship", "size": Vector2i(3, 3), "cost": 2.0e7, "growth": 3.0, "up": 3.9e6, "max": 50, "time": 7200,
-		"desc": "Flies gifts to royal courts: gifts sell for double."},
+	"van": {"name": "API Depot", "cat": "sell", "tab": "sell", "icon": "van", "size": Vector2i(2, 3), "cost": 300, "growth": 3.0, "up": 45, "max": 50, "time": 10,
+		"desc": "Couriers load tokens; the API van drives off to town and sells them."},
+	"cafe": {"name": "Chat Café", "cat": "sell", "tab": "sell", "icon": "cafe", "size": Vector2i(3, 2), "cost": 500, "growth": 3.0, "up": 75, "max": 50, "time": 60,
+		"desc": "People drop in to chat with your models and pay 30% more. Decor nearby brings more of them."},
+	"desk": {"name": "Enterprise Desk", "cat": "sell", "tab": "sell", "icon": "desk", "size": Vector2i(2, 1), "limit": 1, "cost": 800, "growth": 1.0, "up": 0, "max": 1, "time": 120,
+		"desc": "Enterprise contracts: deliver them for big rewards and sparks."},
+	"hyperloop": {"name": "Hyperloop Station", "cat": "sell", "tab": "sell", "icon": "hyperloop", "size": Vector2i(3, 3), "cost": 20000, "growth": 3.0, "up": 3500, "max": 50, "time": 3600,
+		"desc": "A hyperloop pod takes huge loads to the city."},
+	"droneport": {"name": "Drone Port", "cat": "sell", "tab": "sell", "icon": "droneport", "size": Vector2i(3, 3), "cost": 2.0e7, "growth": 3.0, "up": 3.9e6, "max": 50, "time": 7200,
+		"desc": "Cargo drones fly agent runs around the world: agents sell for double."},
 
 	# ---- decor (no builder needed; auras work in a radius of cells)
-	"flowers": {"name": "Flower Bed", "cat": "decor", "tab": "decor", "icon": "flowers", "size": Vector2i(1, 1), "cost": 25, "growth": 1.06, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 3, "v": 0.04}, "desc": "Bee Meadows nearby make more honey. Shops nearby get more customers."},
+	"planter": {"name": "Planter", "cat": "decor", "tab": "decor", "icon": "planter", "size": Vector2i(1, 1), "cost": 25, "growth": 1.06, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 3, "v": 0.04}, "desc": "Rare Earth Mines nearby dig faster. The Chat Café nearby gets more visitors."},
 	"tree": {"name": "Shade Tree", "cat": "decor", "tab": "decor", "icon": "tree", "size": Vector2i(1, 1), "cost": 20, "growth": 1.06, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 2, "v": 0.02}, "desc": "Pretty, and shops nearby get more customers."},
+		"aura": {"what": "charm", "r": 2, "v": 0.02}, "desc": "Pretty, and cafés nearby get more visitors."},
 	"hedge": {"name": "Hedge", "cat": "decor", "tab": "decor", "icon": "hedge", "size": Vector2i(1, 1), "cost": 12, "growth": 1.04, "up": 0, "max": 1, "time": 0,
 		"aura": {"what": "charm", "r": 1, "v": 0.01}, "desc": "A neat hedge."},
-	"lamp": {"name": "Street Lamp", "cat": "decor", "tab": "decor", "icon": "lamp", "size": Vector2i(1, 1), "cost": 30, "growth": 1.06, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 3, "v": 0.03}, "desc": "Warm light. Shops nearby get more customers."},
-	"well": {"name": "Well", "cat": "decor", "tab": "decor", "icon": "well", "size": Vector2i(1, 1), "cost": 90, "growth": 1.8, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "farm", "r": 3, "v": 0.2}, "desc": "Farms within 3 tiles work 20% faster."},
+	"lamp": {"name": "Smart Lamp", "cat": "decor", "tab": "decor", "icon": "lamp", "size": Vector2i(1, 1), "cost": 30, "growth": 1.06, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 3, "v": 0.03}, "desc": "Soft LED light. Cafés nearby get more visitors."},
+	"substation": {"name": "Substation", "cat": "decor", "tab": "decor", "icon": "substation", "size": Vector2i(1, 1), "cost": 90, "growth": 1.8, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "source", "r": 3, "v": 0.2}, "desc": "Sources within 3 tiles work 20% faster."},
 	"bench": {"name": "Bench", "cat": "decor", "tab": "decor", "icon": "bench", "size": Vector2i(1, 1), "cost": 40, "growth": 1.06, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Shops nearby get more customers."},
-	"picnic": {"name": "Picnic Table", "cat": "decor", "tab": "decor", "icon": "picnic", "size": Vector2i(1, 1), "cost": 60, "growth": 1.08, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Shops nearby get more customers."},
-	"banner": {"name": "Banner", "cat": "decor", "tab": "decor", "icon": "banner", "size": Vector2i(1, 1), "cost": 90, "growth": 1.08, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 3, "v": 0.04}, "desc": "Your colours. Shops nearby get more customers."},
-	"topiary": {"name": "Topiary", "cat": "decor", "tab": "decor", "icon": "topiary", "size": Vector2i(1, 1), "cost": 140, "growth": 1.08, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 2, "v": 0.04}, "desc": "A tidy round bush. Shops nearby get more customers."},
-	"pond": {"name": "Pond", "cat": "decor", "tab": "decor", "icon": "pond", "size": Vector2i(2, 2), "cost": 900, "growth": 1.5, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "farm", "r": 3, "v": 0.12}, "desc": "Farms within 3 tiles work 12% faster."},
-	"gazebo": {"name": "Gazebo", "cat": "decor", "tab": "decor", "icon": "gazebo", "size": Vector2i(2, 2), "cost": 2500, "growth": 1.6, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "charm", "r": 5, "v": 0.12}, "desc": "Shops within 5 tiles get 12% more customers."},
-	"fountain": {"name": "Fountain", "cat": "decor", "tab": "decor", "icon": "fountain", "size": Vector2i(2, 2), "cost": 1800, "growth": 2.0, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "walk", "r": 5, "v": 0.2}, "desc": "Staff within 5 tiles walk 20% faster. Shops love it."},
-	"windmill": {"name": "Windmill", "cat": "decor", "tab": "decor", "icon": "windmill", "size": Vector2i(2, 2), "cost": 15000, "growth": 1.9, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "farm", "r": 5, "v": 0.25}, "desc": "Farms within 5 tiles work 25% faster."},
-	"statue": {"name": "Golden Cookie Statue", "cat": "decor", "tab": "decor", "icon": "statue", "size": Vector2i(2, 2), "cost": 1.3e6, "growth": 4.0, "up": 0, "max": 1, "time": 0,
-		"aura": {"what": "global_price", "r": 0, "v": 0.05}, "desc": "Every cookie in the empire sells for 5% more."},
+		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Cafés nearby get more visitors."},
+	"bikes": {"name": "Bike Rack", "cat": "decor", "tab": "decor", "icon": "bikes", "size": Vector2i(1, 1), "cost": 60, "growth": 1.08, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 2, "v": 0.03}, "desc": "Campus bikes. Cafés nearby get more visitors."},
+	"flag": {"name": "Company Flag", "cat": "decor", "tab": "decor", "icon": "flag", "size": Vector2i(1, 1), "cost": 90, "growth": 1.08, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 3, "v": 0.04}, "desc": "Your colours. Cafés nearby get more visitors."},
+	"robot": {"name": "Robot Statue", "cat": "decor", "tab": "decor", "icon": "robot", "size": Vector2i(1, 1), "cost": 140, "growth": 1.08, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 2, "v": 0.04}, "desc": "A friendly little robot. Cafés nearby get more visitors."},
+	"battery": {"name": "Battery Bank", "cat": "decor", "tab": "decor", "icon": "battery", "size": Vector2i(2, 2), "cost": 900, "growth": 1.5, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "source", "r": 3, "v": 0.12}, "desc": "Sources within 3 tiles work 12% faster."},
+	"foodtruck": {"name": "Food Truck", "cat": "decor", "tab": "decor", "icon": "foodtruck", "size": Vector2i(2, 2), "cost": 2500, "growth": 1.6, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 5, "v": 0.12}, "desc": "Cafés within 5 tiles get 12% more visitors."},
+	"coffee": {"name": "Coffee Cart", "cat": "decor", "tab": "decor", "icon": "coffee", "size": Vector2i(2, 2), "cost": 1800, "growth": 2.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "walk", "r": 5, "v": 0.2}, "desc": "Staff within 5 tiles move 20% faster. Visitors love it too."},
+	"turbine": {"name": "Wind Turbine", "cat": "decor", "tab": "decor", "icon": "turbine", "size": Vector2i(2, 2), "cost": 15000, "growth": 1.9, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "source", "r": 5, "v": 0.25}, "desc": "Sources within 5 tiles work 25% faster."},
+	"gpu_statue": {"name": "Golden GPU", "cat": "decor", "tab": "decor", "icon": "gpu_statue", "size": Vector2i(2, 2), "cost": 1.3e6, "growth": 4.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "global_price", "r": 0, "v": 0.05}, "desc": "Every token in the empire sells for 5% more."},
 
 	# ---- the wonder
-	"palace": {"name": "Grand Cookie Palace", "cat": "wonder", "tab": "town", "icon": "palace", "size": Vector2i(5, 5), "limit": 1, "cost": 2.0e8, "growth": 1.0, "up": 0, "max": 1, "time": 28800,
+	"mega": {"name": "AGI Megacluster", "cat": "wonder", "tab": "town", "icon": "mega", "size": Vector2i(5, 5), "limit": 1, "cost": 2.0e8, "growth": 1.0, "up": 0, "max": 1, "time": 28800,
 		"desc": "The crown of your empire. Build it in five stages to win."},
 }
 
 ## Order of cards in the build menu.
 const BUILD_ORDER: Array[String] = [
-	"farm_wheat", "farm_sugar", "farm_cocoa", "farm_egg", "farm_milk", "farm_oats", "farm_berry", "farm_hazelnut", "farm_honey", "farm_vanilla", "farm_cinnamon", "farm_orange",
-	"bakery", "churn", "chocolatier", "kettle", "caramel_pot", "roaster", "candy",
-	"pantry", "rack", "packer", "wrapper",
-	"dock", "shop", "board", "train", "airship",
-	"hut", "cabin", "palace",
-	"flowers", "tree", "hedge", "lamp", "well", "bench", "picnic", "banner", "topiary", "pond", "gazebo", "fountain", "windmill", "statue",
+	"src_power", "src_data", "src_coolant", "src_silicon", "src_copper", "src_code", "src_labels", "src_feedback", "src_rare", "src_papers", "src_fiber", "src_experts",
+	"server", "fab", "refinery", "tune_lab", "hbm_works", "rlhf_gym", "synth_lab",
+	"depot", "cache", "batcher", "agent_studio",
+	"van", "cafe", "desk", "hyperloop", "droneport",
+	"hut", "dorm", "mega",
+	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "gpu_statue",
 ]
 
-## Empire levels: lifetime earnings needed, and the gems each level brings.
+## Lab levels: lifetime tokens served needed, and the sparks each level brings.
 const EMPIRE := [
 	{"xp": 0, "gems": 0},
-	{"xp": 250, "gems": 5},
-	{"xp": 1200, "gems": 5},
-	{"xp": 5000, "gems": 8},
-	{"xp": 18000, "gems": 10},
-	{"xp": 60000, "gems": 12},
-	{"xp": 200000, "gems": 15},
-	{"xp": 650000, "gems": 18},
-	{"xp": 2.0e6, "gems": 20},
-	{"xp": 6.5e6, "gems": 25},
-	{"xp": 2.0e7, "gems": 30},
-	{"xp": 6.5e7, "gems": 35},
-	{"xp": 2.0e8, "gems": 40},
-	{"xp": 6.5e8, "gems": 45},
-	{"xp": 2.0e9, "gems": 60},
+	{"xp": 50, "gems": 5},
+	{"xp": 150, "gems": 5},
+	{"xp": 650, "gems": 8},
+	{"xp": 1300, "gems": 10},
+	{"xp": 2600, "gems": 12},
+	{"xp": 6500, "gems": 15},
+	{"xp": 16000, "gems": 18},
+	{"xp": 36000, "gems": 20},
+	{"xp": 83000, "gems": 25},
+	{"xp": 190000, "gems": 30},
+	{"xp": 440000, "gems": 35},
+	{"xp": 1.0e6, "gems": 40},
+	{"xp": 2.3e6, "gems": 45},
+	{"xp": 5.3e6, "gems": 60},
 ]
 
-## Palace stages: money, royal deliveries and build time for each.
-const PALACE_STAGES := [
-	{"name": "Foundations", "cost": 2.0e8, "need": 0, "time": 28800},
-	{"name": "Biscuit Walls", "cost": 1.5e9, "need": 200, "time": 43200},
-	{"name": "Cream Towers", "cost": 9.0e9, "need": 600, "time": 86400},
-	{"name": "Golden Domes", "cost": 5.0e10, "need": 1500, "time": 129600},
-	{"name": "The Crown", "cost": 1.6e11, "need": 4000, "time": 172800},
+## Megacluster stages: money, frontier-token deliveries and build time.
+const MEGA_STAGES := [
+	{"name": "Groundbreaking", "cost": 2.0e8, "need": 0, "time": 28800},
+	{"name": "Power Plant", "cost": 1.5e9, "need": 200, "time": 43200},
+	{"name": "Cooling Halls", "cost": 9.0e9, "need": 600, "time": 86400},
+	{"name": "GPU Halls", "cost": 5.0e10, "need": 1500, "time": 129600},
+	{"name": "The Core", "cost": 1.6e11, "need": 4000, "time": 172800},
 ]
+## The model whose tokens the Megacluster needs.
+const MEGA_MODEL := "frontier"
 
-## Obstacles on your land: clear them (money + a builder) for space and gems.
+## Obstacles on your land: clear them (money + a builder) for space and sparks.
 const OBSTACLES := {
 	"bush": {"name": "Bramble Bush", "size": Vector2i(1, 1), "time": 5},
 	"rock": {"name": "Boulder", "size": Vector2i(1, 1), "time": 10},
-	"stump": {"name": "Old Stump", "size": Vector2i(1, 1), "time": 8},
+	"ewaste": {"name": "E-Waste Pile", "size": Vector2i(1, 1), "time": 8},
 	"oak": {"name": "Old Oak", "size": Vector2i(2, 2), "time": 20},
 	"pine": {"name": "Tall Pine", "size": Vector2i(1, 1), "time": 15},
-	"boulders": {"name": "Boulder Pile", "size": Vector2i(2, 2), "time": 30},
+	"container": {"name": "Rusty Container", "size": Vector2i(2, 2), "time": 30},
 }
 
 # ---------------------------------------------------------------- staff
-## Staff roles. Porters carry everything along the roads (the broker picks the
-## most useful job); farmers and chefs are assigned to one building and make
-## it faster. Builders come with Builder's Huts.
+## Staff roles. Couriers carry everything along the roads (the broker picks
+## the most useful job); technicians and engineers are assigned to one
+## building and make it faster. Builders come with Builder's Huts.
 const ROLES := {
-	"porter": {
-		"name": "Porter", "icon": "porter", "color": Color(0.72, 0.4, 0.3),
-		"desc": "Carries harvests, ingredients and cookies along the roads to wherever they're needed.",
+	"courier": {
+		"name": "Courier", "icon": "courier", "color": Color(0.3, 0.42, 0.62),
+		"desc": "Carries resources and tokens along the roads to wherever they're needed.",
 	},
-	"farmer": {
-		"name": "Farmer", "icon": "farmer", "color": Color(0.47, 0.58, 0.36),
-		"desc": "Works one farm. Every farmer makes it faster.", "assign": "farm",
+	"tech": {
+		"name": "Technician", "icon": "tech", "color": Color(0.94, 0.6, 0.22),
+		"desc": "Works one source. Every technician makes it faster.", "assign": "source",
 	},
-	"chef": {
-		"name": "Chef", "icon": "chef", "color": Color(0.95, 0.93, 0.88),
-		"desc": "Works one bakery or kitchen, making it faster.", "assign": "machine",
+	"engineer": {
+		"name": "Engineer", "icon": "engineer", "color": Color(0.36, 0.3, 0.5),
+		"desc": "Works one server or lab, making it faster.", "assign": "machine",
 	},
 }
-const ROLE_ORDER: Array[String] = ["porter", "farmer", "chef"]
+const ROLE_ORDER: Array[String] = ["courier", "tech", "engineer"]
 
 # ---------------------------------------------------------------- land
-## Biomes per land chunk; farms of the listed crops grow 40% faster there.
+## Biomes per land chunk; sources of the listed resources work 40% faster
+## there (cheap sun in the desert, free cooling up north, talent in the valley,
+## ore in the hills).
 const BIOMES := {
-	"meadow": {"name": "Meadow", "bonus": ["wheat", "oats", "egg"], "grass": Color(0.52, 0.62, 0.38)},
-	"orchard": {"name": "Orchard Hills", "bonus": ["berry", "hazelnut", "honey", "orange"], "grass": Color(0.58, 0.64, 0.36)},
-	"tropic": {"name": "Tropical Lowland", "bonus": ["sugar", "cocoa", "vanilla", "cinnamon"], "grass": Color(0.38, 0.56, 0.34)},
-	"highland": {"name": "Highland", "bonus": ["milk", "oats", "hazelnut"], "grass": Color(0.46, 0.56, 0.42)},
+	"valley": {"name": "Tech Valley", "bonus": ["data", "code", "labels", "feedback"], "grass": Color(0.5, 0.62, 0.4)},
+	"desert": {"name": "Sun Desert", "bonus": ["power", "silicon"], "grass": Color(0.88, 0.76, 0.52)},
+	"tundra": {"name": "Cold North", "bonus": ["coolant", "fiber", "papers"], "grass": Color(0.8, 0.85, 0.85)},
+	"highland": {"name": "Mining Hills", "bonus": ["copper", "rare", "experts"], "grass": Color(0.56, 0.56, 0.42)},
 }
-const BIOME_ORDER: Array[String] = ["meadow", "orchard", "tropic", "highland"]
+const BIOME_ORDER: Array[String] = ["valley", "desert", "tundra", "highland"]
 
-## Titles for each Empire level.
+## Titles for each Lab level.
 const LEVEL_TITLES := [
-	"Kitchen Table", "Home Bakery", "Village Bakery", "Artisan Bakery", "Cookie Workshop",
-	"Cookie House", "Cookie Company", "Regional Brand", "Cookie Guild", "National Brand",
-	"Cookie Holdings", "Royal Supplier", "Continental Empire", "Cookie Dynasty", "Legendary Empire",
+	"Garage Lab", "Home Lab", "Weekend Project", "Seed Startup", "Series A",
+	"Series B", "Scale-up", "Unicorn", "AI Lab", "Frontier Lab",
+	"Hyperscaler", "Tech Giant", "Global Platform", "Compute Superpower", "AGI Pioneer",
 ]
 
 
 static func item_name(t: String) -> String:
-	if t.length() > 2 and t[1] == ":":
+	if is_product(t):
 		var r := recipe(t.substr(2))
-		var n: String = r.get("name", "Cookie")
+		var n: String = r.get("name", "Model")
 		match t[0]:
-			"b": return n + " Box"
-			"g": return n + " Gift"
-		return n
+			"b": return n + " Batch"
+			"a": return n + " Agent"
+		return n + " Tokens"
 	return ITEMS[t]["name"] if ITEMS.has(t) else t
 
 
-## "raw" | "proc" | "cookie" | "box" | "gift"
+## Short product name without the suffix ("Chat 7B").
+static func model_name(id: String) -> String:
+	return str(recipe(id).get("name", id))
+
+
+## "raw" | "proc" | "token" | "batch" | "agent"
 static func cat(t: String) -> String:
-	if t.length() > 2 and t[1] == ":":
+	if is_product(t):
 		match t[0]:
-			"c": return "cookie"
-			"b": return "box"
-			"g": return "gift"
+			"t": return "token"
+			"b": return "batch"
+			"a": return "agent"
 	return "proc" if PROCESSED.has(t) else "raw"
 
 
@@ -337,25 +352,33 @@ static func recipe(id: String) -> Dictionary:
 	return {}
 
 
+## Tokens a product stands for (a batch and an agent run hold 6).
+static func token_count(t: String) -> int:
+	match cat(t):
+		"token": return 1
+		"batch", "agent": return 6
+	return 0
+
+
 static func item_height(t: String) -> float:
 	match cat(t):
-		"cookie": return COOKIE_H
-		"box": return BOX_H
-		"gift": return GIFT_H
+		"token": return TOKEN_H
+		"batch": return BATCH_H
+		"agent": return AGENT_H
 	return ITEMS[t]["h"] if ITEMS.has(t) else 0.2
 
 
 static func item_color(t: String) -> Color:
 	if is_product(t):
-		return COOKIE_LOOK.get(recipe_of(t), {"base": Color(0.86, 0.64, 0.38)})["base"]
+		return MODEL_LOOK.get(recipe_of(t), {"base": Color(0.5, 0.7, 0.9)})["base"]
 	return ITEMS[t]["color"] if ITEMS.has(t) else Color.WHITE
 
 
 static func item_icon(t: String) -> String:
 	match cat(t):
-		"cookie": return "ck_" + recipe_of(t)
-		"box": return "box"
-		"gift": return "gift"
+		"token": return "tk_" + recipe_of(t)
+		"batch": return "batch"
+		"agent": return "agent"
 	return t
 
 
@@ -363,11 +386,11 @@ static func level_title(lvl: int) -> String:
 	return LEVEL_TITLES[clampi(lvl - 1, 0, LEVEL_TITLES.size() - 1)]
 
 
-## Which building produces an ingredient ("" for none).
+## Which building produces a resource ("" for none).
 static func producer_of(ing: String) -> String:
 	for k in BUILDINGS:
 		var d: Dictionary = BUILDINGS[k]
-		if d.get("crop", "") == ing:
+		if d.get("res", "") == ing:
 			return k
 		if d.has("out") and (d["out"] as Dictionary).has(ing):
 			return k
@@ -383,12 +406,12 @@ static func limit_of(kind: String) -> int:
 	return int(BUILDINGS[kind].get("limit", -1))
 
 
-## Silos a bakery has at level l (one ingredient each).
-static func bakery_slots(l: int) -> int:
+## Module bays a server has at level l (one resource each).
+static func server_slots(l: int) -> int:
 	return clampi(1 + (l - 1) / 3, 1, 7)
 
 
-## Bakery level needed for a recipe with n ingredients.
+## Server level needed for a model with n resources.
 static func slots_level(n: int) -> int:
 	return maxi(1, (n - 1) * 3 + 1)
 

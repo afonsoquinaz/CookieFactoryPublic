@@ -20,6 +20,8 @@ var _money_pill: Control
 var _income_label: Label
 var _gem_chip: PanelContainer
 var _gem_label: Label
+var _token_chip: PanelContainer
+var _token_label: Label
 var _builders_chip: JuicyButton
 var _trend_chip: PanelContainer
 var _trend_icon: TextureRect
@@ -109,9 +111,9 @@ func _ready() -> void:
 		var c := world.cam.global_position
 		for i in 3:
 			Fx.burst(get_tree().current_scene, c + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
-		_popup("Cookie Empire!", "The Grand Cookie Palace is complete. Your cookies are a legend from coast to coast.",
-			"%s cookies sold  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["cookies"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
-			"palace", "Keep baking"))
+		_popup("Token Empire!", "The AGI Megacluster is online. Your tokens power the whole world.",
+			"%s tokens served  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["tokens"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
+			"mega", "Keep serving"))
 	_update_level()
 	_on_trend(Game.trending)
 	_gem_label.text = str(Game.gems)
@@ -146,7 +148,7 @@ func _welcome_back() -> void:
 
 
 func _set_hud_visible(on: bool) -> void:
-	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _trend_chip, _builders_chip, timers]:
+	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _token_chip, _trend_chip, _builders_chip, timers]:
 		c.visible = on
 	if on:
 		_trend_chip.visible = Game.trending != ""
@@ -185,24 +187,34 @@ func _build_top() -> void:
 	gh.add_child(Kit.icon("gem", 34))
 	_gem_label = Kit.game("0", 22, Kit.WHITE, 5)
 	gh.add_child(_gem_label)
+	# tokens served: the score of the game, with the serving rate
+	_token_chip = PanelContainer.new()
+	_token_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
+	_token_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_token_chip)
+	var tkh := Kit.hbox(6)
+	_token_chip.add_child(tkh)
+	tkh.add_child(Kit.icon("token", 34))
+	_token_label = Kit.game("0", 20, Color(0.7, 0.96, 1.0), 5)
+	tkh.add_child(_token_label)
 	# builders: busy / total
 	_builders_chip = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(118, 60))
 	_builders_chip.set_icon("builder", 40)
 	_builders_chip.set_text_value("0/0")
 	_builders_chip.pressed.connect(_on_builders)
 	add_child(_builders_chip)
-	# trending cookie
+	# trending model
 	_trend_chip = PanelContainer.new()
 	_trend_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
 	_trend_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_trend_chip)
 	var th := Kit.hbox(6)
 	_trend_chip.add_child(th)
-	_trend_icon = Kit.icon("cookie", 34)
+	_trend_icon = Kit.icon("token", 34)
 	th.add_child(_trend_icon)
 	_trend_label = Kit.game("", 17, Color(1.0, 0.9, 0.55), 5)
 	th.add_child(_trend_label)
-	# Empire level badge: grows with lifetime earnings
+	# Lab level badge: grows with lifetime tokens served
 	var hb := Control.new()
 	hb.custom_minimum_size = Vector2(190, 84)
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -258,10 +270,10 @@ func _on_trend(rid: String) -> void:
 	_trend_chip.visible = rid != "" and playing
 	if rid == "":
 		return
-	_trend_icon.texture = Icons.tex("ck_" + rid)
+	_trend_icon.texture = Icons.tex("tk_" + rid)
 	_trend_label.text = "Trending: %s  x%.1f" % [Defs.recipe(rid)["name"], 1.5 + 0.1 * Game.research("market")]
 	if playing:
-		toast("Customers are crazy about %s right now: it sells for more!" % Defs.recipe(rid)["name"], "ck_" + rid)
+		toast("%s is trending: its tokens sell for more!" % Defs.recipe(rid)["name"], "tk_" + rid)
 
 
 func _on_builders() -> void:
@@ -283,7 +295,7 @@ func _build_bottom() -> void:
 	btn_staff.pressed.connect(open_staff)
 	btn_research = _big_button("Research", "research", Kit.CHARCOAL)
 	btn_research.pressed.connect(func(): open_sheet(ResearchPanel.new()))
-	_btn_rush = _big_button("Boost", "boost", Kit.TERRACOTTA)
+	_btn_rush = _big_button("Overclock", "boost", Kit.TERRACOTTA)
 	_btn_rush.pressed.connect(_rush)
 	btn_build = _big_button("Build", "hammer", Kit.BRASS)
 	btn_build.custom_minimum_size = Vector2(160, 128)
@@ -347,7 +359,7 @@ func _update_buttons(dt: float) -> void:
 	actions.visible = sel and placement == null and _sheet == null
 	_show_button(btn_build, true)
 	_show_button(btn_staff, true)
-	_show_button(btn_research, int(Game.stats["cookies"]) > 0)
+	_show_button(btn_research, int(Game.stats["tokens"]) > 0)
 	_show_button(_btn_rush, Game.level >= 2)
 	_gem_chip.visible = true
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
@@ -377,14 +389,14 @@ func _update_buttons(dt: float) -> void:
 	elif Game.rush_cooldown > 0.0:
 		rl.text = Fmt.time(Game.rush_cooldown)
 	else:
-		rl.text = "Boost"
+		rl.text = "Overclock"
 	_btn_rush.set_colors(Kit.GREY if Game.rush_cooldown > 0.0 and not Game.rush_active() else Kit.TERRACOTTA, Kit.TERRACOTTA_EDGE)
 
 
 func _rush() -> void:
 	if Game.start_rush():
 		Sfx.play("levelup", -6.0, 1.2)
-		toast("Boost! Everything runs twice as fast for %ds" % int(Bal.rush_duration()), "boost")
+		toast("Overclocked! Everything runs twice as fast for %ds" % int(Bal.rush_duration()), "boost")
 	else:
 		Sfx.play("deny")
 		Kit.shake(_btn_rush)
@@ -413,7 +425,7 @@ func open_building(n: Building, focus := "") -> void:
 	open_sheet(p)
 
 
-func open_recipes(n: BakeryB) -> void:
+func open_recipes(n: ServerB) -> void:
 	open_sheet(RecipePanel.new().setup(n))
 
 
@@ -475,7 +487,7 @@ func _refresh_actions() -> void:
 		var name: String = Defs.OBSTACLES[ob["kind"]]["name"]
 		var btns := []
 		if j.is_empty():
-			actions.set_title(name, "Clear it to make room%s" % ("  ·  hides gems!" if int(ob["gems"]) > 0 else ""))
+			actions.set_title(name, "Clear it to make room%s" % ("  ·  hides sparks!" if int(ob["gems"]) > 0 else ""))
 			btns.append(["clear", "hammer", "Clear $%s" % Fmt.num(Game.obstacle_price()), Kit.SAGE, Game.clear_block(selected_ob) == ""])
 		else:
 			actions.set_title(name, "Being cleared: %s left" % Fmt.time(Game.job_left(j)))
@@ -505,12 +517,12 @@ func _refresh_actions() -> void:
 		b.append(["finish", "gem", _finish_label(j2), Kit.BRASS])
 	elif not n is SiteB and Bal.max_level(n.kind) > 1 and n.level < Bal.max_level(n.kind):
 		b.append(["upgrade", "hammer", "$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level)), Kit.SAGE])
-	if n is BakeryB:
-		b.append(["recipe", "ck_" + (n as BakeryB).recipe, "Bake", Kit.BRASS])
-	if (n is FarmB or n is BakeryB or n is MachineB) and not n is SiteB:
-		b.append(["staff", "farmer" if n is FarmB else "chef", "Staff", Kit.CHARCOAL])
-	if n is PalaceB and j2.is_empty() and not (n as PalaceB).complete():
-		b.append(["stage", "palace", "Next stage", Kit.BRASS, (n as PalaceB).can_advance()])
+	if n is ServerB:
+		b.append(["recipe", "tk_" + (n as ServerB).recipe, "Model", Kit.BRASS])
+	if (n is SourceB or n is ServerB or n is MachineB) and not n is SiteB:
+		b.append(["staff", "tech" if n is SourceB else "engineer", "Staff", Kit.CHARCOAL])
+	if n is MegaB and j2.is_empty() and not (n as MegaB).complete():
+		b.append(["stage", "mega", "Next stage", Kit.BRASS, (n as MegaB).can_advance()])
 	if not n is SiteB:
 		b.append(["move", "move", "Move", Kit.CHARCOAL])
 	actions.set_buttons(b, "b%d" % n.uid)
@@ -520,7 +532,7 @@ func _refresh_actions() -> void:
 
 func _finish_label(j: Dictionary) -> String:
 	var g := Bal.finish_gems(Game.job_left(j))
-	return "Free!" if g == 0 else "%d gems" % g
+	return "Free!" if g == 0 else "%d sparks" % g
 
 
 ## Little glowing stones along the selected building's road to the High Street.
@@ -577,18 +589,18 @@ func _on_action(id: String) -> void:
 		"upgrade":
 			open_building(n, "upgrade")
 		"recipe":
-			open_recipes(n as BakeryB)
+			open_recipes(n as ServerB)
 		"staff":
 			open_building(n, "staff")
 		"move":
 			start_placement(n.kind, n.uid)
 		"stage":
-			if (n as PalaceB).advance():
+			if (n as MegaB).advance():
 				Sfx.play("upgrade")
-				toast("Builders started on %s!" % Defs.PALACE_STAGES[(n as PalaceB).stage() + 1]["name"], "palace")
+				toast("Builders started on %s!" % Defs.MEGA_STAGES[(n as MegaB).stage() + 1]["name"], "mega")
 			else:
 				Sfx.play("deny")
-				toast((n as PalaceB).advance_block(), "palace")
+				toast((n as MegaB).advance_block(), "mega")
 		"clear":
 			if Game.clear_obstacle(selected_ob):
 				Sfx.play("upgrade", -4.0)
@@ -682,7 +694,7 @@ func _land_popup(chunk: Vector2i) -> void:
 	for i in Defs.BIOMES[b]["bonus"]:
 		bonus.append(Defs.item_name(i))
 	var price := Game.land_price()
-	_popup(Defs.BIOMES[b]["name"], "Farms of %s grow 40%% faster here." % ", ".join(bonus), "$%s" % Fmt.num(price), "land",
+	_popup(Defs.BIOMES[b]["name"], "Sources of %s work 40%% faster here." % ", ".join(bonus), "$%s" % Fmt.num(price), "land",
 		"Buy land" if Game.can_afford(price) else "Not enough money", func():
 			if Game.buy_chunk(chunk):
 				Sfx.play("cash")
@@ -709,8 +721,10 @@ func _layout() -> void:
 	_lvl_box.position = Vector2(_gear.position.x - _lvl_box.size.x - 8, 12 + top)
 	_builders_chip.size = _builders_chip.custom_minimum_size
 	_builders_chip.position = Vector2(vs.x - _builders_chip.size.x - 14, 96 + top)
+	_token_chip.size = _token_chip.get_combined_minimum_size()
+	_token_chip.position = Vector2(_gem_chip.position.x + _gem_chip.size.x + 10, 88 + top)
 	_trend_chip.size = _trend_chip.get_combined_minimum_size()
-	_trend_chip.position = Vector2(_gem_chip.position.x + _gem_chip.size.x + 12, 92 + top)
+	_trend_chip.position = Vector2(40, 140 + top)
 	var bs := _bar.get_combined_minimum_size()
 	_bar.size = Vector2(vs.x, bs.y)
 	_bar.position = Vector2(0, vs.y - bs.y - 30)
@@ -728,6 +742,8 @@ func _process(dt: float) -> void:
 	_money_label.text = Fmt.num(roundf(_shown_money))
 	var inc := Game.recent_income()
 	_income_label.text = ("+%s/min" % Fmt.num(inc * 60.0)) if inc > 0.05 else ""
+	var tr := Game.token_rate()
+	_token_label.text = Fmt.num(int(Game.stats["tokens"])) + (("  ·  %s/s" % (("%.1f" % tr) if tr < 10.0 else Fmt.num(tr))) if tr > 0.05 else "")
 	if playing and placement == null:
 		_update_buttons(dt)
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
@@ -813,22 +829,25 @@ func _on_job_done(j: Dictionary) -> void:
 
 func _on_discovered(rid: String) -> void:
 	var r := Defs.recipe(rid)
-	_popup("New cookie!", r["name"], "Sells for $%s each" % Fmt.num(Bal.item_value("c:" + rid)), "ck_" + rid, "Yum!")
+	_popup("New model online!", r["name"], "%s  ·  %d ms  ·  $%s a token" % [r["params"], int(r["lat"]), Fmt.num(Bal.item_value("t:" + rid))], "tk_" + rid, "Ship it!")
 
 
 func _on_level_up(level: int, gems: int) -> void:
 	_update_level()
 	Sfx.play("levelup", -2.0)
 	Kit.bounce(_lvl_box, 0.2)
-	_popup("Empire level %d!" % level, Defs.level_title(level), "+%d gems" % gems if gems > 0 else "", "star", "Awesome!")
+	_popup("Lab level %d!" % level, Defs.level_title(level), "+%d sparks" % gems if gems > 0 else "", "star", "Awesome!")
 	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
 
 
 func _offline_popup(amount: float) -> void:
 	var away := Fmt.time(Game.offline_seconds)
-	_popup("Welcome back!", "You were away %s. Your staff kept baking and your builders kept building." % away, "+$%s" % Fmt.num(amount), "cash", "Collect", func():
+	var toks := ("  ·  %s tokens" % Fmt.num(Game.offline_tokens)) if Game.offline_tokens > 0 else ""
+	_popup("Welcome back!", "You were away %s. Your servers kept serving and your builders kept building." % away, "+$%s%s" % [Fmt.num(amount), toks], "cash", "Collect", func():
 		Game.add_money(amount)
+		Game.add_tokens(Game.offline_tokens)
 		Game.offline_reward = 0
+		Game.offline_tokens = 0
 		Sfx.play("cash"))
 
 

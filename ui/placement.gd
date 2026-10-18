@@ -146,7 +146,7 @@ func _price_text() -> String:
 		return "Moving"
 	var gp := Game.gem_price_of(kind)
 	var t := Game.build_time_of(kind)
-	var s := ("%d gems" % gp) if gp > 0 else ("$" + Fmt.num(Game.price_of(kind)))
+	var s := ("%d sparks" % gp) if gp > 0 else ("$" + Fmt.num(Game.price_of(kind)))
 	if t > 0.0:
 		s += "  ·  builds in %s" % Fmt.time(t)
 	return s
@@ -227,7 +227,7 @@ func _advice(road: Array[Vector2i]) -> String:
 			bits.append("Right next to a road.")
 		else:
 			bits.append("A road of %d tiles will be built to it." % (road.size() - 1))
-	if d["cat"] == "farm":
+	if d["cat"] == "source":
 		var b := Terrain.biome_at(center)
 		if Defs.BIOMES[b]["bonus"].has(d["crop"]):
 			bits.append("%s: grows 40%% faster here!" % Defs.BIOMES[b]["name"])
@@ -343,7 +343,7 @@ func _confirm() -> void:
 		finish(true)
 		return
 	var extra := {}
-	if kind == "palace":
+	if kind == "mega":
 		extra["stage"] = 0
 	var b := Game.place(kind, origin, rot, extra)
 	if b.is_empty():
@@ -353,7 +353,7 @@ func _confirm() -> void:
 	last_rot = rot
 	Kit.bounce(_ok, 0.12)
 	# keep placing cheap decor
-	if Defs.is_instant(kind) and kind != "statue" and Game.build_block(kind) == "":
+	if Defs.is_instant(kind) and kind != "gpu_statue" and Game.build_block(kind) == "":
 		_dirty = true
 		return
 	finish(true)

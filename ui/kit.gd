@@ -1,6 +1,6 @@
 class_name Kit
-## UI building blocks for Cookie Empire's game UI: wood-framed parchment
-## panels, glossy beveled buttons, ribbon banners and framed counters (9-patch
+## UI building blocks for Token Empire's game UI: graphite-framed white
+## panels, soft beveled buttons, a teal banner and glassy counters (9-patch
 ## textures drawn by tools/gen_ui.py), Lilita One for game text with a dark
 ## outline, Manrope for small print, Material Icons glyphs.
 
@@ -12,24 +12,24 @@ const ICONS := preload("res://assets/fonts/MaterialIconsRound.otf")
 static var _fonts := {}
 static var _skins := {}
 
-const INK := Color(0.32, 0.19, 0.11)
-const OUTLINE := Color(0.2, 0.11, 0.06)
-const MUTED := Color(0.52, 0.4, 0.3)
+const INK := Color(0.13, 0.17, 0.24)
+const OUTLINE := Color(0.07, 0.1, 0.15)
+const MUTED := Color(0.4, 0.46, 0.54)
 const WHITE := Color(1, 1, 1)
-const PAPER := Color(0.97, 0.95, 0.91)
-const PAPER_DARK := Color(0.9, 0.87, 0.81)
-const LINE := Color(0.84, 0.8, 0.74)
-const GLASS := Color(0.11, 0.1, 0.09, 0.74)
-const TERRACOTTA := Color(0.76, 0.45, 0.33)
-const TERRACOTTA_EDGE := Color(0.6, 0.33, 0.24)
-const SAGE := Color(0.44, 0.55, 0.4)
-const SAGE_EDGE := Color(0.32, 0.42, 0.29)
-const BRASS := Color(0.82, 0.67, 0.4)
-const BRASS_EDGE := Color(0.64, 0.5, 0.28)
-const CHARCOAL := Color(0.22, 0.21, 0.21)
-const CHARCOAL_EDGE := Color(0.1, 0.1, 0.1)
-const GREY := Color(0.78, 0.76, 0.72)
-const GREY_EDGE := Color(0.64, 0.62, 0.58)
+const PAPER := Color(0.97, 0.98, 0.99)
+const PAPER_DARK := Color(0.88, 0.91, 0.94)
+const LINE := Color(0.78, 0.83, 0.88)
+const GLASS := Color(0.07, 0.1, 0.15, 0.76)
+const TERRACOTTA := Color(0.92, 0.42, 0.38)
+const TERRACOTTA_EDGE := Color(0.7, 0.28, 0.26)
+const SAGE := Color(0.24, 0.66, 0.6)
+const SAGE_EDGE := Color(0.14, 0.46, 0.44)
+const BRASS := Color(0.98, 0.74, 0.3)
+const BRASS_EDGE := Color(0.76, 0.54, 0.18)
+const CHARCOAL := Color(0.18, 0.22, 0.3)
+const CHARCOAL_EDGE := Color(0.08, 0.1, 0.15)
+const GREY := Color(0.74, 0.78, 0.82)
+const GREY_EDGE := Color(0.58, 0.62, 0.68)
 
 # legacy names (older call sites) mapped onto the new palette
 const CHOCO := INK

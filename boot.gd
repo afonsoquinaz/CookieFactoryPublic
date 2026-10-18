@@ -1,5 +1,5 @@
 extends Node
-## First scene: the Cookie Empire crest (emblem + title, laid out to fit any
+## First scene: the Token Empire crest (emblem + title, laid out to fit any
 ## screen) with a progress bar while the game loads in the background. Then,
 ## still behind the cover, Warmup builds every mesh, compiles every shader and
 ## opens every panel once (a few small steps a frame, so the bar keeps moving),
@@ -30,8 +30,8 @@ const TIPS := [
 	"Builders keep building while you're away",
 	"Jobs with 30 seconds left finish for free",
 	"Every building gets a road to the High Street. Keep entrances clear",
-	"Bushes, stumps and boulders often hide gems",
-	"Every 3 Bakery levels add a silo for richer recipes",
+	"Bushes, e-waste and old containers often hide sparks",
+	"Every 3 server levels add a module bay for bigger models",
 ]
 
 
@@ -44,7 +44,7 @@ func _ready() -> void:
 	_cover.mouse_filter = Control.MOUSE_FILTER_STOP
 	_layer.add_child(_cover)
 	var bg := ColorRect.new()
-	bg.color = Color(0.15, 0.1, 0.08)
+	bg.color = Color(0.05, 0.08, 0.13)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_cover.add_child(bg)
 	# laid out live (not a baked image) so it fits any screen shape
@@ -58,7 +58,7 @@ func _ready() -> void:
 	em.custom_minimum_size = Vector2(170, 170)
 	em.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_crest.add_child(em)
-	var t1 := Kit.game("COOKIE", 62, Color(1.0, 0.93, 0.78), 11)
+	var t1 := Kit.game("TOKEN", 62, Color(0.7, 0.96, 1.0), 11)
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_crest.add_child(t1)
 	var ribbon := PanelContainer.new()
@@ -124,7 +124,7 @@ func _process(dt: float) -> void:
 				set_process(false)
 		1:
 			if _shown >= 0.3:
-				_status.text = "Laying out your empire..."
+				_status.text = "Laying out your campus..."
 				var game := _packed.instantiate()
 				get_tree().root.add_child(game)
 				get_tree().current_scene = game
@@ -141,7 +141,7 @@ func _process(dt: float) -> void:
 		3:
 			var done := _warm.run(10.0)
 			var f := 1.0 - float(_warm.steps.size()) / float(_warm_total)
-			_status.text = ["Raising the buildings...", "Stocking the pantry...", "Waking the staff...", "Warming the ovens..."][mini(3, int(f * 4.0))]
+			_status.text = ["Racking the servers...", "Loading the weights...", "Waking the staff...", "Warming up the GPUs..."][mini(3, int(f * 4.0))]
 			_target = 0.36 + 0.6 * f
 			if done:
 				_warm.finish()

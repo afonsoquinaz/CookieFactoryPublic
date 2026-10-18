@@ -3,13 +3,14 @@ extends Node3D
 ## A cute toy-built person (chunky DEADGRID-style proportions: big rounded
 ## head, tapered torso, two-segment limbs, mitt hands, boots, ink outline) but
 ## dressed for the job: a real face with eyes, brows and cheeks, hair, and a
-## work outfit per role (farmer in plaid + denim overalls + straw hat,
-## gatherer in a field vest, feeder in hi-vis + hard hat, collector in chef
-## whites, loader in a work jacket + beanie; you are the baker).
+## work outfit per role (courier in a jacket and cap pushing a hand truck,
+## technician in hi-vis with a safety helmet and wrench, engineer in a hoodie
+## with headphones and a laptop, builder in orange overalls; you are the
+## founder in a black turtleneck).
 ##
 ## Animation inputs:
 ##   move_speed  0..1 walk blend      carrying   arms forward holding a stack
-##   work        "", "hoe", "pick", "milk", "scoop", "cheer", "sit", "push"
+##   work        "", "hoe", "pick", "milk", "type", "cheer", "sit", "push"
 
 const HEAD_Y := 1.3
 
@@ -20,7 +21,7 @@ var shirt := Color(0.95, 0.93, 0.88)
 var pants := Color(0.3, 0.3, 0.32)
 var boots := Color(0.34, 0.24, 0.18)
 var hands := Color(0.96, 0.8, 0.66)
-var outfit := ""            # overalls | vest | hivis | chef | jacket | apron | ""
+var outfit := ""            # overalls | hivis | hoodie | jacket | turtleneck | ""
 var outfit_col := Color(0.4, 0.5, 0.7)
 var move_speed := 0.0
 var carrying := false
@@ -49,9 +50,8 @@ var _blink := 2.0
 
 ## hat + tool per look
 const LOOKS := {
-	"farmer": ["straw", "hoe"], "gatherer": ["cap", "basket"], "feeder": ["hardhat", "scoop"],
-	"collector": ["bandana", "tray"], "loader": ["redcap", "dolly"], "chef": ["chef", "whisk"],
-	"customer": ["none", ""], "player": ["baker", ""], "builder": ["hardhat", "hammer"],
+	"courier": ["cap", "dolly"], "tech": ["safety", "wrench"], "engineer": ["headphones", "laptop"],
+	"customer": ["none", ""], "player": ["glasses", ""], "builder": ["hardhat", "hammer"],
 }
 const CASUAL := [Color(0.42, 0.55, 0.68), Color(0.78, 0.5, 0.42), Color(0.55, 0.62, 0.45), Color(0.86, 0.76, 0.5),
 	Color(0.62, 0.48, 0.62), Color(0.92, 0.9, 0.84), Color(0.36, 0.42, 0.5), Color(0.82, 0.62, 0.62)]
@@ -72,55 +72,40 @@ func setup(p_look: String, p_seed := 0) -> void:
 		"player":
 			skin = SKINS[0]
 			hands = skin
-			hair = Color(0.36, 0.22, 0.15)
-			shirt = Color(0.96, 0.94, 0.9)
-			pants = Color(0.3, 0.26, 0.24)
-			outfit = "apron"
-			outfit_col = Color(0.45, 0.28, 0.19)
-		"farmer":
-			shirt = Color(0.72, 0.3, 0.26)          # red plaid shirt
-			outfit = "overalls"
-			outfit_col = Color(0.33, 0.45, 0.66)    # denim
-			pants = outfit_col
-			hands = Color(0.55, 0.42, 0.3)
-		"gatherer":
-			shirt = Color(0.86, 0.84, 0.74)
-			outfit = "vest"
-			outfit_col = Color(0.44, 0.52, 0.34)    # field vest
-			pants = Color(0.52, 0.44, 0.34)
+			hair = Color(0.3, 0.22, 0.17)
+			shirt = Color(0.16, 0.16, 0.18)          # the founder's black turtleneck
+			pants = Color(0.32, 0.36, 0.46)
+			outfit = "turtleneck"
+			outfit_col = shirt
+			boots = Color(0.94, 0.94, 0.92)          # white sneakers
+		"tech":
+			shirt = Color(0.56, 0.6, 0.66)
+			outfit = "hivis"
+			outfit_col = Color(0.96, 0.6, 0.22)
+			pants = Color(0.26, 0.29, 0.34)
+			hands = Color(0.3, 0.32, 0.36)            # work gloves
 		"builder":
 			shirt = Color(0.86, 0.82, 0.74)
 			outfit = "overalls"
 			outfit_col = Color(0.88, 0.56, 0.24)    # orange work overalls
 			pants = outfit_col
 			hands = Color(0.62, 0.5, 0.36)
-		"feeder":
-			shirt = Color(0.56, 0.6, 0.66)
-			outfit = "hivis"
-			outfit_col = Color(0.96, 0.6, 0.22)
-			pants = Color(0.26, 0.29, 0.34)
-			hands = Color(0.9, 0.78, 0.36)
-		"chef":
-			shirt = Color(0.98, 0.98, 0.97)
-			outfit = "chef"
-			outfit_col = Color(0.98, 0.98, 0.97)
-			pants = Color(0.3, 0.3, 0.32)
+		"engineer":
+			shirt = Color(0.94, 0.94, 0.92)
+			outfit = "hoodie"
+			outfit_col = [Color(0.4, 0.34, 0.6), Color(0.28, 0.42, 0.56), Color(0.36, 0.38, 0.42)][rng.randi() % 3]
+			pants = Color(0.24, 0.26, 0.32)
 			boots = Color(0.92, 0.92, 0.9)
-		"collector":
-			shirt = Color(0.95, 0.92, 0.86)
-			outfit = "apron"
-			outfit_col = Color(0.62, 0.44, 0.58)    # pastry apron, mauve
-			pants = Color(0.32, 0.3, 0.34)
 		"customer":
 			shirt = CASUAL[rng.randi() % CASUAL.size()]
 			pants = [Color(0.3, 0.34, 0.44), Color(0.52, 0.46, 0.38), Color(0.24, 0.24, 0.26), Color(0.6, 0.56, 0.5)][rng.randi() % 4]
-			outfit = "jacket" if rng.randf() < 0.35 else ""
+			outfit = ["jacket", "hoodie", "", ""][rng.randi() % 4]
 			outfit_col = CASUAL[rng.randi() % CASUAL.size()].darkened(0.15)
 			boots = [Color(0.34, 0.24, 0.18), Color(0.86, 0.84, 0.8), Color(0.2, 0.2, 0.22)][rng.randi() % 3]
-		"loader":
+		"courier":
 			shirt = Color(0.88, 0.86, 0.8)
 			outfit = "jacket"
-			outfit_col = Color(0.28, 0.34, 0.46)
+			outfit_col = Color(0.26, 0.38, 0.58)     # courier blue
 			pants = Color(0.24, 0.26, 0.3)
 			hands = Color(0.5, 0.38, 0.28)
 		_:
@@ -170,7 +155,7 @@ func _build() -> void:
 		return k.shade_figure(1.05).commit())
 	var arm_lower := MeshKit.cached("ch_arml_" + key, func():
 		var k := MeshKit.new()
-		var fore := skin if (look == "farmer" or look == "player" or look == "gatherer") else _sleeve()
+		var fore := _sleeve()
 		k.rbox(Vector3(0.11, 0.2, 0.12), 0.03, fore, MeshKit.at(0, -0.1, 0))
 		k.rbox(Vector3(0.18, 0.18, 0.18), 0.07, hands, MeshKit.at(0, -0.27, 0))
 		return k.shade_figure(0.85).commit())
@@ -206,8 +191,7 @@ func _build() -> void:
 
 func _sleeve() -> Color:
 	match outfit:
-		"chef": return outfit_col
-		"jacket": return outfit_col
+		"hoodie", "jacket", "turtleneck": return outfit_col
 		"hivis": return shirt
 	return shirt
 
@@ -215,7 +199,7 @@ func _sleeve() -> Color:
 func _torso_mesh() -> Mesh:
 	var k := MeshKit.new()
 	var base := shirt
-	if outfit == "jacket" or outfit == "chef":
+	if outfit in ["jacket", "hoodie", "turtleneck"]:
 		base = outfit_col
 	k.rbox(Vector3(0.42, 0.54, 0.34), 0.04, base)
 	k.taper(func(y: float) -> Vector2:
@@ -223,35 +207,32 @@ func _torso_mesh() -> Mesh:
 		return Vector2(0.86 + 0.14 * t * t * (3.0 - 2.0 * t), 1.0))
 	match outfit:
 		"overalls":
-			# plaid lines on the shirt, denim bib + straps + brass buttons
+			# denim-style bib + straps + brass buttons
 			for i in 3:
-				k.rbox(Vector3(0.43, 0.025, 0.345), 0.01, shirt.darkened(0.25), MeshKit.at(0, 0.18 - i * 0.1, 0))
+				k.rbox(Vector3(0.43, 0.025, 0.345), 0.01, shirt.darkened(0.12), MeshKit.at(0, 0.18 - i * 0.1, 0))
 			k.rbox(Vector3(0.3, 0.26, 0.03), 0.02, outfit_col, MeshKit.at(0, -0.05, 0.172))
 			k.rbox(Vector3(0.4, 0.14, 0.355), 0.02, outfit_col, MeshKit.at(0, -0.21, 0))
 			for sd in [-1.0, 1.0]:
 				k.rbox(Vector3(0.055, 0.3, 0.02), 0.01, outfit_col, MeshKit.xf(Vector3(sd * 0.11, 0.12, 0.17), Vector3(0, 0, sd * 8)))
 				k.sphere(0.022, Pal.BRASS, MeshKit.at(sd * 0.1, 0.06, 0.19), 6, 4)
-		"vest":
-			for sd in [-1.0, 1.0]:
-				k.rbox(Vector3(0.15, 0.48, 0.36), 0.03, outfit_col, MeshKit.at(sd * 0.13, -0.01, 0))
-			k.rbox(Vector3(0.08, 0.06, 0.02), 0.01, outfit_col.darkened(0.2), MeshKit.at(-0.12, -0.08, 0.185))
 		"hivis":
 			k.rbox(Vector3(0.43, 0.42, 0.35), 0.03, outfit_col, MeshKit.at(0, -0.04, 0))
 			for yy in [-0.12, 0.06]:
 				k.rbox(Vector3(0.44, 0.035, 0.36), 0.01, Color(0.92, 0.92, 0.88), MeshKit.at(0, yy, 0))
-		"chef":
-			for i in 3:
-				for sd in [-1.0, 1.0]:
-					k.sphere(0.02, Color(0.75, 0.75, 0.78), MeshKit.at(sd * 0.06, 0.12 - i * 0.1, 0.175), 6, 4)
-			k.ellipsoid(Vector3(0.12, 0.05, 0.08), Color(0.78, 0.32, 0.27), MeshKit.at(0, 0.27, 0.12), 8, 4)
+			k.rbox(Vector3(0.08, 0.1, 0.02), 0.01, Color(0.2, 0.22, 0.26), MeshKit.at(0.1, 0.12, 0.18))
+		"hoodie":
+			# hood bunched at the back, a kangaroo pocket, drawstrings
+			k.ellipsoid(Vector3(0.2, 0.08, 0.1), outfit_col.darkened(0.1), MeshKit.at(0, 0.25, -0.15), 10, 5)
+			k.rbox(Vector3(0.26, 0.12, 0.02), 0.03, outfit_col.darkened(0.12), MeshKit.at(0, -0.14, 0.172))
+			for sd in [-1.0, 1.0]:
+				k.cyl(0.008, 0.12, Color(0.96, 0.96, 0.94), MeshKit.at(sd * 0.05, 0.12, 0.18), 4)
+			k.rbox(Vector3(0.43, 0.05, 0.355), 0.02, outfit_col.darkened(0.08), MeshKit.at(0, -0.25, 0))
 		"jacket":
 			k.rbox(Vector3(0.025, 0.5, 0.02), 0.01, outfit_col.darkened(0.25), MeshKit.at(0, -0.01, 0.172))
 			k.rbox(Vector3(0.43, 0.06, 0.35), 0.02, outfit_col.darkened(0.15), MeshKit.at(0, 0.25, 0))
-			k.ellipsoid(Vector3(0.16, 0.06, 0.13), Color(0.74, 0.36, 0.28), MeshKit.at(0, 0.27, 0.04), 8, 4)
-		"apron":
-			k.rbox(Vector3(0.3, 0.44, 0.03), 0.015, outfit_col, MeshKit.at(0, -0.06, 0.172))
-			k.rbox(Vector3(0.36, 0.05, 0.355), 0.015, outfit_col.darkened(0.12), MeshKit.at(0, -0.12, 0))
-			k.rbox(Vector3(0.12, 0.05, 0.03), 0.01, Color(0.86, 0.7, 0.42), MeshKit.at(0, 0.24, 0.17))
+			k.rbox(Vector3(0.12, 0.06, 0.02), 0.01, Color(0.96, 0.8, 0.3), MeshKit.at(-0.1, 0.1, 0.18))
+		"turtleneck":
+			k.cyl(0.13, 0.08, outfit_col.lightened(0.05), MeshKit.at(0, 0.24, 0), 12, 0.03)
 	k.shade_figure(0.8)
 	return k.commit()
 
@@ -277,8 +258,6 @@ func _head_mesh() -> Mesh:
 		k.rbox(Vector3(0.06, 0.22, 0.32), 0.03, hair, MeshKit.at(sd * 0.25, 0.08, -0.05))
 		# ears
 		k.ellipsoid(Vector3(0.03, 0.06, 0.05), skin.darkened(0.04), MeshKit.at(sd * 0.255, -0.03, 0.02), 6, 4)
-	if look == "player":
-		k.sphere(0.09, hair, MeshKit.at(0, 0.2, -0.24), 10, 6)
 	k.shade_figure(HEAD_Y)
 	return k.commit()
 
@@ -305,39 +284,33 @@ func _hat_mesh() -> Mesh:
 static func build_hat(hat: String) -> Mesh:
 	var k := MeshKit.new()
 	match hat:
-		"straw":
-			var straw := Color(0.95, 0.82, 0.52)
-			k.cyl(0.44, 0.035, straw, MeshKit.at(0, 0.18, 0), 20, 0.012)
-			k.cyl(0.26, 0.17, straw, MeshKit.at(0, 0.2, 0), 18, 0.04, 0.22)
-			k.cyl(0.265, 0.05, Color(0.72, 0.3, 0.26), MeshKit.at(0, 0.21, 0), 18, 0.01)
 		"cap":
-			var c := Color(0.42, 0.5, 0.34)
+			var c := Color(0.26, 0.38, 0.58)
 			k.rbox(Vector3(0.54, 0.14, 0.5), 0.06, c, MeshKit.at(0, 0.27, -0.01))
 			k.rbox(Vector3(0.44, 0.035, 0.22), 0.015, c.darkened(0.15), MeshKit.at(0, 0.22, 0.3))
-		"redcap":
-			# knitted beanie with a turned-up cuff and a bobble
-			var r := Color(0.74, 0.34, 0.27)
-			k.rbox(Vector3(0.55, 0.2, 0.51), 0.09, r, MeshKit.at(0, 0.27, -0.01))
-			k.rbox(Vector3(0.57, 0.07, 0.53), 0.03, r.darkened(0.12), MeshKit.at(0, 0.18, -0.01))
-			k.sphere(0.07, Color(0.95, 0.92, 0.86), MeshKit.at(0, 0.41, 0), 8, 5)
+			k.rbox(Vector3(0.12, 0.08, 0.02), 0.02, Color(0.96, 0.8, 0.3), MeshKit.at(0, 0.29, 0.245))
+		"safety":
+			var w := Color(0.96, 0.96, 0.95)
+			k.ellipsoid(Vector3(0.29, 0.17, 0.28), w, MeshKit.at(0, 0.24, 0), 16, 8)
+			k.cyl(0.32, 0.03, w.darkened(0.06), MeshKit.at(0, 0.23, 0.02), 18)
+			k.rbox(Vector3(0.58, 0.04, 0.05), 0.02, Color(0.3, 0.6, 0.86), MeshKit.at(0, 0.32, 0))
+		"headphones":
+			var hp := Color(0.2, 0.2, 0.22)
+			k.torus(0.28, 0.025, hp, MeshKit.xf(Vector3(0, 0.05, -0.02), Vector3(90, 0, 90)), 16, 5, PI)
+			for sd in [-1.0, 1.0]:
+				k.cyl(0.09, 0.07, hp, MeshKit.xf(Vector3(sd * 0.26, -0.02, 0.0), Vector3(0, 0, sd * 90)), 12, 0.02)
+				k.cyl(0.05, 0.075, Items.lit(Color(0.5, 0.86, 1.0), 0.5), MeshKit.xf(Vector3(sd * 0.27, -0.02, 0.0), Vector3(0, 0, sd * 90)), 10)
 		"hardhat":
 			var o := Color(0.97, 0.78, 0.26)
 			k.ellipsoid(Vector3(0.29, 0.17, 0.28), o, MeshKit.at(0, 0.24, 0), 16, 8)
 			k.cyl(0.33, 0.03, o.darkened(0.08), MeshKit.at(0, 0.23, 0.02), 18)
 			k.rbox(Vector3(0.06, 0.06, 0.46), 0.02, o.lightened(0.15), MeshKit.at(0, 0.4, 0))
-		"chef":
-			var w := Color(0.98, 0.98, 0.97)
-			k.cyl(0.25, 0.2, w, MeshKit.at(0, 0.22, 0), 16, 0.03, 0.27)
-			k.ellipsoid(Vector3(0.31, 0.13, 0.31), w, MeshKit.at(0, 0.48, 0), 16, 7)
-		"bandana":
-			var m := Color(0.62, 0.44, 0.58)
-			k.ellipsoid(Vector3(0.29, 0.12, 0.28), m, MeshKit.at(0, 0.2, -0.02), 14, 6)
-			k.ellipsoid(Vector3(0.08, 0.05, 0.12), m.darkened(0.12), MeshKit.xf(Vector3(0, 0.1, -0.29), Vector3(30, 0, 0)), 8, 4)
-		"baker":
-			# the founder's soft baker's beret
-			var b := Color(0.45, 0.28, 0.19)
-			k.ellipsoid(Vector3(0.3, 0.09, 0.28), b, MeshKit.xf(Vector3(0.03, 0.29, -0.02), Vector3(0, 0, -8)), 16, 6)
-			k.sphere(0.035, b.darkened(0.2), MeshKit.at(0.03, 0.38, -0.02), 6, 4)
+		"glasses":
+			# the founder's round glasses
+			var g := Color(0.16, 0.16, 0.18)
+			for sd in [-1.0, 1.0]:
+				k.torus(0.06, 0.012, g, MeshKit.xf(Vector3(sd * 0.1, -0.01, 0.245), Vector3(90, 0, 0)), 12, 4)
+			k.rbox(Vector3(0.06, 0.015, 0.015), 0.005, g, MeshKit.at(0, 0.0, 0.25))
 		_:
 			return null
 	return k.commit()
@@ -349,8 +322,6 @@ func _build_tool() -> void:
 	var tool: String = LOOKS[look][1]
 	var mesh := MeshKit.cached("dg_tool_" + tool, func(): return Character.build_tool(tool))
 	match tool:
-		"basket":
-			tool_node = _part(mesh, back_mount, Vector3.ZERO, true, false)
 		"dolly":
 			tool_node = _part(mesh, body, Vector3(0, 0, 0.5), true, false)
 		_:
@@ -360,27 +331,16 @@ func _build_tool() -> void:
 static func build_tool(tool: String) -> Mesh:
 	var k := MeshKit.new()
 	match tool:
-		"hoe":
-			k.cyl(0.025, 0.95, Pal.WOOD, MeshKit.at(0, -0.4, 0.02), 6)
-			k.rbox(Vector3(0.16, 0.04, 0.18), 0.015, Pal.STEEL, MeshKit.xf(Vector3(0, 0.55, 0.09), Vector3(-20, 0, 0)))
-		"basket":
-			var b := Color(0.72, 0.56, 0.36)
-			k.cyl(0.2, 0.3, b, MeshKit.at(0, -0.18, -0.05), 12, 0.03, 0.23)
-			k.torus(0.23, 0.02, b.darkened(0.15), MeshKit.at(0, 0.12, -0.05), 14, 4)
-		"scoop":
-			k.cyl(0.02, 0.28, Pal.WOOD_DARK, MeshKit.xf(Vector3(0, 0, 0), Vector3(90, 0, 0)), 6)
-			k.rbox(Vector3(0.2, 0.08, 0.24), 0.04, Pal.STEEL, MeshKit.at(0, 0.0, 0.36))
-		"tray":
-			k.rbox(Vector3(0.46, 0.025, 0.32), 0.01, Pal.STEEL_DARK, MeshKit.at(0, -0.01, 0.16))
-			for x in [-0.13, 0.0, 0.13]:
-				Items.cookie_into(k, "choc", 0.055, 0.03, MeshKit.at(x, 0.005, 0.16))
+		"wrench":
+			k.rbox(Vector3(0.04, 0.3, 0.025), 0.01, Pal.STEEL, MeshKit.at(0, -0.02, 0.04))
+			k.torus(0.04, 0.015, Pal.STEEL, MeshKit.xf(Vector3(0, 0.15, 0.04), Vector3(0, 90, 0)), 10, 4)
+		"laptop":
+			k.rbox(Vector3(0.3, 0.02, 0.2), 0.01, Color(0.78, 0.8, 0.84), MeshKit.at(0, 0.0, 0.14))
+			k.rbox(Vector3(0.3, 0.2, 0.015), 0.01, Color(0.78, 0.8, 0.84), MeshKit.xf(Vector3(0, 0.1, 0.04), Vector3(-15, 0, 0)))
+			k.rbox(Vector3(0.26, 0.16, 0.005), 0.008, Items.lit(Color(0.5, 0.7, 1.0), 0.5), MeshKit.xf(Vector3(0, 0.1, 0.05), Vector3(-15, 0, 0)))
 		"hammer":
 			k.cyl(0.025, 0.36, Pal.WOOD, MeshKit.at(0, -0.12, 0.02), 6)
 			k.rbox(Vector3(0.08, 0.08, 0.2), 0.02, Pal.STEEL_DARK, MeshKit.at(0, 0.24, 0.06))
-		"whisk":
-			k.cyl(0.022, 0.2, Pal.WOOD, MeshKit.at(0, -0.05, 0.02), 6)
-			for i in 4:
-				k.torus(0.05, 0.008, Pal.STEEL, MeshKit.xf(Vector3(0, 0.2, 0.02), Vector3(0, i * 45, 0), Vector3(1, 1.8, 1)), 10, 3)
 		"dolly":
 			var r := Pal.STEEL_DARK
 			for sx in [-0.2, 0.2]:
@@ -451,7 +411,7 @@ func _process(dt: float) -> void:
 			el = -0.2
 			er = -0.2
 			head.rotation.x = -0.2
-		"milk":
+		"copper":
 			body.position.y = -0.22
 			leg_l.rotation.x = -1.2
 			leg_r.rotation.x = -1.2
@@ -460,12 +420,13 @@ func _process(dt: float) -> void:
 			ar = -1.0 + sin(_t * 9.0) * 0.3
 			al = -1.0 - sin(_t * 9.0) * 0.3
 			upper.rotation.x = 0.3
-		"scoop":
-			var w2 := sin(_t * 4.5)
-			ar = -1.0 - w2 * 0.5
-			al = ar
-			el = -0.5
-			er = -0.5
+		"type":
+			var w2 := sin(_t * 14.0)
+			ar = -0.7 + w2 * 0.08
+			al = -0.7 - w2 * 0.08
+			el = -0.9
+			er = -0.9
+			head.rotation.x = 0.18 + sin(_t * 0.7) * 0.04
 		"cheer":
 			ar = -2.8 + sin(_t * 10.0) * 0.2
 			al = -2.8 - sin(_t * 10.0) * 0.2
