@@ -2,7 +2,7 @@ class_name Building
 extends Node3D
 ## Base for everything you can place: position on the grid, rotation,
 ## level and visual tier, the entrance where its road arrives, the holders
-## porters take from and bring to, colliders and walking solids.
+## couriers take from and bring to, colliders and walking solids.
 ##
 ## Local frame: the building's centre at the origin, its front facing +Z.
 ## Size in cells comes from Defs.BUILDINGS[kind].size (x = width, y = depth).
@@ -232,7 +232,7 @@ func flash() -> void:
 
 # ---------------------------------------------------------------- entrance
 
-## Whether porters / builders come to this building (decor doesn't).
+## Whether couriers / builders come to this building (decor doesn't).
 func has_entrance() -> bool:
 	return Building.kind_has_entrance(kind)
 
@@ -265,7 +265,7 @@ static func stub_dir(r: int) -> int:
 	return [3, 0, 1, 2][r % 4]
 
 
-## Where porters stand: the middle of the entrance, on the road.
+## Where couriers stand: the middle of the entrance, on the road.
 func door_pos() -> Vector3:
 	return to_world(0, size_m().y * 0.5 + Grid.CELL * 0.5)
 
@@ -314,7 +314,7 @@ func in_holder_for(t: String) -> Holder:
 	return null
 
 
-## Whether the road reaches this building (porters only serve those).
+## Whether the road reaches this building (couriers only serve those).
 func on_road() -> bool:
 	return world != null and world.roads.connected.has(uid)
 
@@ -357,7 +357,7 @@ func status() -> String:
 	return ""
 
 
-## Speed multiplier from workers assigned here (farmers / chefs).
+## Speed multiplier from workers assigned here (technicians / engineers).
 func staff_mult() -> float:
 	return 1.0
 

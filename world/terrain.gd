@@ -207,7 +207,7 @@ func _chunk_decor(c: Vector2i, per: Dictionary) -> void:
 			add.call("lavender", 3, 0.8, 1.2)
 			add.call("rock", 1, 0.7, 1.2)
 		"desert":
-			add.call("cactus", 4, 0.8, 1.3)
+			add.call("cactus", 5, 1.3, 1.9)
 			add.call("dune", 3, 0.8, 1.5)
 			add.call("rock", 2, 0.7, 1.3)
 		"tundra":

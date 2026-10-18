@@ -15,7 +15,7 @@ var _up_box: VBoxContainer
 var _status: Label
 var _staff_label: Label
 var _sell_confirm := false
-var _palace_btn: JuicyButton
+var _mega_btn: JuicyButton
 var _staff_card: Control
 var _up_card: Control
 
@@ -103,18 +103,18 @@ func _build() -> void:
 		_upgrade_btn.pressed.connect(_upgrade)
 		body.add_child(_upgrade_btn)
 	if node is MegaB:
-		_palace_btn = Kit.juicy("", Kit.BRASS, Kit.BRASS_EDGE, 22, Vector2(0, 74))
-		_palace_btn.sound = ""
-		_palace_btn.pressed.connect(func():
+		_mega_btn = Kit.juicy("", Kit.BRASS, Kit.BRASS_EDGE, 22, Vector2(0, 74))
+		_mega_btn.sound = ""
+		_mega_btn.pressed.connect(func():
 			var p := node as MegaB
 			if p.advance():
 				Sfx.play("levelup")
 				_refresh()
 			else:
 				Sfx.play("deny")
-				Kit.shake(_palace_btn)
+				Kit.shake(_mega_btn)
 				Game.toast.emit(p.advance_block(), "mega"))
-		body.add_child(_palace_btn)
+		body.add_child(_mega_btn)
 	# move / sell
 	if not node is SiteB:
 		var row := Kit.hbox(10)
@@ -161,7 +161,7 @@ func _scroll_to(c: Control) -> void:
 	Kit.bounce(c, 0.04)
 
 
-## The last server, wheat field, van or builder's hut can't be sold.
+## The last server, solar farm, API depot or builder's hut can't be sold.
 func _protected() -> bool:
 	return node.kind in ["server", "src_power", "van", "hut"] and Game.count_of(node.kind) <= 1
 
@@ -207,17 +207,17 @@ func _refresh() -> void:
 		_staff_label.text = ("%d technician%s (+1 who comes with the source)" % [n, "s" if n != 1 else ""]) if role == "tech" else ("%d engineer%s: x%.1f speed" % [n, "s" if n != 1 else "", Bal.engineer_boost(n)])
 	if _up_box:
 		_refresh_upgrade()
-	if _palace_btn:
+	if _mega_btn:
 		var p := node as MegaB
 		if p.complete():
-			_palace_btn.set_text_value("Complete!")
-			_palace_btn.set_colors(Kit.PAPER_DARK, Kit.LINE)
+			_mega_btn.set_text_value("Complete!")
+			_mega_btn.set_colors(Kit.PAPER_DARK, Kit.LINE)
 		elif p.building_stage():
-			_palace_btn.set_text_value("Builders at work: %s" % Fmt.time(Game.job_left(Game.job_of(p.uid))))
-			_palace_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
+			_mega_btn.set_text_value("Builders at work: %s" % Fmt.time(Game.job_left(Game.job_of(p.uid))))
+			_mega_btn.set_colors(Kit.GREY, Kit.GREY_EDGE)
 		else:
-			_palace_btn.set_text_value("Build %s  $%s  ·  %s" % [Defs.MEGA_STAGES[p.stage() + 1]["name"], Fmt.num(p.next_cost()), Fmt.time(p.next_time())])
-			_palace_btn.set_colors(Kit.BRASS if p.can_advance() else Kit.GREY, Kit.BRASS_EDGE if p.can_advance() else Kit.GREY_EDGE)
+			_mega_btn.set_text_value("Build %s  $%s  ·  %s" % [Defs.MEGA_STAGES[p.stage() + 1]["name"], Fmt.num(p.next_cost()), Fmt.time(p.next_time())])
+			_mega_btn.set_colors(Kit.BRASS if p.can_advance() else Kit.GREY, Kit.BRASS_EDGE if p.can_advance() else Kit.GREY_EDGE)
 
 
 func _refresh_upgrade() -> void:

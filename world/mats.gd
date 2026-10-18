@@ -30,7 +30,7 @@ static func toon() -> ShaderMaterial:
 	return _toon
 
 
-## Toon material that glows a bit (oven windows, lamps, highlights).
+## Toon material that glows a bit (screens, lamps, highlights).
 static func glow() -> ShaderMaterial:
 	if _glow == null:
 		_glow = ShaderMaterial.new()

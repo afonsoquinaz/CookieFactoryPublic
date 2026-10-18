@@ -1,5 +1,5 @@
 class_name Pal
-## The Cookie Empire palette (sRGB): muted, warm and grown-up. Sage greens,
+## The Token Empire base palette (sRGB): muted and grown-up. Sage greens,
 ## warm stone, terracotta brick, walnut, brushed and dark steel, brass.
 ## Old names are kept (mapped to muted tones) so every prop shares one look.
 

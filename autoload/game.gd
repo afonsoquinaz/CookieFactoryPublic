@@ -60,6 +60,7 @@ var income_rate := 0.0
 var rush_time := 0.0
 var rush_cooldown := 0.0
 var offline_reward := 0.0
+var offline_tokens := 0          # tokens served while you were away (collected with the reward)
 var offline_seconds := 0.0
 var won := false
 
@@ -108,6 +109,7 @@ func reset_state() -> void:
 	rush_time = 0.0
 	rush_cooldown = 0.0
 	offline_reward = 0.0
+	offline_tokens = 0
 	offline_seconds = 0.0
 	won = false
 	_counts = {}
@@ -242,6 +244,14 @@ func recent_income() -> float:
 	for e in _income_window:
 		s += float(e[1])
 	return s / clampf(_clock, 30.0, 120.0)
+
+
+## Tokens served somewhere else (time away): they count for the Lab level.
+func add_tokens(n: int) -> void:
+	if n <= 0:
+		return
+	stats["tokens"] = int(stats["tokens"]) + n
+	_check_level()
 
 
 ## Sells items through a channel. Returns the money made.
@@ -922,7 +932,7 @@ func to_dict() -> Dictionary:
 		"next_worker_id": next_worker_id, "hired": hired, "stats": stats,
 		"known": known_recipes.keys(), "orders": orders, "trending": trending, "trend_t": trend_t,
 		"settings": settings, "tutorial": tutorial_step,
-		"time": int(Time.get_unix_time_from_system()), "income": recent_income(),
+		"time": int(Time.get_unix_time_from_system()), "income": recent_income(), "trate": token_rate(),
 		"rush_cd": rush_cooldown, "won": won,
 	}
 
@@ -987,6 +997,9 @@ func from_dict(d: Dictionary) -> void:
 	offline_reward = 0.0
 	if away > 60.0 and rate > 0.0:
 		offline_reward = roundf(rate * minf(away, Bal.offline_cap_hours() * 3600.0) * Bal.OFFLINE_FACTOR)
+	offline_tokens = 0
+	if away > 60.0:
+		offline_tokens = int(float(d.get("trate", 0.0)) * minf(away, Bal.offline_cap_hours() * 3600.0) * Bal.OFFLINE_FACTOR)
 
 
 func save_game() -> void:

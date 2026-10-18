@@ -230,20 +230,20 @@ const BUILD_ORDER: Array[String] = [
 ## Lab levels: lifetime tokens served needed, and the sparks each level brings.
 const EMPIRE := [
 	{"xp": 0, "gems": 0},
-	{"xp": 80, "gems": 5},
-	{"xp": 380, "gems": 5},
-	{"xp": 1400, "gems": 8},
-	{"xp": 4500, "gems": 10},
-	{"xp": 12000, "gems": 12},
-	{"xp": 32000, "gems": 15},
-	{"xp": 80000, "gems": 18},
-	{"xp": 190000, "gems": 20},
-	{"xp": 450000, "gems": 25},
-	{"xp": 1.0e6, "gems": 30},
-	{"xp": 2.2e6, "gems": 35},
-	{"xp": 4.6e6, "gems": 40},
-	{"xp": 9.5e6, "gems": 45},
-	{"xp": 2.0e7, "gems": 60},
+	{"xp": 50, "gems": 5},
+	{"xp": 150, "gems": 5},
+	{"xp": 650, "gems": 8},
+	{"xp": 1300, "gems": 10},
+	{"xp": 2600, "gems": 12},
+	{"xp": 6500, "gems": 15},
+	{"xp": 16000, "gems": 18},
+	{"xp": 36000, "gems": 20},
+	{"xp": 83000, "gems": 25},
+	{"xp": 190000, "gems": 30},
+	{"xp": 440000, "gems": 35},
+	{"xp": 1.0e6, "gems": 40},
+	{"xp": 2.3e6, "gems": 45},
+	{"xp": 5.3e6, "gems": 60},
 ]
 
 ## Megacluster stages: money, frontier-token deliveries and build time.
@@ -293,8 +293,8 @@ const ROLE_ORDER: Array[String] = ["courier", "tech", "engineer"]
 ## ore in the hills).
 const BIOMES := {
 	"valley": {"name": "Tech Valley", "bonus": ["data", "code", "labels", "feedback"], "grass": Color(0.5, 0.62, 0.4)},
-	"desert": {"name": "Sun Desert", "bonus": ["power", "silicon"], "grass": Color(0.84, 0.72, 0.5)},
-	"tundra": {"name": "Cold North", "bonus": ["coolant", "fiber", "papers"], "grass": Color(0.62, 0.7, 0.66)},
+	"desert": {"name": "Sun Desert", "bonus": ["power", "silicon"], "grass": Color(0.88, 0.76, 0.52)},
+	"tundra": {"name": "Cold North", "bonus": ["coolant", "fiber", "papers"], "grass": Color(0.8, 0.85, 0.85)},
 	"highland": {"name": "Mining Hills", "bonus": ["copper", "rare", "experts"], "grass": Color(0.56, 0.56, 0.42)},
 }
 const BIOME_ORDER: Array[String] = ["valley", "desert", "tundra", "highland"]

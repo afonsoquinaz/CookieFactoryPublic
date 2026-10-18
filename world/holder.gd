@@ -1,6 +1,6 @@
 class_name Holder
 extends Node3D
-## A place that holds items: a character's carry stack, a farm crate, a
+## A place that holds items: a character's carry stack, a source crate, a
 ## hopper, a shelf, a truck. Data is a list of item types; the visual is one
 ## mesh per item (up to max_visible) laid out as a column or a grid.
 ##
@@ -131,7 +131,7 @@ func take(t := "") -> String:
 	return got
 
 
-## Rebuilds the item visuals (e.g. after the cookie mesh changed).
+## Rebuilds the item visuals (e.g. after an item mesh changed).
 func refresh_visuals() -> void:
 	for t in _mm:
 		_mm[t].queue_free()

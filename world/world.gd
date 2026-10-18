@@ -3,8 +3,8 @@ extends Node3D
 ## The world: endless land, every building, the roads between them, the
 ## obstacles on your land, staff, builders and the camera. Keeps the scene in
 ## sync with Game state (placed / built / moved / sold / upgraded buildings,
-## builder jobs, land, obstacles, staff) and runs the logistics broker porters
-## ask for work ("which crate has wheat, and who needs it most?").
+## builder jobs, land, obstacles, staff) and runs the logistics broker couriers
+## ask for work ("which crate has power cells, and who needs them most?").
 
 signal sold(amount: float, count: int, where: Vector3)
 signal roads_changed
@@ -19,7 +19,7 @@ var builders := {}                # hut uid -> Builder
 var obst_nodes := {}              # obstacle key -> Node3D
 var cam: CameraRig
 var sun: DirectionalLight3D
-var reserved := {}                # holder instance id -> {item: n} reserved by porters
+var reserved := {}                # holder instance id -> {item: n} reserved by couriers
 var _decor: Array[Building] = []
 var _scaffolds := {}              # uid -> Node3D (upgrade in progress)
 var _synced_once := false
@@ -376,7 +376,7 @@ func street_route(from: Vector2i) -> Array[Vector2i]:
 	return roads.route(from, Vector2i(from.x, row))
 
 
-## Along the roads to any point (resting seats, chef stations).
+## Along the roads to any point (resting seats, engineer stations).
 func road_path_to_point(from: Vector3, to: Vector3) -> PackedVector3Array:
 	var a := _nearest_road(Grid.cell_of(from))
 	var z := _nearest_road(Grid.cell_of(to))
@@ -616,7 +616,7 @@ static func is_store(n: Building) -> bool:
 	return n is StorageB
 
 
-## Best delivery for a porter: {src, src_holder, dst, item, count} or {}.
+## Best delivery for a courier: {src, src_holder, dst, item, count} or {}.
 func find_job(from: Vector3, cap: int) -> Dictionary:
 	var best := {}
 	var best_score := -INF
@@ -662,7 +662,7 @@ func find_job(from: Vector3, cap: int) -> Dictionary:
 	return best
 
 
-## Best place to deliver an item a porter is already carrying.
+## Best place to deliver an item a courier is already carrying.
 func find_dest(t: String, from: Vector3) -> Building:
 	var best: Building = null
 	var best_score := -INF

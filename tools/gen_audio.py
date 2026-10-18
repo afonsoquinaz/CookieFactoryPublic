@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthesises every sound effect and the music/ambience loops of Cookie Factory.
+"""Synthesises every sound effect and the music/ambience loops of Token Empire.
 
 Everything is generated from code (oscillators, noise, Karplus-Strong plucks,
 formant filters and a small convolution reverb) so the game ships with no
@@ -367,6 +367,35 @@ def toy_brass(freq, dur=0.5, vel=1.0):
     x = lp(x, freq * 4.5, 2) * 0.7 + lp(x, freq * 2, 2) * 0.5
     amp = np.clip(t / 0.015, 0, 1) * (0.75 + 0.25 * np.exp(-t / 0.08))
     return fade(x * amp * vel, 0.001, 0.06)
+
+
+def epiano(freq, dur=1.0, vel=1.0):
+    """Soft FM electric piano: a sine carrier, a decaying 2:1 modulator, a tine."""
+    t = t_axis(dur)
+    mod = np.sin(2 * np.pi * freq * 2 * t) * 1.8 * np.exp(-t / 0.22)
+    x = np.sin(2 * np.pi * freq * t + mod) * np.exp(-t / 0.7)
+    x += 0.12 * np.sin(2 * np.pi * freq * 4.0 * t) * np.exp(-t / 0.09)
+    return fade(x * vel * 0.8, 0.002, 0.08)
+
+
+def synth_pluck(freq, dur=0.35, vel=1.0):
+    """A soft analog pluck: a saw through a closing low-pass."""
+    t = t_axis(dur)
+    x = saw(np.full(len(t), freq), 14)
+    x = lp(x, freq * 6, 2) * np.exp(-t / 0.05) + lp(x, freq * 2.2, 2) * np.exp(-t / 0.16)
+    return fade(x * np.clip(t / 0.003, 0, 1) * vel * 0.6, 0.001, 0.04)
+
+
+def synth_pad(freqs, dur, vel=1.0):
+    """A warm pad: detuned saws per note, low-passed, slow attack and release."""
+    t = t_axis(dur)
+    x = np.zeros(len(t))
+    for f in freqs:
+        for det in (0.997, 1.004):
+            x += saw(np.full(len(t), f * det), 8)
+    x = lp(x, 900, 2)
+    env = np.clip(t / 0.6, 0, 1) * np.clip((dur - t) / 0.8, 0, 1)
+    return x * env * vel / max(1, len(freqs))
 
 
 def shaker(vel=1.0, dur=0.08):
@@ -819,8 +848,9 @@ GLOCK_FILLS = {  # bar -> [(beat, midi)] little sparkles at phrase ends
 
 @seeded
 def music():
-    """Cheerful bouncy idle loop. Seamless: everything that rings past the end
-    (note tails, reverb) is folded back onto the start."""
+    """Bright, bouncy lo-fi electronic idle loop: electric piano lead, synth
+    plucks, a warm pad, soft drums. Seamless: everything that rings past the
+    end (note tails, reverb) is folded back onto the start."""
     k = KEY
     n = int(round(LOOP * SR))
     total = n + int(3 * SR)
@@ -830,6 +860,7 @@ def music():
     perc = np.zeros(total)
     shk = np.zeros(total)
     glk = np.zeros(total)
+    pads = np.zeros(total)
 
     def hum():
         return rng.uniform(0.0, 0.006)
@@ -843,16 +874,18 @@ def music():
         place(bass, soft_bass(midi_hz(fifth + k), BEAT * 0.9, 0.6), t0 + 2 * BEAT)
         if b % 2 == 1:
             place(bass, soft_bass(midi_hz(root + 12 + k), BEAT * 0.5, 0.4), t0 + 3.5 * BEAT)
-        # pizzicato offbeat chord stabs
+        # a warm pad holding the chord
+        place(pads, synth_pad([midi_hz(m + k - 12) for m in triad], BAR * 1.05, 0.5), t0)
+        # synth-pluck offbeat chord stabs
         stabs = [(1.0, 0.75), (2.5, 0.35), (3.0, 0.65)] if sec != 2 else [(1.0, 0.6), (3.0, 0.55)]
         for beat, vel in stabs:
             for j, m in enumerate(triad):
-                place(plk, pizz(midi_hz(m + k), 0.3, vel * 0.42 * rng.uniform(0.9, 1.05)),
+                place(plk, synth_pluck(midi_hz(m + k), 0.3, vel * 0.42 * rng.uniform(0.9, 1.05)),
                       t0 + beat * BEAT + j * 0.006 + hum())
         # pizz counter-line in the calmer section (keeps it moving without drums)
         if sec == 2:
             for beat, m in [(0.5, triad[2] + 12), (1.5, triad[1] + 12), (2.0, triad[0] + 12)]:
-                place(plk, pizz(midi_hz(m + k), 0.28, 0.25), t0 + beat * BEAT + hum())
+                place(plk, synth_pluck(midi_hz(m + k), 0.28, 0.25), t0 + beat * BEAT + hum())
         # drums: soft kick, light claps, swung shaker
         place(perc, kick(0.55 if sec != 2 else 0.35), t0)
         place(perc, kick(0.4 if sec != 2 else 0.25), t0 + 2 * BEAT)
@@ -869,12 +902,12 @@ def music():
     for bar, off, m, ln in MELODY:
         at = bar * BAR + off * BEAT + hum()
         v = 0.55 * rng.uniform(0.92, 1.05)
-        place(lead, marimba(midi_hz(m + k), max(0.5, ln * BEAT * 1.5), v), at)
+        place(lead, epiano(midi_hz(m + k), max(0.6, ln * BEAT * 1.6), v), at)
         if bar >= 16:  # glock doubles the calmer section an octave up, very softly
             place(glk, glock(midi_hz(m + 12 + k), 0.6, 0.09), at)
 
-    pans = [(lead, 0.62), (plk, 0.35), (bass, 0.5), (perc, 0.5), (shk, 0.7), (glk, 0.6)]
-    gains = [1.0, 0.75, 0.95, 0.75, 0.35, 0.8]
+    pans = [(lead, 0.62), (plk, 0.35), (bass, 0.5), (perc, 0.5), (shk, 0.7), (glk, 0.6), (pads, 0.45)]
+    gains = [1.0, 0.7, 0.95, 0.75, 0.32, 0.75, 0.5]
     left = np.zeros(total)
     right = np.zeros(total)
     for (sig, p), g in zip(pans, gains):
@@ -1004,7 +1037,7 @@ SFX = [
     sfx_cash, sfx_whoosh, sfx_plop, sfx_dispense, sfx_oven_ding, sfx_horn, sfx_engine,
     sfx_build, sfx_upgrade, sfx_levelup, sfx_hire, sfx_click,
     lambda: [sfx_swoosh(True), sfx_swoosh(False)],
-    sfx_deny, sfx_pay_tick, sfx_cluck, sfx_moo,
+    sfx_deny, sfx_pay_tick,
     lambda: [sfx_step(i) for i in range(2)],
     lambda: [sfx_hammer(i) for i in range(2)],
 ]

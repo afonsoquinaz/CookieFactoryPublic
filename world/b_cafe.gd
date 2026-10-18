@@ -95,7 +95,10 @@ func serve(c: Customer) -> bool:
 		var t := display.items[display.items.size() - 1]
 		if Holder.fly(display, c.carry, t, 0.35):
 			bought.append(t)
-	var amount := Game.sell(bought, Bal.CAFE_MULT)
+	# snappy models earn a little more here: people are chatting live
+	var amount := 0.0
+	for t in bought:
+		amount += Game.sell([t], Bal.CAFE_MULT * (1.0 + Bal.latency_bonus(Defs.recipe_of(t))))
 	Game.stats["customers"] = int(Game.stats["customers"]) + 1
 	var where := c.global_position + Vector3(0, 2.2, 0)
 	UI3D.pop_text(get_tree().current_scene, where, "+$%s" % Fmt.num(amount), Color(1.0, 0.88, 0.3), 64)
@@ -113,13 +116,14 @@ func load_contents(d: Dictionary) -> void:
 
 
 func status() -> String:
-	return "Pays 30%% more than vans. %d%% more visitors from decor nearby." % roundi(charm() * 100)
+	return "Pays 30%% more than vans, more for snappy models. %d%% more visitors from decor nearby." % roundi(charm() * 100)
 
 
 func info() -> Array:
 	return [
 		["hire", "About %.0f visitors / min" % rate()],
 		["token", "Each buys up to %d" % Bal.cafe_buy(level)],
+		["clock", "Models under %d ms earn up to +%d%%" % [int(Bal.SNAPPY_MS), roundi(Bal.SNAPPY_BONUS * 100)]],
 		["storage", "Counter %d / %d" % [display.count(), display.capacity]],
 	]
 

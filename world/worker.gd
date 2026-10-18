@@ -1,10 +1,10 @@
 class_name Worker
 extends Node3D
 ## A member of staff walking around the empire.
-##   porter  asks the World's broker for the most useful delivery ("6 wheat
-##           from the Wheat Field to the Bakery"), walks there along the
+##   courier  asks the World's broker for the most useful delivery ("6 power
+##           cells from the Solar Farm to the server"), walks there along the
 ##           roads, loads up at the entrance, delivers, repeats.
-##   chef    stands at their bakery or kitchen and works it.
+##   engineer stands at their server or lab and works it.
 ## Staff with nothing to do rest on the Staff Cabins' benches.
 
 enum S { DECIDE, GO_TAKE, TAKING, GO_GIVE, GIVING, WAIT, REST, STATION }
@@ -282,7 +282,7 @@ func _wait(txt: String) -> void:
 
 # ---------------------------------------------------------------- moving
 
-## A spot at the entrance (a little spread so porters don't stack).
+## A spot at the entrance (a little spread so couriers don't stack).
 func _door_point(b: Building) -> Vector3:
 	var off := (fmod(float(data["id"]) * 0.37, 0.8) - 0.4)
 	return b.door_pos() + b.base_xf().basis.x * off
@@ -343,7 +343,7 @@ func _rest(dt: float) -> void:
 		ch.face(world.rest_face(self), dt, 4.0)
 
 
-## Chefs stand in front of their machine and work it.
+## Engineers stand in front of their machine and work it.
 func _station(dt: float) -> void:
 	var b: Building = world.building(int(data.get("target", 0)))
 	if b == null:

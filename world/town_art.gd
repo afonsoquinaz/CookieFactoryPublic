@@ -89,36 +89,31 @@ static func crate(k: MeshKit, p: Vector3, s := 0.55, rot_y := 0.0) -> void:
 
 static func hut() -> Mesh:
 	var k := MeshKit.new()
-	var wall := Color(0.86, 0.66, 0.42)
-	k.rbox(Vector3(3.4, 0.2, 3.0), 0.05, Pal.STONE, MeshKit.at(0, 0.1, -0.4))
-	# plank shed with a lean-to roof
-	k.rbox(Vector3(2.4, 2.0, 1.8), 0.06, wall, MeshKit.at(-0.3, 1.2, -0.9))
-	for i in 7:
-		k.rbox(Vector3(0.03, 2.0, 1.82), 0.005, wall.darkened(0.15), MeshKit.at(-1.4 + i * 0.36, 1.2, -0.9))
-	var shingle := Color(0.66, 0.46, 0.3)
-	var rt := MeshKit.xf(Vector3(-0.3, 2.35, -0.8), Vector3(14, 0, 0))
-	k.rbox(Vector3(2.8, 0.12, 2.4), 0.04, shingle, rt)
-	for r in 5:
-		k.rbox(Vector3(2.82, 0.05, 0.08), 0.02, shingle.darkened(0.18), rt * MeshKit.at(0, 0.07, -1.0 + r * 0.48))
-	# stovepipe and a little flag with a hammer
-	k.cyl(0.09, 1.0, Pal.STEEL_DARK, MeshKit.at(0.6, 2.2, -1.4), 8)
-	k.cyl(0.13, 0.1, Pal.STEEL_DARK, MeshKit.at(0.6, 3.2, -1.4), 8)
-	flag(k, Vector3(-1.35, 2.2, -1.5), 1.0, Pal.OCHRE)
-	k.rbox(Vector3(0.75, 1.4, 0.08), 0.06, Pal.WOOD_DARK, MeshKit.at(0.35, 0.9, 0.02))
-	k.rbox(Vector3(0.5, 0.5, 0.08), 0.05, Color(0.6, 0.72, 0.78), MeshKit.at(-0.8, 1.4, 0.02))
-	# hard hat on a hook, a sign with a hammer
-	k.ellipsoid(Vector3(0.2, 0.12, 0.2), Color(0.97, 0.78, 0.26), MeshKit.at(-0.25, 1.75, 0.12), 10, 5)
-	k.rbox(Vector3(0.9, 0.42, 0.06), 0.12, Pal.OCHRE, MeshKit.at(-0.3, 2.0, 0.04))
-	k.cyl(0.03, 0.4, Pal.WOOD_DARK, MeshKit.xf(Vector3(-0.42, 2.0, 0.09), Vector3(0, 0, 60)), 6)
-	k.rbox(Vector3(0.16, 0.08, 0.06), 0.02, Pal.STEEL_DARK, MeshKit.xf(Vector3(-0.2, 2.1, 0.1), Vector3(0, 0, -30)))
-	# sawhorse with a plank, a stack of timber, a wheelbarrow
+	var shell := Color(0.95, 0.95, 0.94)
+	var orange := Color(0.96, 0.6, 0.24)
+	k.rbox(Vector3(3.4, 0.2, 3.0), 0.05, Color(0.62, 0.62, 0.6), MeshKit.at(0, 0.1, -0.4))
+	# a site-office container with ribs, an orange band and a flat roof
+	k.rbox(Vector3(2.6, 1.9, 1.7), 0.06, shell, MeshKit.at(-0.3, 1.15, -0.9))
+	for i in 9:
+		k.rbox(Vector3(0.04, 1.86, 1.72), 0.01, shell.darkened(0.08), MeshKit.at(-1.5 + i * 0.3, 1.15, -0.9))
+	k.rbox(Vector3(2.64, 0.18, 1.74), 0.02, orange, MeshKit.at(-0.3, 1.75, -0.9))
+	k.rbox(Vector3(2.7, 0.1, 1.8), 0.02, Color(0.4, 0.42, 0.46), MeshKit.at(-0.3, 2.14, -0.9))
+	k.rbox(Vector3(0.7, 1.35, 0.06), 0.04, Color(0.3, 0.32, 0.36), MeshKit.at(0.4, 0.88, -0.03))
+	k.rbox(Vector3(0.7, 0.45, 0.06), 0.04, Color(0.6, 0.8, 0.9, 0.8), MeshKit.at(-0.75, 1.25, -0.03))
+	k.rbox(Vector3(0.6, 0.1, 0.4), 0.02, Color(0.62, 0.62, 0.6), MeshKit.at(0.4, 0.25, 0.15))
+	# a hard-hat sign, a flag, a light
+	k.ellipsoid(Vector3(0.22, 0.13, 0.22), Color(0.97, 0.78, 0.26), MeshKit.at(-0.75, 1.75, 0.05), 10, 5)
+	flag(k, Vector3(-1.45, 2.2, -1.5), 1.0, orange, Pal.STEEL_DARK)
+	k.sphere(0.08, Color(1.0, 0.7, 0.3, 0.4), MeshKit.at(0.95, 1.95, 0.0), 6, 4)
+	# a stack of steel beams, a cement mixer, safety cones
+	for i in 3:
+		k.rbox(Vector3(0.16, 0.12, 1.4), 0.02, Color(0.36, 0.4, 0.46), MeshKit.at(1.2 + (i % 2) * 0.18 - 0.09, 0.26 + (i / 2) * 0.12, -1.0))
+	k.cyl(0.26, 0.5, orange, MeshKit.xf(Vector3(1.35, 0.55, 0.15), Vector3(0, 0, 70)), 12, 0.04, 0.16)
 	for sx in [-1.0, 1.0]:
-		k.rbox(Vector3(0.06, 0.6, 0.5), 0.02, Pal.WOOD_DARK, MeshKit.xf(Vector3(1.3 + sx * 0.35, 0.3, -0.5), Vector3(0, 0, sx * 10)))
-	k.rbox(Vector3(1.2, 0.06, 0.3), 0.02, Pal.WOOD_LIGHT, MeshKit.at(1.3, 0.62, -0.5))
-	for i in 4:
-		k.rbox(Vector3(0.14, 0.12, 1.4), 0.02, Pal.WOOD_LIGHT.darkened(0.06 * (i % 2)), MeshKit.at(1.25 + (i % 2) * 0.16 - 0.08, 0.06 + (i / 2) * 0.12, -1.4))
-	k.rbox(Vector3(0.5, 0.25, 0.7), 0.06, Pal.SAGE, MeshKit.at(-1.4, 0.4, 0.3))
-	k.cyl(0.14, 0.08, Pal.RUBBER, MeshKit.xf(Vector3(-1.4, 0.15, 0.7), Vector3(0, 0, 90)) * MeshKit.at(0, -0.04, 0), 10)
+		k.rbox(Vector3(0.05, 0.4, 0.05), 0.01, Pal.STEEL_DARK, MeshKit.at(1.35 + sx * 0.2, 0.2, 0.15))
+	for x in [-1.5, -1.15]:
+		k.cone(0.12, 0.34, orange, MeshKit.at(x, 0.2, 0.4), 8)
+		k.cyl(0.11, 0.05, Color(0.96, 0.96, 0.94), MeshKit.at(x, 0.32, 0.4), 8)
 	return k.commit()
 
 

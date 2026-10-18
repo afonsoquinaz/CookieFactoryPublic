@@ -7,7 +7,7 @@ extends Node3D
 func _ready() -> void:
 	var a := Shot.args()
 	Env.build(self)
-	var kinds: PackedStringArray = str(a.get("kinds", "oven")).split(",")
+	var kinds: PackedStringArray = str(a.get("kinds", "server")).split(",")
 	var sp := float(a.get("spacing", "8"))
 	var ground := MeshInstance3D.new()
 	var pm := PlaneMesh.new()

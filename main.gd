@@ -100,9 +100,9 @@ func _demo_state() -> void:
 	Game.money = 48000
 	Game.gems = 37
 	Game.tutorial_step = 99
-	Game.stats["tokens"] = 900
+	Game.stats["tokens"] = 6000
 	Game.stats["earned"] = 30000.0
-	Game.level = Game.level_for(30000.0)
+	Game.level = Game.level_for(6000.0)
 	Game.obstacles.clear()
 	for c in [Vector2i(1, -1), Vector2i(1, 0), Vector2i(-2, -1), Vector2i(-2, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(-1, -2), Vector2i(-2, -2)]:
 		Game.land[Game.chunk_key(c)] = true
@@ -136,7 +136,7 @@ func _demo_state() -> void:
 	for b in Game.buildings:
 		if b["kind"] == "server":
 			Game._start_job("upgrade", int(b["uid"]), 600.0)
-	for r in ["data", "coolant", "copper", "gpu", "code13"]:
+	for r in ["mini", "chat7", "chat13", "wiki13", "code13"]:
 		Game.known_recipes[r] = true
 	for i in 5:
 		Game.workers.append({"id": Game.next_worker_id, "role": "courier", "target": 0})

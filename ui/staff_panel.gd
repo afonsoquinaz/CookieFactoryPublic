@@ -1,8 +1,8 @@
 class_name StaffPanel
 extends Sheet
-## Your staff. Everyone you hire starts as a porter (they carry everything
-## along the roads, no setup needed). On a farm, bakery or kitchen, + turns a
-## porter into a farmer or chef who works there. Staff Cabins decide how
+## Your staff. Everyone you hire starts as a courier (they carry everything
+## along the roads, no setup needed). On a source, server or lab, + turns a
+## courier into a technician or engineer who works there. Staff Housing decides how
 ## many people you can house.
 
 var _hire_btn: JuicyButton

@@ -147,6 +147,8 @@ static func loop_trip(l: int) -> float: return maxf(12.0, 40.0 * pow(0.96, l - 1
 static func drone_cap(l: int) -> int: return 60 + (l - 1) * 30
 static func drone_trip(l: int) -> float: return maxf(20.0, 60.0 * pow(0.96, l - 1)) * pow(0.95, Game.research("vehicles"))
 const CAFE_MULT := 1.3
+const SNAPPY_MS := 160.0            # models faster than this earn a latency bonus at the Chat Café
+const SNAPPY_BONUS := 0.25          # ... up to +25% for an instant model
 const LOOP_MULT := 1.15
 const DRONE_AGENT_MULT := 2.0
 const VAN_IDLE_DEPART := 3.0      # a vehicle leaves this long after its last load
@@ -214,6 +216,12 @@ static func item_value(t: String) -> float:
 		"batch": v *= BATCH_SIZE * BATCH_MULT
 		"agent": v *= BATCH_SIZE * BATCH_MULT * AGENT_MULT
 	return v
+
+
+## Chat Café bonus for a snappy model (people chat live, so latency sells).
+static func latency_bonus(rid: String) -> float:
+	var lat := float(Defs.recipe(rid).get("lat", 999))
+	return SNAPPY_BONUS * clampf((SNAPPY_MS - lat) / SNAPPY_MS, 0.0, 1.0)
 
 
 static func price_mult() -> float:

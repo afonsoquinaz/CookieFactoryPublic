@@ -40,11 +40,11 @@ func _plan() -> void:
 		steps.append(_ghost.bind(kind))
 	# materials that only show up now and then
 	steps.append(_materials)
-	# items: ingredients, then cookies, boxes and gifts of every recipe
+	# items: resources, then tokens, batches and agent runs of every model
 	for t in Defs.ITEMS:
 		steps.append(_item.bind(t))
 	for r in Defs.RECIPES:
-		steps.append(_cookie.bind(r["id"]))
+		steps.append(_token.bind(r["id"]))
 	# people
 	for look in Character.LOOKS:
 		steps.append(_person.bind(look))
@@ -156,7 +156,7 @@ func _item(t: String) -> void:
 	_show(n)
 
 
-func _cookie(rid: String) -> void:
+func _token(rid: String) -> void:
 	for p in ["t:", "b:", "a:"]:
 		_item(p + rid)
 

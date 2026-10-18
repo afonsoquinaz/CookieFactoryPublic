@@ -65,7 +65,8 @@ func _recipe_row(r: Dictionary) -> Control:
 	v.add_child(top)
 	top.add_child(Kit.game(r["name"], 21, Kit.INK, 0))
 	top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("t:" + id)), 19, Color(0.16, 0.56, 0.5), 0))
-	var tag := Kit.label("%s params  ·  %d ms  ·  %s" % [r["params"], int(r["lat"]), r["tag"]], 14, Kit.MUTED, 0, false)
+	var snappy := Bal.latency_bonus(id)
+	var tag := Kit.label("%s params  ·  %d ms%s  ·  %s" % [r["params"], int(r["lat"]), ("  (+%d%% at cafés)" % roundi(snappy * 100)) if snappy > 0.0 else "", r["tag"]], 14, Kit.MUTED, 0, false)
 	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tag.custom_minimum_size.x = 240
 	v.add_child(tag)

@@ -11,7 +11,7 @@ func _process(dt: float) -> void:
 		world = get_tree().current_scene.get("world")
 		return
 	if fmod(_t, 4.0) < dt:
-		var s := "t=%.0f $%s cookies=%d |" % [_t, Fmt.num(Game.money), int(Game.stats["tokens"])]
+		var s := "t=%.0f $%s tokens=%d |" % [_t, Fmt.num(Game.money), int(Game.stats["tokens"])]
 		for w in world.workers.values():
 			s += " %s:%s(%d)" % [w.role, Worker.S.keys()[w.state], w.carry.count()]
 		print(s)

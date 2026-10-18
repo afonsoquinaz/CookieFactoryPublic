@@ -842,9 +842,12 @@ func _on_level_up(level: int, gems: int) -> void:
 
 func _offline_popup(amount: float) -> void:
 	var away := Fmt.time(Game.offline_seconds)
-	_popup("Welcome back!", "You were away %s. Your servers kept serving and your builders kept building." % away, "+$%s" % Fmt.num(amount), "cash", "Collect", func():
+	var toks := ("  ·  %s tokens" % Fmt.num(Game.offline_tokens)) if Game.offline_tokens > 0 else ""
+	_popup("Welcome back!", "You were away %s. Your servers kept serving and your builders kept building." % away, "+$%s%s" % [Fmt.num(amount), toks], "cash", "Collect", func():
 		Game.add_money(amount)
+		Game.add_tokens(Game.offline_tokens)
 		Game.offline_reward = 0
+		Game.offline_tokens = 0
 		Sfx.play("cash"))
 
 

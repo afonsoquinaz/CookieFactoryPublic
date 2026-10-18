@@ -1,8 +1,8 @@
 class_name Goals
 extends Control
-## Guides the player, lightly. Three first hints (upgrade the Bakery, finish
+## Guides the player, lightly. Three first hints (upgrade the server, finish
 ## a short job free, open Build); after that it stays out of the way and only
-## speaks up when something is wrong (a building without a road, a Bakery
+## speaks up when something is wrong (a building without a road, a server
 ## missing an ingredient). What to build and upgrade is the player's call.
 ## A goal card sits under the top bar, a brass pin bobs over the place to
 ## look at in the world (an edge arrow when it's off screen) and a pulsing

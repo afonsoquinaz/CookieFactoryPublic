@@ -257,9 +257,9 @@ func info() -> Array:
 		var h: Holder = inputs[t]
 		out.append([Defs.item_icon(t) if t != "*" else ("token" if kind == "batcher" else "batch"), "In: %d / %d" % [h.count(), h.capacity]])
 	out.append(["storage", "Out: %d / %d" % [output.count(), output.capacity]])
-	var chefs := Game.workers_with("engineer", uid)
-	if chefs > 0:
-		out.append(["engineer", "%d chef%s: x%.1f speed" % [chefs, "s" if chefs > 1 else "", staff_mult()]])
+	var engs := Game.workers_with("engineer", uid)
+	if engs > 0:
+		out.append(["engineer", "%d engineer%s: x%.1f speed" % [engs, "s" if engs > 1 else "", staff_mult()]])
 	return out
 
 

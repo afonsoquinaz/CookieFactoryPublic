@@ -1,5 +1,5 @@
 extends Node
-## First scene: the Cookie Empire crest (emblem + title, laid out to fit any
+## First scene: the Token Empire crest (emblem + title, laid out to fit any
 ## screen) with a progress bar while the game loads in the background. Then,
 ## still behind the cover, Warmup builds every mesh, compiles every shader and
 ## opens every panel once (a few small steps a frame, so the bar keeps moving),

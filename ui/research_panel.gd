@@ -1,7 +1,7 @@
 class_name ResearchPanel
 extends Sheet
 ## Empire-wide improvements: Research (paid with money), Perks (paid with
-## gems from special orders) and the Recipe Book (every cookie, what it
+## sparks from contracts) and the Model Book (every model, what it
 ## needs, and which you've baked).
 
 static var last_tab := "research"

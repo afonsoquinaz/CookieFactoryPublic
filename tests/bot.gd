@@ -1,10 +1,10 @@
 extends Node
 ## Autopilot that plays the real game for balance runs, like a sensible
 ## player who checks in now and then: finishes free jobs, saves up for and
-## builds the farms and kitchens its best recipe needs, more bakeries and
-## sales, upgrades what's slowest, hires porters, clears obstacles, buys land
-## when it runs out of room, researches, and finally builds the Palace. No
-## gems are spent on timers except free finishes.
+## builds the sources and labs its best model needs, more servers and
+## sales, upgrades what's slowest, hires couriers, clears obstacles, buys land
+## when it runs out of room, researches, and finally builds the Megacluster.
+## No sparks are spent on timers except free finishes.
 ##   tools/bot.sh [minutes]
 
 var world: World
@@ -53,7 +53,7 @@ func _manage() -> void:
 			Game.finish_now(j)
 	_staff()
 	if Game.free_builders() > 0:
-		if _palace():
+		if _mega():
 			return
 		if _build_needed():
 			return
@@ -81,8 +81,8 @@ func _spare() -> float:
 	return Game.money - _goal_cost()
 
 
-## Builds what's missing: farms for the best recipe, more bakeries, sales,
-## cabins, storage.
+## Builds what's missing: sources for the best model, more servers, sales,
+## housing, storage.
 func _wants() -> Array[String]:
 	var want: Array[String] = []
 	var best := _target_recipe()
@@ -98,8 +98,8 @@ func _wants() -> Array[String]:
 		if Game.count_of(k) == 0:
 			want.append(k)
 	# more of what's already there, in proportion
-	var bakeries := Game.count_of("server")
-	var cap := {"server": 1 + Game.level / 3, "src_power": bakeries * 2, "src_data": bakeries, "van": bakeries, "cafe": 1 + bakeries / 2}
+	var servers := Game.count_of("server")
+	var cap := {"server": 1 + Game.level / 3, "src_power": servers * 2, "src_data": servers, "van": servers, "cafe": 1 + servers / 2}
 	for k in cap:
 		if Game.count_of(k) < int(cap[k]):
 			want.append(k)
@@ -142,7 +142,7 @@ func _upgrade() -> bool:
 		if Game.upgrade_block(n.uid) != "":
 			continue
 		var c := Bal.upgrade_cost(n.kind, n.level)
-		# bakeries and vans first: they're the bottleneck
+		# servers and vans first: they're the bottleneck
 		var w := c
 		if n is ServerB or n is VehicleB:
 			w *= 0.5
@@ -180,7 +180,7 @@ func _research() -> void:
 			return
 
 
-func _palace() -> bool:
+func _mega() -> bool:
 	if Game.count_of("mega") == 0:
 		if Game.build_block("mega") == "" and Game.price_of("mega") <= Game.money:
 			return _place("mega")
@@ -279,7 +279,7 @@ func _milestones() -> void:
 		"first_sale": int(Game.stats["tokens"]) > 0,
 		"lvl2": Game.level >= 2, "lvl3": Game.level >= 3, "lvl4": Game.level >= 4, "lvl5": Game.level >= 5,
 		"lvl6": Game.level >= 6, "lvl8": Game.level >= 8, "lvl10": Game.level >= 10, "lvl12": Game.level >= 12,
-		"lvl15": Game.level >= 15, "data": Game.known_recipes.has("data"), "code13": Game.known_recipes.has("code13"),
+		"lvl15": Game.level >= 15, "mini": Game.known_recipes.has("mini"), "code13": Game.known_recipes.has("code13"),
 		"frontier": Game.known_recipes.has("frontier"), "mega": Game.count_of("mega") > 0, "won": Game.won,
 	}
 	for k in checks:
@@ -301,7 +301,7 @@ func _print_status() -> void:
 		var k: String = Worker.S.keys()[w.state]
 		states[k] = int(states.get(k, 0)) + 1
 	if not off.is_empty() or _t < 1200.0:
-		print("        off-road %s  porters %s" % [off, states])
+		print("        off-road %s  couriers %s" % [off, states])
 	if Game.recent_income() <= 0.0 and _t > 300.0:
 		for w in world.workers.values():
 			print("        worker %s carry %s dst %s" % [Worker.S.keys()[w.state], w.carry.items, w._dst.name if is_instance_valid(w._dst) else "-"])
@@ -314,6 +314,6 @@ func _print_status() -> void:
 			if n is VehicleB:
 				extra = " state=%s" % VehicleB.S.keys()[(n as VehicleB).state]
 			print("        %s %s%s" % [n.name, parts, extra])
-	print("[%6.0fs] $%s  +%s/min  lvl %d  gems %d  cookies %d  bakeries %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
+	print("[%6.0fs] $%s  +%s/min  lvl %d  sparks %d  tokens %d  servers %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
 		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["tokens"]),
 		recipes, world.bnodes.size(), Game.land.size(), Game.workers.size(), Game.jobs.size(), Game.builders(), JSON.stringify(_spent)])

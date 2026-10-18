@@ -1,6 +1,6 @@
 class_name TitleMenu
 extends Control
-## The title screen: the island slowly drifts by under the Cookie Empire
+## The title screen: the island slowly drifts by under the Token Empire
 ## crest and a big PLAY button. Tapping it swoops the camera down to you.
 
 signal play
