@@ -3,7 +3,7 @@ func _ready():
 	await get_tree().create_timer(1.0).timeout
 	var hud = get_tree().current_scene.get("ui")
 	for i in 3:
-		for tab in ["farm", "bake", "town"]:
+		for tab in ["source", "server", "town"]:
 			BuildPanel.last_tab = tab
 			var t0 := Time.get_ticks_usec()
 			var p := BuildPanel.new()
@@ -18,7 +18,7 @@ func _ready():
 	print("PB 200 skins %.1f ms" % ((Time.get_ticks_usec() - t2) / 1000.0))
 	t2 = Time.get_ticks_usec()
 	for i in 200:
-		Kit.icon("wheat", 64).free()
+		Kit.icon("power", 64).free()
 	print("PB 200 icons %.1f ms" % ((Time.get_ticks_usec() - t2) / 1000.0))
 	t2 = Time.get_ticks_usec()
 	for i in 100:

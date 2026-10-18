@@ -59,7 +59,7 @@ func _ready() -> void:
 				break
 	if a.has("recipes"):
 		for n in world.bnodes.values():
-			if n is BakeryB:
+			if n is ServerB:
 				ui.call("open_recipes", n)
 				break
 	if a.has("tscale"):
@@ -100,7 +100,7 @@ func _demo_state() -> void:
 	Game.money = 48000
 	Game.gems = 37
 	Game.tutorial_step = 99
-	Game.stats["cookies"] = 900
+	Game.stats["tokens"] = 900
 	Game.stats["earned"] = 30000.0
 	Game.level = Game.level_for(30000.0)
 	Game.obstacles.clear()
@@ -109,37 +109,37 @@ func _demo_state() -> void:
 	Game.land_bought_n = 8
 	for b in Game.buildings:
 		match b["kind"]:
-			"bakery": b["lvl"] = 8
-			"farm_wheat": b["lvl"] = 12
-			"dock": b["lvl"] = 9
+			"server": b["lvl"] = 8
+			"src_power": b["lvl"] = 12
+			"van": b["lvl"] = 9
 	# north of the High Street, facing it
-	Game.place("farm_sugar", Vector2i(-10, -5), 0, {"lvl": 10}, false)
-	Game.place("farm_egg", Vector2i(-14, -5), 0, {"lvl": 6}, false)
-	Game.place("farm_milk", Vector2i(-10, -9), 0, {"lvl": 5}, false)
-	Game.place("farm_cocoa", Vector2i(-6, -9), 0, {"lvl": 4}, false)
-	Game.place("churn", Vector2i(7, -4), 0, {"lvl": 2}, false)
-	Game.place("chocolatier", Vector2i(10, -4), 0, {"lvl": 3}, false)
-	Game.place("rack", Vector2i(13, -4), 0, {"lvl": 2}, false)
+	Game.place("src_data", Vector2i(-10, -5), 0, {"lvl": 10}, false)
+	Game.place("src_silicon", Vector2i(-14, -5), 0, {"lvl": 6}, false)
+	Game.place("src_copper", Vector2i(-10, -9), 0, {"lvl": 5}, false)
+	Game.place("src_coolant", Vector2i(-6, -9), 0, {"lvl": 4}, false)
+	Game.place("fab", Vector2i(7, -4), 0, {"lvl": 2}, false)
+	Game.place("refinery", Vector2i(10, -4), 0, {"lvl": 3}, false)
+	Game.place("cache", Vector2i(13, -4), 0, {"lvl": 2}, false)
 	# south of it, facing north
 	Game.place("hut", Vector2i(7, 2), 2, {}, false)
-	Game.place("shop", Vector2i(9, 2), 2, {"lvl": 6}, false)
-	Game.place("dock", Vector2i(13, 2), 2, {"lvl": 4}, false)
-	Game.place("board", Vector2i(-7, 2), 2, {}, false)
-	Game.place("well", Vector2i(-15, 3), 0, {}, false)
-	Game.place("flowers", Vector2i(8, 5), 0, {}, false)
+	Game.place("cafe", Vector2i(9, 2), 2, {"lvl": 6}, false)
+	Game.place("van", Vector2i(13, 2), 2, {"lvl": 4}, false)
+	Game.place("desk", Vector2i(-7, 2), 2, {}, false)
+	Game.place("substation", Vector2i(-15, 3), 0, {}, false)
+	Game.place("planter", Vector2i(8, 5), 0, {}, false)
 	Game.place("lamp", Vector2i(12, 1), 0, {}, false)
 	Game.place("lamp", Vector2i(-2, 1), 0, {}, false)
 	Game.place("tree", Vector2i(12, 6), 0, {}, false)
-	Game.place("fountain", Vector2i(-1, 9), 0, {}, false)
-	var s := Game.place("farm_oats", Vector2i(2, -9), 0, {"lvl": 0}, false)
+	Game.place("coffee", Vector2i(-1, 9), 0, {}, false)
+	var s := Game.place("src_code", Vector2i(2, -9), 0, {"lvl": 0}, false)
 	Game._start_job("build", int(s["uid"]), 90.0)
 	for b in Game.buildings:
-		if b["kind"] == "bakery":
+		if b["kind"] == "server":
 			Game._start_job("upgrade", int(b["uid"]), 600.0)
-	for r in ["sugar", "cocoa", "milk", "butter", "choc"]:
+	for r in ["data", "coolant", "copper", "gpu", "code13"]:
 		Game.known_recipes[r] = true
 	for i in 5:
-		Game.workers.append({"id": Game.next_worker_id, "role": "porter", "target": 0})
+		Game.workers.append({"id": Game.next_worker_id, "role": "courier", "target": 0})
 		Game.next_worker_id += 1
 	Game.hired = 5
 	Game.obstacles["4,10"] = {"kind": "oak", "gems": 2}
@@ -173,9 +173,9 @@ func _showcase(tier: int) -> void:
 		if cy <= Roads.STREET_Y + 1 and cy + sz.y > Roads.STREET_Y:
 			cy = Roads.STREET_Y + 3
 		var t := tier if tier >= 0 else i % 5
-		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "farm" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
+		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "source" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
 		var extra := {"lvl": l}
-		if kind == "palace":
+		if kind == "mega":
 			extra["stage"] = 4
 		Game.place(kind, Vector2i(cx, cy), 0, extra, false)
 		cx += sz.x + 1

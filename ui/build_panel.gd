@@ -6,7 +6,7 @@ extends Sheet
 
 signal chosen(kind: String)
 
-static var last_tab := "farm"
+static var last_tab := "source"
 var _tabs := {}
 var _grid: GridContainer
 

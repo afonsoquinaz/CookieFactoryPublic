@@ -94,17 +94,17 @@ func _wants() -> Array[String]:
 			var p2 := Defs.producer_of(j)
 			if p2 != "" and Game.count_of(p2) == 0:
 				want.append(p2)
-	for k in ["shop", "board", "pantry", "rack", "packer", "train", "wrapper", "airship"]:
+	for k in ["cafe", "desk", "depot", "cache", "batcher", "hyperloop", "agent_studio", "droneport"]:
 		if Game.count_of(k) == 0:
 			want.append(k)
 	# more of what's already there, in proportion
-	var bakeries := Game.count_of("bakery")
-	var cap := {"bakery": 1 + Game.level / 3, "farm_wheat": bakeries * 2, "farm_sugar": bakeries, "dock": bakeries, "shop": 1 + bakeries / 2}
+	var bakeries := Game.count_of("server")
+	var cap := {"server": 1 + Game.level / 3, "src_power": bakeries * 2, "src_data": bakeries, "van": bakeries, "cafe": 1 + bakeries / 2}
 	for k in cap:
 		if Game.count_of(k) < int(cap[k]):
 			want.append(k)
 	if not Game.can_hire() and Game.workers.size() < 2 + world.bnodes.size() / 3:
-		want.append("cabin")
+		want.append("dorm")
 	return want
 
 
@@ -121,11 +121,11 @@ func _build_needed() -> bool:
 
 
 func _target_recipe() -> String:
-	var best := "shortbread"
+	var best := "pico"
 	var bp := 0.0
 	var slots := 1
-	for n in world.buildings_of("bakery"):
-		slots = maxi(slots, (n as BakeryB).slots())
+	for n in world.buildings_of("server"):
+		slots = maxi(slots, (n as ServerB).slots())
 	for r in Defs.RECIPES:
 		if (r["ings"] as Array).size() <= slots + 1 and float(r["price"]) > bp:
 			bp = float(r["price"])
@@ -144,7 +144,7 @@ func _upgrade() -> bool:
 		var c := Bal.upgrade_cost(n.kind, n.level)
 		# bakeries and vans first: they're the bottleneck
 		var w := c
-		if n is BakeryB or n is VehicleB:
+		if n is ServerB or n is VehicleB:
 			w *= 0.5
 		if w < bc and (c <= _spare() or c <= Game.money * 0.25):
 			bc = w
@@ -181,14 +181,14 @@ func _research() -> void:
 
 
 func _palace() -> bool:
-	if Game.count_of("palace") == 0:
-		if Game.build_block("palace") == "" and Game.price_of("palace") <= Game.money:
-			return _place("palace")
+	if Game.count_of("mega") == 0:
+		if Game.build_block("mega") == "" and Game.price_of("mega") <= Game.money:
+			return _place("mega")
 		return false
-	for n in world.buildings_of("palace"):
-		var p := n as PalaceB
+	for n in world.buildings_of("mega"):
+		var p := n as MegaB
 		if p.can_advance():
-			_kind = "palace"
+			_kind = "mega"
 			return p.advance()
 	return false
 
@@ -203,7 +203,7 @@ func _place(kind: String) -> bool:
 		if spot == null:
 			return false
 	_kind = "build"
-	var b := Game.place(kind, spot[0], spot[1], {"stage": 0} if kind == "palace" else {})
+	var b := Game.place(kind, spot[0], spot[1], {"stage": 0} if kind == "mega" else {})
 	if not b.is_empty():
 		print("[%6.0fs] built %s" % [_t, kind])
 		return true
@@ -276,11 +276,11 @@ func _buy_land() -> bool:
 
 func _milestones() -> void:
 	var checks := {
-		"first_sale": int(Game.stats["cookies"]) > 0,
+		"first_sale": int(Game.stats["tokens"]) > 0,
 		"lvl2": Game.level >= 2, "lvl3": Game.level >= 3, "lvl4": Game.level >= 4, "lvl5": Game.level >= 5,
 		"lvl6": Game.level >= 6, "lvl8": Game.level >= 8, "lvl10": Game.level >= 10, "lvl12": Game.level >= 12,
-		"lvl15": Game.level >= 15, "sugar": Game.known_recipes.has("sugar"), "choc": Game.known_recipes.has("choc"),
-		"royal": Game.known_recipes.has("royal"), "palace": Game.count_of("palace") > 0, "won": Game.won,
+		"lvl15": Game.level >= 15, "data": Game.known_recipes.has("data"), "code13": Game.known_recipes.has("code13"),
+		"frontier": Game.known_recipes.has("frontier"), "mega": Game.count_of("mega") > 0, "won": Game.won,
 	}
 	for k in checks:
 		if checks[k] and not _first.has(k):
@@ -290,8 +290,8 @@ func _milestones() -> void:
 
 func _print_status() -> void:
 	var recipes := []
-	for n in world.buildings_of("bakery"):
-		recipes.append((n as BakeryB).recipe)
+	for n in world.buildings_of("server"):
+		recipes.append((n as ServerB).recipe)
 	var off := []
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
@@ -315,5 +315,5 @@ func _print_status() -> void:
 				extra = " state=%s" % VehicleB.S.keys()[(n as VehicleB).state]
 			print("        %s %s%s" % [n.name, parts, extra])
 	print("[%6.0fs] $%s  +%s/min  lvl %d  gems %d  cookies %d  bakeries %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
-		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["cookies"]),
+		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["tokens"]),
 		recipes, world.bnodes.size(), Game.land.size(), Game.workers.size(), Game.jobs.size(), Game.builders(), JSON.stringify(_spent)])

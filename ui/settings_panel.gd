@@ -20,10 +20,10 @@ func _build() -> void:
 	hp.add_child(hv)
 	hv.add_child(Kit.game("How to play", 30, Kit.INK, 0))
 	for line in [
-		["hammer", "Everything is open from the start: build and upgrade whatever you like. Sales raise your Empire level, and every level brings gems."],
+		["hammer", "Everything is open from the start: build and upgrade whatever you like. Every token you serve raises your Lab level, and every level brings sparks."],
 		["builder", "Builders build and upgrade over time, even while you're away. Under 30 s left? Tap the timer: it's free."],
-		["porter", "Porters carry everything along the roads. Every building's road builds itself to its entrance."],
-		["bakery", "A Bakery bakes the recipe you choose (Bake). Upgrades add silos for richer recipes."],
+		["courier", "Couriers carry everything along the roads. Every building's road builds itself to its entrance."],
+		["server", "A server serves the model you choose (Model). Upgrades add module bays for bigger models."],
 		["gem", "Gems come from orders, obstacles and Empire levels. Spend them on builders or to finish jobs."],
 	]:
 		var row := Kit.hbox(10)
@@ -38,11 +38,11 @@ func _build() -> void:
 	var st := Sheet.row_box()
 	var v := Kit.vbox(4)
 	st.add_child(v)
-	v.add_child(Kit.game("Your empire", 30, Kit.INK, 0))
+	v.add_child(Kit.game("Your lab", 30, Kit.INK, 0))
 	var s: Dictionary = Game.stats
-	for line in ["Cookies sold: %s" % Fmt.num(int(s["cookies"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
-			"Batches baked: %s" % Fmt.num(int(s["batches"])), "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
-			"Empire level %d: %s" % [Game.level, Defs.level_title(Game.level)],
+	for line in ["Tokens served: %s" % Fmt.num(int(s["tokens"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
+			"Batches inferred: %s" % Fmt.num(int(s["batches"])), "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
+			"Lab level %d: %s" % [Game.level, Defs.level_title(Game.level)],
 			"Time played: %s" % Fmt.time(float(s["play_time"]))]:
 		v.add_child(Kit.label(line, 18, Kit.MUTED, 0, false))
 	body.add_child(st)
@@ -57,7 +57,7 @@ func _build() -> void:
 		Game.loaded = true
 		get_tree().reload_current_scene())
 	body.add_child(reset)
-	var credit := Kit.label("Cookie Empire  ·  made with Godot", 15, Kit.MUTED, 0, false)
+	var credit := Kit.label("Token Empire  ·  made with Godot", 15, Kit.MUTED, 0, false)
 	credit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(credit)
 

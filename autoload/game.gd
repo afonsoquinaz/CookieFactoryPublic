@@ -1,5 +1,5 @@
 extends Node
-## Game state: money, gems, the Empire level, every placed building,
+## Game state: money, sparks, the Lab level, every placed building,
 ## builders and their jobs, owned land and its obstacles, research, perks,
 ## staff, orders. Owns saving/loading and offline progress. Gameplay nodes
 ## read and change state only through here and listen to its signals.
@@ -30,12 +30,12 @@ signal discovered(recipe: String)
 signal toast(text: String, icon: String)
 signal victory
 
-const SAVE_PATH := "user://cookie_empire_v5.json"
-const VERSION := 5
+const SAVE_PATH := "user://token_empire_v1.json"
+const VERSION := 1
 
 var money := 0.0
 var gems := 0
-var level := 1                # Empire level: grows with lifetime earnings
+var level := 1                # Lab level: grows with lifetime tokens served
 var clock := 0.0              # game time (s), includes time away
 var research_lv := {}         # id -> level
 var perks := {}               # id -> level
@@ -46,11 +46,11 @@ var land := {}                # "x,y" -> true for owned chunks
 var land_bought_n := 0
 var obstacles := {}           # "x,y" (cell) -> {kind, gems}
 var cleared := 0
-var workers: Array = []       # [{id, role, target}] target = building uid (farmers/chefs)
+var workers: Array = []       # [{id, role, target}] target = building uid (technicians/engineers)
 var next_worker_id := 1
 var hired := 0
-var stats := {"cookies": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "royal": 0}
-var known_recipes := {}       # recipe id -> true once baked
+var stats := {"tokens": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0}
+var known_recipes := {}       # model id -> true once served
 var orders: Array = []        # [{item, count, got, reward, gems}]
 var trending := ""
 var trend_t := 0.0
@@ -65,6 +65,7 @@ var won := false
 
 var _save_timer := 0.0
 var _income_window: Array = []
+var _token_window: Array = []
 var _clock := 0.0
 var _counts := {}             # kind -> count (cache)
 var loaded := false
@@ -98,7 +99,7 @@ func reset_state() -> void:
 	workers = []
 	next_worker_id = 1
 	hired = 0
-	stats = {"cookies": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "royal": 0}
+	stats = {"tokens": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0}
 	known_recipes = {}
 	orders = []
 	trending = ""
@@ -113,27 +114,28 @@ func reset_state() -> void:
 	_starting_empire()
 
 
-## A new empire on four plots of meadow along the High Street: a Wheat
-## Field, a Bakery and a Pantry on the north side; a Staff Cabin, a Delivery
-## Van and two Builder's Huts on the south side; three porters, and some
-## brambles, stumps and boulders to clear.
+## A new empire on four plots of valley along the High Street: a Solar
+## Farm, an Inference Server (a garage rig serving Pico 1B) and a Supply
+## Depot on the north side; Staff Housing, an API Depot and two Builder's
+## Huts on the south side; three couriers, and some brambles, e-waste and
+## an old container to clear.
 func _starting_empire() -> void:
 	for x in [-1, 0]:
 		for y in [-1, 0]:
 			land["%d,%d" % [x, y]] = true
-	_add("farm_wheat", Vector2i(-6, -5), 0)
-	_add("bakery", Vector2i(-2, -5), 0)
-	_add("pantry", Vector2i(4, -4), 0)
-	_add("dock", Vector2i(-1, 2), 2)
+	_add("src_power", Vector2i(-6, -5), 0)
+	_add("server", Vector2i(-2, -5), 0)
+	_add("depot", Vector2i(4, -4), 0)
+	_add("van", Vector2i(-1, 2), 2)
 	_add("hut", Vector2i(3, 2), 2)
 	_add("hut", Vector2i(5, 2), 2)
-	_add("cabin", Vector2i(-4, 2), 2)
-	known_recipes["shortbread"] = true
+	_add("dorm", Vector2i(-4, 2), 2)
+	known_recipes["pico"] = true
 	for i in 3:
-		workers.append({"id": next_worker_id, "role": "porter", "target": 0})
+		workers.append({"id": next_worker_id, "role": "courier", "target": 0})
 		next_worker_id += 1
-	for ob in [["bush", Vector2i(-6, 3), 1], ["stump", Vector2i(-3, 5), 0], ["rock", Vector2i(6, 6), 2], ["oak", Vector2i(-7, 5), 3],
-			["bush", Vector2i(6, -8), 0], ["pine", Vector2i(1, -8), 1], ["boulders", Vector2i(-8, -8), 2], ["bush", Vector2i(2, 5), 1]]:
+	for ob in [["bush", Vector2i(-6, 3), 1], ["ewaste", Vector2i(-3, 5), 0], ["rock", Vector2i(6, 6), 2], ["oak", Vector2i(-7, 5), 3],
+			["bush", Vector2i(6, -8), 0], ["pine", Vector2i(1, -8), 1], ["container", Vector2i(-8, -8), 2], ["bush", Vector2i(2, 5), 1]]:
 		obstacles[cell_key(ob[1])] = {"kind": ob[0], "gems": ob[2]}
 
 
@@ -177,7 +179,7 @@ func add_money(amount: float, earned := true) -> void:
 		_check_level()
 
 
-## Empire level from lifetime earnings.
+## Lab level from lifetime tokens served.
 static func level_for(earned: float) -> int:
 	var l := 1
 	for i in Defs.EMPIRE.size():
@@ -186,17 +188,17 @@ static func level_for(earned: float) -> int:
 	return l
 
 
-## Progress (0..1) toward the next Empire level.
+## Progress (0..1) toward the next Lab level.
 func level_progress() -> float:
 	if level >= Defs.EMPIRE.size():
 		return 1.0
 	var a := float(Defs.EMPIRE[level - 1]["xp"])
 	var b := float(Defs.EMPIRE[level]["xp"])
-	return clampf((float(stats["earned"]) - a) / (b - a), 0.0, 1.0)
+	return clampf((float(stats["tokens"]) - a) / (b - a), 0.0, 1.0)
 
 
 func _check_level() -> void:
-	var l := level_for(float(stats["earned"]))
+	var l := level_for(float(stats["tokens"]))
 	while level < l:
 		level += 1
 		var g := int(Defs.EMPIRE[level - 1]["gems"])
@@ -222,6 +224,16 @@ func add_gems(n: int) -> void:
 	gems_changed.emit(gems)
 
 
+## Tokens served per second over the last two minutes (HUD).
+func token_rate() -> float:
+	while _token_window.size() > 0 and _clock - float(_token_window[0][0]) > 120.0:
+		_token_window.pop_front()
+	var s := 0.0
+	for e in _token_window:
+		s += float(e[1])
+	return s / clampf(_clock, 30.0, 120.0)
+
+
 ## Money per second over the last two minutes (offline earnings + HUD).
 func recent_income() -> float:
 	while _income_window.size() > 0 and _clock - float(_income_window[0][0]) > 120.0:
@@ -233,23 +245,22 @@ func recent_income() -> float:
 
 
 ## Sells items through a channel. Returns the money made.
-func sell(items: Array, mult := 1.0, gift_mult := 1.0) -> float:
+func sell(items: Array, mult := 1.0, agent_mult := 1.0) -> float:
 	var total := 0.0
 	var n := 0
 	for t in items:
 		var v := Bal.item_value(t) * mult
-		if Defs.cat(t) == "gift":
-			v *= gift_mult
+		if Defs.cat(t) == "agent":
+			v *= agent_mult
 		total += v
-		match Defs.cat(t):
-			"cookie": n += 1
-			"box": n += Bal.BOX_SIZE
-			"gift": n += Bal.BOX_SIZE
-		if Defs.recipe_of(t) == "royal":
-			stats["royal"] = int(stats["royal"]) + 1
-	stats["cookies"] = int(stats["cookies"]) + n
+		n += Defs.token_count(t)
+		if Defs.recipe_of(t) == "frontier":
+			stats["frontier"] = int(stats["frontier"]) + 1
+	stats["tokens"] = int(stats["tokens"]) + n
+	_token_window.append([_clock, n])
 	total = roundf(total)
 	add_money(total)
+	_check_level()
 	return total
 
 
@@ -289,7 +300,7 @@ func price_of(kind: String) -> float:
 	return Bal.build_cost(kind, count_of(kind))
 
 
-## Gem price for the next copy (builder huts), 0 when it costs money.
+## Spark price for the next copy (builder huts), 0 when it costs money.
 func gem_price_of(kind: String) -> int:
 	var g: Array = Defs.BUILDINGS[kind].get("gems", [])
 	var n := count_of(kind)
@@ -307,7 +318,7 @@ func build_block(kind: String) -> String:
 		return "You have all of these" if mx > 1 else "You already have one"
 	var gp := gem_price_of(kind)
 	if gp > 0 and gems < gp:
-		return "Needs %d gems" % gp
+		return "Needs %d sparks" % gp
 	if gp == 0 and not can_afford(price_of(kind)):
 		return "Not enough money"
 	if build_time_of(kind) > 0.0 and free_builders() <= 0:
@@ -428,7 +439,7 @@ func _finish_upgrade(b: Dictionary) -> void:
 
 ## Whether the empire can currently make an ingredient.
 func can_make(ing: String) -> bool:
-	if ing == "wheat":
+	if ing == "power":
 		return true
 	var p := Defs.producer_of(ing)
 	return p != "" and count_ready(p) > 0
@@ -474,7 +485,7 @@ func _start_job(type: String, uid: int, seconds: float, ob := "") -> Dictionary:
 	return j
 
 
-## Finishes a job now for gems (free when nearly done).
+## Finishes a job now for sparks (free when nearly done).
 func finish_now(j: Dictionary) -> bool:
 	if not jobs.has(j):
 		return false
@@ -520,9 +531,9 @@ func _complete(j: Dictionary) -> void:
 			var b3 := building(int(j["uid"]))
 			if not b3.is_empty():
 				b3["stage"] = int(b3.get("stage", 0)) + 1
-				b3["royal"] = 0
+				b3["frontier"] = 0
 				building_upgraded.emit(int(b3["uid"]), int(b3["lvl"]))
-				if int(b3["stage"]) >= Defs.PALACE_STAGES.size() - 1:
+				if int(b3["stage"]) >= Defs.MEGA_STAGES.size() - 1:
 					won = true
 					victory.emit()
 		"clear":
@@ -538,7 +549,7 @@ func _complete(j: Dictionary) -> void:
 	job_done.emit(j)
 
 
-## Starts building the next Palace stage (money paid, a builder works on it).
+## Starts building the next Megacluster stage (money paid, a builder works on it).
 func start_stage(uid: int, cost: float, seconds: float) -> bool:
 	if free_builders() <= 0 or job_of(uid).size() > 0 or not spend(cost):
 		return false
@@ -735,7 +746,7 @@ func discover(rid: String) -> void:
 	save_game()
 
 
-## Recipes the player has baked at least once.
+## Models the player has served at least once.
 func known_list() -> Array[String]:
 	var out: Array[String] = []
 	for r in Defs.RECIPES:
@@ -761,9 +772,9 @@ func order_slots() -> int:
 	return Bal.ORDER_SLOTS + perk("orders")
 
 
-## Keeps the order board full of orders for cookies you know how to bake.
+## Keeps the Enterprise Desk full of contracts for models you know how to serve.
 func refill_orders() -> void:
-	if count_of("board") == 0:
+	if count_of("desk") == 0:
 		return
 	var ks := known_list()
 	if ks.is_empty():
@@ -774,22 +785,22 @@ func refill_orders() -> void:
 		if ks.size() > 2 and randf() < 0.6:
 			rid = ks[ks.size() - 1 - randi() % mini(3, ks.size())]
 		var r := Defs.recipe(rid)
-		var kind := "c"
-		if count_of("packer") > 0 and randf() < 0.4:
+		var kind := "t"
+		if count_of("batcher") > 0 and randf() < 0.4:
 			kind = "b"
-		if count_of("wrapper") > 0 and randf() < 0.3:
-			kind = "g"
+		if count_of("agent_studio") > 0 and randf() < 0.3:
+			kind = "a"
 		var n := Bal.order_count(float(r["price"]))
-		if kind != "c":
+		if kind != "t":
 			n = maxi(2, n / 6)
 		var item := "%s:%s" % [kind, rid]
 		var reward := roundf(Bal.item_value(item) * n * 2.5)
-		var g := 1 + Defs.RECIPES.find(r) / 4 + (1 if kind != "c" else 0)
+		var g := 1 + Defs.RECIPES.find(r) / 4 + (1 if kind != "t" else 0)
 		orders.append({"item": item, "count": n, "got": 0, "reward": reward, "gems": g})
 	orders_changed.emit()
 
 
-## An item was delivered to the order board. Returns true if it was wanted.
+## An item was delivered to the Enterprise Desk. Returns true if it was wanted.
 func deliver(item: String) -> bool:
 	for o in orders:
 		if o["item"] == item and int(o["got"]) < int(o["count"]):
@@ -799,7 +810,7 @@ func deliver(item: String) -> bool:
 				add_money(float(o["reward"]))
 				add_gems(int(o["gems"]))
 				stats["orders"] = int(stats["orders"]) + 1
-				toast.emit("Order complete! +$%s  +%d gems" % [Fmt.num(o["reward"]), int(o["gems"])], "gem")
+				toast.emit("Contract complete! +$%s  +%d sparks" % [Fmt.num(o["reward"]), int(o["gems"])], "gem")
 				refill_orders()
 			orders_changed.emit()
 			return true
@@ -815,12 +826,12 @@ func wanted_items() -> Array[String]:
 
 # ---------------------------------------------------------------- workers
 
-## Staff you can house: a few in town plus every Staff Cabin.
-func cabin_capacity() -> int:
+## Staff you can house: a few on campus plus every Staff Housing.
+func dorm_capacity() -> int:
 	var n := Bal.BASE_STAFF
 	for b in buildings:
-		if b["kind"] == "cabin" and int(b["lvl"]) > 0:
-			n += Bal.cabin_cap(int(b["lvl"]))
+		if b["kind"] == "dorm" and int(b["lvl"]) > 0:
+			n += Bal.dorm_cap(int(b["lvl"]))
 	return n
 
 
@@ -829,13 +840,13 @@ func hire_price() -> float:
 
 
 func can_hire() -> bool:
-	return workers.size() < cabin_capacity()
+	return workers.size() < dorm_capacity()
 
 
 func hire() -> Dictionary:
 	if not can_hire() or not spend(hire_price()):
 		return {}
-	var w := {"id": next_worker_id, "role": "porter", "target": 0}
+	var w := {"id": next_worker_id, "role": "courier", "target": 0}
 	next_worker_id += 1
 	hired += 1
 	workers.append(w)
@@ -861,25 +872,25 @@ func workers_with(role: String, target := -1) -> int:
 	return n
 
 
-## Turns a porter into a farmer or chef for a building. One porter always
-## stays a porter so deliveries never stop.
-func assign_porter(role: String, target := 0) -> bool:
-	if workers_with("porter") <= 1:
+## Turns a courier into a technician or engineer for a building. One
+## courier always stays a courier so deliveries never stop.
+func assign_courier(role: String, target := 0) -> bool:
+	if workers_with("courier") <= 1:
 		return false
 	for i in range(workers.size() - 1, -1, -1):
 		var w: Dictionary = workers[i]
-		if w["role"] == "porter":
+		if w["role"] == "courier":
 			assign(int(w["id"]), role, target)
 			return true
 	return false
 
 
-## Sends one worker with this role (and target) back to portering.
+## Sends one worker with this role (and target) back to courier work.
 func unassign(role: String, target := -1) -> bool:
 	for i in range(workers.size() - 1, -1, -1):
 		var w: Dictionary = workers[i]
 		if w["role"] == role and (target < 0 or int(w.get("target", 0)) == target):
-			assign(int(w["id"]), "porter", 0)
+			assign(int(w["id"]), "courier", 0)
 			return true
 	return false
 
@@ -955,7 +966,7 @@ func from_dict(d: Dictionary) -> void:
 	for k in st:
 		stats[k] = st[k]
 	known_recipes = {}
-	for k in d.get("known", ["shortbread"]):
+	for k in d.get("known", ["pico"]):
 		known_recipes[str(k)] = true
 	orders = d.get("orders", [])
 	trending = str(d.get("trending", ""))
@@ -965,7 +976,7 @@ func from_dict(d: Dictionary) -> void:
 		settings[k] = s[k]
 	tutorial_step = int(d.get("tutorial", 0))
 	won = bool(d.get("won", false))
-	level = level_for(float(stats["earned"]))
+	level = level_for(float(stats["tokens"]))
 	var away := maxf(0.0, float(Time.get_unix_time_from_system() - int(d.get("time", 0))))
 	rush_cooldown = maxf(0.0, float(d.get("rush_cd", 0.0)) - away)
 	# time away counts for builders

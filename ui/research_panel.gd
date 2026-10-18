@@ -18,7 +18,7 @@ func _init() -> void:
 func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(6)
 	v.add_child(h)
-	for t in [["research", "Research"], ["perks", "Perks"], ["recipes", "Recipes"]]:
+	for t in [["research", "Research"], ["perks", "Perks"], ["recipes", "Models"]]:
 		var b := Kit.juicy(t[1], Kit.PAPER_DARK, Kit.LINE, 19, Vector2(0, 58))
 		b.sound = "click"
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -47,7 +47,7 @@ func _select(tab: String) -> void:
 		"perks":
 			var g := Kit.hbox(8)
 			g.add_child(Kit.icon("gem", 40))
-			g.add_child(Kit.game("%d gems  ·  from orders, obstacles and Empire levels" % Game.gems, 18, Kit.INK, 0))
+			g.add_child(Kit.game("%d sparks  ·  from contracts, obstacles and Lab levels" % Game.gems, 18, Kit.INK, 0))
 			body.add_child(g)
 			for id in Bal.PERK_ORDER:
 				body.add_child(_row(id, true))
@@ -112,7 +112,7 @@ func _refresh() -> void:
 
 
 func _recipes() -> void:
-	var tip := Kit.label("Every recipe needs wheat plus one Bakery silo per ingredient. Choose what each Bakery bakes with its Bake button.", 16, Kit.MUTED, 0, false)
+	var tip := Kit.label("Every model needs power plus one server module bay per resource. Choose what each server serves with its Model button.", 16, Kit.MUTED, 0, false)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tip.custom_minimum_size.x = 400
 	body.add_child(tip)
@@ -121,9 +121,9 @@ func _recipes() -> void:
 		var box := Sheet.row_box()
 		var h := Kit.hbox(10)
 		box.add_child(h)
-		var ic := Kit.icon("ck_" + r["id"], 66)
+		var ic := Kit.icon("tk_" + r["id"], 66)
 		if not known:
-			ic.modulate = Color(0.2, 0.15, 0.12, 0.55)
+			ic.modulate = Color(0.14, 0.18, 0.24, 0.55)
 		h.add_child(ic)
 		var v := Kit.vbox(2)
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -131,10 +131,12 @@ func _recipes() -> void:
 		var top := Kit.hbox(8)
 		v.add_child(top)
 		top.add_child(Kit.game(r["name"] if known else "???", 22, Kit.INK, 0))
-		top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("c:" + r["id"])), 20, Color(0.3, 0.52, 0.22), 0))
+		top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("t:" + r["id"])), 20, Color(0.16, 0.56, 0.5), 0))
+		if known:
+			v.add_child(Kit.label("%s params  ·  %d ms" % [r["params"], int(r["lat"])], 14, Kit.MUTED, 0, false))
 		var ings := Kit.hbox(4)
 		v.add_child(ings)
-		ings.add_child(Kit.icon("wheat", 30))
+		ings.add_child(Kit.icon("power", 30))
 		for i in r["ings"]:
 			var ii := Kit.icon(i, 30)
 			if not Game.can_make(i):

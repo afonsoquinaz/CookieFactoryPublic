@@ -1,6 +1,7 @@
 class_name TownArt
-## Looks for the town buildings: the Bakery house, the Builder's Hut,
-## construction scaffolding and the obstacles on new land.
+## Looks for the campus: shared pieces (roofs, windows, flags, lamps,
+## crates), the Builder's Hut, construction scaffolding and the obstacles on
+## new land.
 ##
 ## Local frame: building centre at the origin, front facing +Z, metres.
 
@@ -82,70 +83,6 @@ static func crate(k: MeshKit, p: Vector3, s := 0.55, rot_y := 0.0) -> void:
 	for sd in [-1.0, 1.0]:
 		k.rbox(Vector3(s + 0.02, 0.07, s + 0.02), 0.01, Pal.WOOD, t * MeshKit.at(0, sd * s * 0.32, 0))
 	k.rbox(Vector3(s * 1.2, 0.05, 0.06), 0.01, Pal.WOOD, t * MeshKit.xf(Vector3(0, 0, s * 0.51), Vector3(0, 0, 40)))
-
-
-# ---------------------------------------------------------------- the Bakery
-
-## The Bakery's floor and back wall (the line itself is LineArt). The floor
-## covers the whole footprint (w x d metres); the wall runs along the back.
-static func bakery_house(t: int, w: float, d: float) -> Mesh:
-	var k := MeshKit.new()
-	var floor_a: Color = [Color(0.8, 0.72, 0.6), Color(0.82, 0.78, 0.72), Color(0.88, 0.84, 0.76), Color(0.78, 0.8, 0.82), Color(0.94, 0.9, 0.82)][t]
-	var floor_b: Color = floor_a.darkened(0.08)
-	var wall: Color = [Pal.WOOD, Pal.BRICK, Color(0.94, 0.9, 0.8), Color(0.72, 0.74, 0.76), Color(0.96, 0.94, 0.88)][t]
-	var trim: Color = [Pal.WOOD_DARK, Pal.STONE_DARK, Pal.TERRACOTTA, Pal.STEEL_DARK, Pal.GOLD][t]
-	# chequered floor
-	k.rbox(Vector3(w - 0.1, 0.12, d - 0.1), 0.05, trim, MeshKit.at(0, 0.06, 0))
-	var nx := int(w / 1.0)
-	var nz := int((d - 0.4) / 1.0)
-	for i in nx:
-		for j in nz:
-			var c := floor_a if (i + j) % 2 == 0 else floor_b
-			k.rbox(Vector3(0.96, 0.03, 0.96), 0.03, c, MeshKit.at(-w * 0.5 + 0.5 + i * (w - 0.2) / nx + 0.05, 0.13, -d * 0.5 + 0.7 + j * 1.0))
-	# back wall with windows and a sign
-	var h := 2.6 + t * 0.3
-	k.rbox(Vector3(w, h, 0.35), 0.06, wall, MeshKit.at(0, h * 0.5 + 0.1, -d * 0.5 + 0.2))
-	if t == 1:
-		for r in int(h / 0.32):
-			k.rbox(Vector3(w + 0.02, 0.025, 0.37), 0.005, Pal.BRICK_DARK, MeshKit.at(0, 0.3 + r * 0.32, -d * 0.5 + 0.2))
-	if t == 2:
-		for i in int(w / 0.4):
-			for j in 3:
-				if (i + j) % 2 == 0:
-					k.rbox(Vector3(0.36, 0.34, 0.02), 0.02, Color(0.82, 0.76, 0.66), MeshKit.at(-w * 0.5 + 0.2 + i * 0.4, 0.4 + j * 0.36, -d * 0.5 + 0.385))
-	k.rbox(Vector3(w + 0.2, 0.18, 0.55), 0.04, trim, MeshKit.at(0, h + 0.15, -d * 0.5 + 0.25))
-	for x in [-w * 0.5 + 0.9, w * 0.5 - 0.9]:
-		window(k, Vector3(x, h * 0.62, -d * 0.5 + 0.4), 0.8, 0.9, trim, Color(0.98, 0.86, 0.6, 0.6) if t >= 3 else Color(0.6, 0.72, 0.78))
-	# sign: a big cookie on a board
-	k.rbox(Vector3(2.2, 0.75, 0.12), 0.2, trim, MeshKit.at(0, h + 0.75, -d * 0.5 + 0.25))
-	k.rbox(Vector3(2.0, 0.6, 0.13), 0.16, Pal.CREAM, MeshKit.at(0, h + 0.75, -d * 0.5 + 0.26))
-	Items.cookie_into(k, ["shortbread", "sugar", "choc", "praline", "royal"][t], 0.24, 0.05, MeshKit.xf(Vector3(-0.6, h + 0.75, -d * 0.5 + 0.34), Vector3(90, 0, 0)))
-	Items.cookie_into(k, ["sugar", "choc", "jam", "caramel", "royal"][t], 0.24, 0.05, MeshKit.xf(Vector3(0.6, h + 0.75, -d * 0.5 + 0.34), Vector3(90, 0, 0)))
-	# side posts and a low front rail with a gap in the middle
-	for sx in [-1.0, 1.0]:
-		k.rbox(Vector3(0.22, h + 0.3, 0.22), 0.04, trim, MeshKit.at(sx * (w * 0.5 - 0.15), (h + 0.3) * 0.5, -d * 0.5 + 0.3))
-		k.rbox(Vector3(w * 0.5 - 1.4, 0.08, 0.08), 0.02, trim, MeshKit.at(sx * (w * 0.25 + 0.6), 0.75, d * 0.5 - 0.15))
-		for i in 4:
-			k.rbox(Vector3(0.08, 0.7, 0.08), 0.02, trim, MeshKit.at(sx * (1.3 + i * (w * 0.5 - 1.5) / 3.0), 0.4, d * 0.5 - 0.15))
-	if t >= 3:
-		for sx in [-1.0, 1.0]:
-			lamp_post(k, Vector3(sx * (w * 0.5 - 0.35), 0, d * 0.5 - 0.35), 2.0)
-	if t >= 4:
-		k.cone(0.5, 0.8, Pal.GOLD, MeshKit.at(0, h + 1.15, -d * 0.5 + 0.25), 12)
-		k.sphere(0.14, Pal.GOLD, MeshKit.at(0, h + 2.0, -d * 0.5 + 0.25), 8, 5)
-	return k.commit()
-
-
-## The wheat bin by the mixer: a wooden bin on legs.
-static func flour_bin(t: int) -> Mesh:
-	var k := MeshKit.new()
-	var c: Color = [Pal.WOOD, Pal.WOOD, Pal.STEEL, Pal.STEEL, Color(0.78, 0.5, 0.32)][t]
-	for sx in [-1.0, 1.0]:
-		for sz in [-1.0, 1.0]:
-			k.rbox(Vector3(0.08, 0.5, 0.08), 0.02, Pal.WOOD_DARK, MeshKit.at(sx * 0.55, 0.25, sz * 0.38))
-	k.rbox(Vector3(1.3, 0.4, 0.95), 0.05, c, MeshKit.at(0, 0.62, 0))
-	k.rbox(Vector3(1.2, 0.05, 0.85), 0.02, Color(0.86, 0.74, 0.5), MeshKit.at(0, 0.8, 0))
-	return k.commit()
 
 
 # ---------------------------------------------------------------- builder's hut
@@ -253,22 +190,29 @@ static func obstacle(kind: String) -> Mesh:
 			k.ellipsoid(Vector3(0.75, 0.55, 0.65), Color(0.6, 0.58, 0.55), MeshKit.xf(Vector3(0, 0.35, 0), Vector3(0, 20, 8)), 9, 6)
 			k.ellipsoid(Vector3(0.4, 0.3, 0.35), Color(0.54, 0.52, 0.5), MeshKit.at(0.55, 0.15, 0.35), 8, 5)
 			k.ellipsoid(Vector3(0.5, 0.08, 0.4), Color(0.48, 0.58, 0.36), MeshKit.at(-0.1, 0.78, -0.05), 8, 4)
-		"stump":
-			k.cyl(0.42, 0.55, Pal.WOOD, MeshKit.at(0, 0, 0), 12, 0.04, 0.38)
-			k.cyl(0.36, 0.03, Pal.WOOD_LIGHT, MeshKit.at(0, 0.55, 0), 12)
-			k.torus(0.2, 0.02, Pal.WOOD, MeshKit.at(0, 0.58, 0), 12, 3)
+		"ewaste":
+			# a heap of old monitors, keyboards and tangled cables
+			k.ellipsoid(Vector3(0.55, 0.2, 0.5), Color(0.42, 0.4, 0.38), MeshKit.at(0, 0.08, 0), 10, 5)
+			k.rbox(Vector3(0.5, 0.4, 0.4), 0.06, Color(0.86, 0.84, 0.76), MeshKit.xf(Vector3(-0.1, 0.35, -0.05), Vector3(10, 20, -12)))
+			k.rbox(Vector3(0.36, 0.26, 0.02), 0.03, Color(0.2, 0.24, 0.24), MeshKit.xf(Vector3(-0.06, 0.38, 0.16), Vector3(10, 20, -12)))
+			k.rbox(Vector3(0.5, 0.04, 0.18), 0.01, Color(0.3, 0.3, 0.32), MeshKit.xf(Vector3(0.25, 0.22, 0.25), Vector3(0, -30, 15)))
+			k.rbox(Vector3(0.3, 0.12, 0.3), 0.03, Color(0.24, 0.24, 0.26), MeshKit.xf(Vector3(0.3, 0.12, -0.25), Vector3(0, 40, 0)))
 			for i in 4:
 				var a2 := TAU * i / 4.0 + 0.3
-				k.cyl(0.1, 0.5, Pal.WOOD_DARK, MeshKit.xf(Vector3(cos(a2) * 0.35, 0.08, sin(a2) * 0.35), Vector3(0, -rad_to_deg(a2), 70)), 6, 0.0, 0.04)
-			k.sphere(0.1, Color(0.85, 0.5, 0.35), MeshKit.at(0.3, 0.1, 0.3), 6, 4)
+				k.torus(0.14, 0.015, [Color(0.86, 0.3, 0.26), Color(0.3, 0.5, 0.86), Color(0.94, 0.8, 0.3), Color(0.2, 0.2, 0.22)][i], MeshKit.xf(Vector3(cos(a2) * 0.35, 0.18, sin(a2) * 0.3), Vector3(60, a2 * 57.3, 0)), 10, 3)
 		"oak":
 			k.add_mesh(Terrain.decor_mesh("oak"), MeshKit.xf(Vector3.ZERO, Vector3.ZERO, Vector3(1.5, 1.5, 1.5)))
 			k.ellipsoid(Vector3(1.3, 0.06, 1.2), Color(0.36, 0.44, 0.28), MeshKit.at(0, 0.02, 0), 12, 3)
 		"pine":
 			k.add_mesh(Terrain.decor_mesh("pine"), MeshKit.xf(Vector3.ZERO, Vector3.ZERO, Vector3(1.0, 1.15, 1.0)))
-		"boulders":
-			k.ellipsoid(Vector3(1.0, 0.8, 0.9), Color(0.6, 0.58, 0.55), MeshKit.xf(Vector3(-0.3, 0.55, -0.2), Vector3(0, 30, 6)), 10, 7)
-			k.ellipsoid(Vector3(0.7, 0.55, 0.6), Color(0.56, 0.54, 0.52), MeshKit.xf(Vector3(0.7, 0.35, 0.45), Vector3(0, -10, -8)), 9, 6)
-			k.ellipsoid(Vector3(0.45, 0.35, 0.4), Color(0.64, 0.62, 0.58), MeshKit.at(-0.8, 0.22, 0.7), 8, 5)
-			k.ellipsoid(Vector3(0.6, 0.08, 0.5), Color(0.48, 0.58, 0.36), MeshKit.at(-0.3, 1.3, -0.2), 8, 4)
+		"container":
+			# a rusty old shipping container, tipped and overgrown
+			var rust := Color(0.66, 0.36, 0.26)
+			var c := MeshKit.xf(Vector3(0, 0.62, 0), Vector3(0, 30, 4))
+			k.rbox(Vector3(2.6, 1.2, 1.2), 0.04, rust, c)
+			for i in 12:
+				k.rbox(Vector3(0.05, 1.1, 1.22), 0.01, rust.darkened(0.15), c * MeshKit.at(-1.2 + i * 0.22, 0, 0))
+			k.rbox(Vector3(0.05, 1.2, 1.2), 0.02, Color(0.5, 0.28, 0.2), c * MeshKit.at(1.31, 0, 0))
+			k.ellipsoid(Vector3(0.9, 0.1, 0.6), Color(0.42, 0.52, 0.32), MeshKit.at(-0.4, 1.22, -0.1), 8, 4)
+			k.sphere(0.35, Color(0.4, 0.5, 0.33), MeshKit.at(1.1, 0.25, 0.6), 8, 5)
 	return k.commit()

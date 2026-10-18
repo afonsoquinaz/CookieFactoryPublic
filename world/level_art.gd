@@ -1,7 +1,7 @@
 class_name LevelArt
 ## Small things a building gains as it levels up, so every upgrade shows:
-## crates, planters, lamps, barrels, flags, a bench, topiaries, golden
-## lamps... Each building kind lists anchor spots (local metres, front +Z)
+## crates, planters, lamps, server cabinets, flags, a bench, topiaries,
+## cable reels, a token on a plinth, brass lamps... Each building kind lists anchor spots (local metres, front +Z)
 ## where they stand; the first levels add one almost every level, later
 ## ones less often.
 
@@ -10,22 +10,22 @@ class_name LevelArt
 static func anchors_for(kind: String) -> Array:
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	match d["cat"]:
-		"farm":
+		"source":
 			return [[Vector3(-2.35, 0, 2.4), 0.0], [Vector3(2.35, 0, 2.4), 0.0], [Vector3(-1.5, 0, 2.55), 0.0],
 				[Vector3(1.5, 0, 2.55), 0.0], [Vector3(-2.55, 0, 1.55), 90.0], [Vector3(2.55, 0, 1.55), -90.0]]
-		"bake":
+		"server":
 			return [[Vector3(-4.55, 0.12, 2.55), 0.0], [Vector3(4.55, 0.12, 2.55), 0.0], [Vector3(-2.4, 0.12, 2.6), 0.0],
 				[Vector3(1.6, 0.12, 2.6), 0.0], [Vector3(-4.6, 0.12, 0.4), 90.0], [Vector3(4.6, 0.12, 0.2), -90.0],
 				[Vector3(-0.6, 0.12, 2.65), 0.0], [Vector3(4.55, 0.12, 1.75), 0.0]]
-		"kitchen":
+		"lab":
 			return [[Vector3(-1.7, 0, 1.6), 0.0], [Vector3(1.7, 0, 1.6), 0.0], [Vector3(-1.75, 0, 0.95), 90.0], [Vector3(1.75, 0, 0.95), -90.0]]
 		"pack":
 			return [[Vector3(-1.7, 0, 1.55), 0.0], [Vector3(1.7, 0, 1.55), 0.0], [Vector3(-1.75, 0, 1.0), 90.0], [Vector3(1.75, 0, 1.0), -90.0]]
 		"sell":
 			match kind:
-				"dock": return SalesArt.DOCK_PROPS
-				"shop": return [[Vector3(2.55, 0, 1.5), 0.0], [Vector3(-2.65, 0, 1.55), 0.0], [Vector3(2.6, 0, 0.55), -90.0], [Vector3(1.6, 0, 1.6), 0.0]]
-				"train", "airship": return [[Vector3(-2.55, 0, 2.55), 0.0], [Vector3(2.55, 0, 2.55), 0.0], [Vector3(-2.6, 0, 1.6), 90.0], [Vector3(2.6, 0, 1.6), -90.0]]
+				"van": return SalesArt.DOCK_PROPS
+				"cafe": return [[Vector3(2.55, 0, 1.5), 0.0], [Vector3(-2.65, 0, 1.55), 0.0], [Vector3(2.6, 0, 0.55), -90.0], [Vector3(1.6, 0, 1.6), 0.0]]
+				"hyperloop", "droneport": return [[Vector3(-2.55, 0, 2.55), 0.0], [Vector3(2.55, 0, 2.55), 0.0], [Vector3(-2.6, 0, 1.6), 90.0], [Vector3(2.6, 0, 1.6), -90.0]]
 	return []
 
 
@@ -78,12 +78,10 @@ static func _prop(k: MeshKit, i: int, p: Vector3, yaw: float, style: int) -> voi
 			TownArt.lamp_post(lk, Vector3.ZERO, 1.9)
 			k.merge(lk, MeshKit.at(p.x, p.y, p.z))
 		3:
-			# barrels
-			for j in 2:
-				var q := t * Vector3(-0.2 + j * 0.42, 0, 0)
-				k.cyl(0.2, 0.55, Pal.WOOD, MeshKit.at(q.x, q.y, q.z), 10, 0.04, 0.17)
-				k.torus(0.2, 0.025, Pal.STEEL_DARK, MeshKit.at(q.x, q.y + 0.14, q.z), 10, 3)
-				k.torus(0.2, 0.025, Pal.STEEL_DARK, MeshKit.at(q.x, q.y + 0.42, q.z), 10, 3)
+			# an outdoor server cabinet with status lights
+			k.rbox(Vector3(0.6, 0.9, 0.44), 0.04, Color(0.86, 0.88, 0.9) if not gold else Color(0.2, 0.21, 0.24), t * MeshKit.at(0, 0.45, 0))
+			for j in 3:
+				k.rbox(Vector3(0.06, 0.04, 0.01), 0.01, Color(0.5, 1.0, 0.6, 0.4) if j < 2 else Color(0.4, 0.9, 1.0, 0.4), t * MeshKit.at(-0.15 + j * 0.1, 0.75, 0.225))
 		4:
 			# a topiary ball in a pot
 			k.cyl(0.2, 0.32, Pal.TERRACOTTA if not gold else Pal.CREAM, t * MeshKit.at(0, 0, 0), 10, 0.03, 0.15)
@@ -93,13 +91,16 @@ static func _prop(k: MeshKit, i: int, p: Vector3, yaw: float, style: int) -> voi
 		6:
 			TownArt.bench(k, p, 1.1, yaw)
 		7:
-			TownArt.sacks(k, p, 3)
+			# a cable reel lying on its side
+			k.cyl(0.36, 0.08, Pal.WOOD, t * MeshKit.xf(Vector3(-0.2, 0.36, 0), Vector3(0, 0, 90)), 14)
+			k.cyl(0.36, 0.08, Pal.WOOD, t * MeshKit.xf(Vector3(0.2, 0.36, 0), Vector3(0, 0, 90)), 14)
+			k.cyl(0.26, 0.34, [Color(0.3, 0.5, 0.86), Color(0.96, 0.6, 0.3), Color(0.24, 0.24, 0.28)][i % 3], t * MeshKit.xf(Vector3(-0.17, 0.36, 0), Vector3(0, 0, -90)), 14)
 		8:
-			# a little golden cookie on a plinth
-			k.rbox(Vector3(0.44, 0.5, 0.44), 0.04, Pal.STONE, t * MeshKit.at(0, 0.25, 0))
-			Items.cookie_into(k, "choc", 0.18, 0.05, t * MeshKit.xf(Vector3(0, 0.72, 0), Vector3(80, 0, 0)))
+			# a glowing token on a plinth
+			k.rbox(Vector3(0.44, 0.5, 0.44), 0.04, Color(0.86, 0.87, 0.88) if not gold else Color(0.2, 0.21, 0.24), t * MeshKit.at(0, 0.25, 0))
+			Items.token_into(k, ["chat7", "code13", "assist70", "reason200", "frontier"][clampi(style, 0, 4)], 0.18, 0.05, t * MeshKit.xf(Vector3(0, 0.72, 0), Vector3(80, 0, 0)))
 		9:
-			# a brass lamp with a warm glow
+			# a brass lamp with a cool glow
 			k.cyl(0.05, 1.7, Pal.BRASS, MeshKit.at(p.x, p.y, p.z), 8)
-			k.sphere(0.17, Color(1.0, 0.88, 0.6, 0.4), MeshKit.at(p.x, p.y + 1.85, p.z), 10, 6)
+			k.sphere(0.17, Color(0.7, 0.95, 1.0, 0.4), MeshKit.at(p.x, p.y + 1.85, p.z), 10, 6)
 			k.cone(0.16, 0.18, Pal.BRASS, MeshKit.at(p.x, p.y + 1.98, p.z), 8)

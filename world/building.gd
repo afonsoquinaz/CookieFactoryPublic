@@ -33,26 +33,26 @@ static func create(w: World, b: Dictionary) -> Building:
 	var cat: String = Defs.BUILDINGS[k]["cat"]
 	if int(b["lvl"]) <= 0:
 		node = SiteB.new()
-	elif cat == "farm":
-		node = FarmB.new()
-	elif k == "bakery":
-		node = BakeryB.new()
+	elif cat == "source":
+		node = SourceB.new()
+	elif k == "server":
+		node = ServerB.new()
 	elif k == "hut":
 		node = HutB.new()
-	elif cat == "kitchen" or k == "packer" or k == "wrapper":
+	elif cat == "lab" or k == "batcher" or k == "agent_studio":
 		node = MachineB.new()
-	elif k == "pantry" or k == "rack":
+	elif k == "depot" or k == "cache":
 		node = StorageB.new()
-	elif k in ["dock", "train", "airship"]:
+	elif k in ["van", "hyperloop", "droneport"]:
 		node = VehicleB.new()
-	elif k == "shop":
-		node = ShopB.new()
-	elif k == "board":
-		node = BoardB.new()
-	elif k == "cabin":
-		node = CabinB.new()
-	elif k == "palace":
-		node = PalaceB.new()
+	elif k == "cafe":
+		node = CafeB.new()
+	elif k == "desk":
+		node = DeskB.new()
+	elif k == "dorm":
+		node = DormB.new()
+	elif k == "mega":
+		node = MegaB.new()
 	else:
 		node = DecorB.new()
 	node.world = w

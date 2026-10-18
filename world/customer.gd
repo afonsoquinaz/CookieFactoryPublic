@@ -1,11 +1,12 @@
 class_name Customer
 extends Node3D
-## A shop customer: strolls in from the countryside, waits at the counter,
-## buys a few cookies (they fly into their hands), pays and strolls off.
+## A Chat Café visitor: strolls in from the countryside, waits at the
+## counter, spends a few tokens (they fly into their hands), pays and
+## strolls off.
 
 enum S { IN, WAIT, LEAVE }
 
-var shop: ShopB
+var shop: CafeB
 var spawn := Vector3.ZERO
 var ch: Character
 var carry: Holder

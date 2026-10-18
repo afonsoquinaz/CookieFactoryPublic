@@ -1,15 +1,18 @@
 class_name Animal
 extends Node3D
-## Chickens and cows that wander their pen: hop, peck, swish, bob.
+## The little machines that bustle around some sources:
+##   crawler  a six-legged crawler bot scurrying over the Web Crawler lot,
+##            stopping to "read" the ground with its blinking eye
+##   drone    a quadcopter that hovers over the solar panels, cleaning them
+##   cart     an ore cart trundling around a mine
 
-var kind := "chicken"
+var kind := "crawler"
 var bounds := Rect2(-1, -1, 2, 2)
 var _target := Vector3.ZERO
 var _wait := 0.0
 var _t := 0.0
 var _body: Node3D
 var _head: Node3D
-var _tail: Node3D
 
 
 func _ready() -> void:
@@ -18,124 +21,99 @@ func _ready() -> void:
 	add_child(_body)
 	_head = Node3D.new()
 	_body.add_child(_head)
-	if kind == "bee":
-		Mats.inst(MeshKit.cached("bee", func():
-			var k := MeshKit.new()
-			k.ellipsoid(Vector3(0.05, 0.045, 0.07), Color(0.95, 0.72, 0.2), MeshKit.at(0, 0, 0), 8, 5)
-			for i in 2:
-				k.torus(0.045, 0.012, Color(0.18, 0.14, 0.1), MeshKit.xf(Vector3(0, 0, -0.01 - i * 0.035), Vector3(90, 0, 0)), 8, 3)
-			for sx in [-1.0, 1.0]:
-				k.ellipsoid(Vector3(0.05, 0.008, 0.03), Color(0.95, 0.97, 1.0, 0.6), MeshKit.xf(Vector3(sx * 0.05, 0.05, 0), Vector3(0, 0, sx * 20)), 6, 3)
-			return k.commit()), _body, Transform3D.IDENTITY, false)
-		position.y = randf_range(0.5, 1.1)
-		_pick()
-		return
-	if kind == "chicken":
-		Mats.inst(MeshKit.cached("chicken_body", _chicken_body), _body)
-		_head.position = Vector3(0, 0.3, 0.1)
-		Mats.inst(MeshKit.cached("chicken_head", _chicken_head), _head)
-		scale = Vector3.ONE * randf_range(1.4, 1.6)
-	else:
-		Mats.inst(MeshKit.cached("cow_body", _cow_body), _body)
-		_head.position = Vector3(0, 0.62, 0.45)
-		Mats.inst(MeshKit.cached("cow_head", _cow_head), _head)
-		_tail = Node3D.new()
-		_tail.position = Vector3(0, 0.66, -0.42)
-		_body.add_child(_tail)
-		var tk := MeshKit.new()
-		tk.cyl(0.02, 0.35, Color(1, 1, 1), MeshKit.xf(Vector3.ZERO, Vector3(160, 0, 0)), 6)
-		tk.sphere(0.05, Color(0.2, 0.18, 0.2), MeshKit.at(0, -0.34, -0.12), 6, 4)
-		Mats.inst(tk.commit(), _tail)
+	match kind:
+		"drone":
+			Mats.inst(MeshKit.cached("bot_drone", _drone), _body, Transform3D.IDENTITY, false)
+			position.y = randf_range(0.9, 1.4)
+		"cart":
+			Mats.inst(MeshKit.cached("bot_cart", _cart), _body)
+		_:
+			Mats.inst(MeshKit.cached("bot_crawler", _crawler), _body)
+			_head.position = Vector3(0, 0.16, 0.1)
+			Mats.inst(MeshKit.cached("bot_crawler_eye", func():
+				var k := MeshKit.new()
+				k.sphere(0.045, Items.lit(Color(0.4, 0.9, 1.0), 0.35), MeshKit.at(0, 0, 0.02), 8, 5)
+				return k.commit()), _head, Transform3D.IDENTITY, false)
+			scale = Vector3.ONE * randf_range(1.3, 1.5)
 	_pick()
 
 
 func _pick() -> void:
 	_target = Vector3(randf_range(bounds.position.x, bounds.end.x), position.y, randf_range(bounds.position.y, bounds.end.y))
-	_wait = randf_range(1.0, 3.5) * (2.5 if kind == "cow" else 1.0)
+	_wait = randf_range(1.0, 3.5) * (2.0 if kind == "cart" else 1.0)
 
 
 func animate(dt: float) -> void:
 	_t += dt
 	var to := _target - position
 	to.y = 0
-	if kind == "bee":
+	if kind == "drone":
 		if to.length() > 0.08:
-			position += to.normalized() * 1.6 * dt
-			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), dt * 10.0)
+			position += to.normalized() * 1.2 * dt
+			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), dt * 4.0)
+			_body.rotation.x = 0.15
 		else:
-			_pick()
-			_target.y = randf_range(0.4, 1.2)
-		_body.position.y = sin(_t * 9.0) * 0.06
+			_body.rotation.x = 0.0
+			_wait -= dt
+			if _wait <= 0.0:
+				_pick()
+				_target.y = randf_range(0.9, 1.4)
+		position.y = lerpf(position.y, _target.y, dt)
+		_body.position.y = sin(_t * 3.0) * 0.04
 		return
-	var spd := 0.7 if kind == "chicken" else 0.25
+	var spd := 0.8 if kind == "crawler" else 0.3
 	if _wait > 0.0:
 		_wait -= dt
-		# idle: peck / graze
-		if kind == "chicken":
-			_head.rotation.x = maxf(0.0, sin(_t * 9.0)) * 0.9 if fmod(_t, 3.0) < 1.0 else 0.0
+		if kind == "crawler":
+			# reading: the eye dips and blinks
+			_head.rotation.x = maxf(0.0, sin(_t * 7.0)) * 0.6 if fmod(_t, 3.0) < 1.2 else 0.0
 			_body.position.y = 0.0
-		else:
-			_head.rotation.x = 0.35 + sin(_t * 1.5) * 0.12
-			_tail.rotation.z = sin(_t * 2.5) * 0.4
 	elif to.length() > 0.1:
 		position += to.normalized() * spd * dt
 		rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), dt * 6.0)
-		if kind == "chicken":
-			_body.position.y = absf(sin(_t * 14.0)) * 0.06
+		if kind == "crawler":
+			_body.position.y = absf(sin(_t * 18.0)) * 0.025
 		else:
-			_body.position.y = absf(sin(_t * 5.0)) * 0.02
-			_head.rotation.x = sin(_t * 5.0) * 0.08
+			_body.position.y = absf(sin(_t * 9.0)) * 0.008
 	else:
 		_pick()
 
 
-func _chicken_body() -> Mesh:
+func _crawler() -> Mesh:
 	var k := MeshKit.new()
-	k.ellipsoid(Vector3(0.17, 0.16, 0.2), Color(1, 1, 0.98), MeshKit.at(0, 0.2, 0), 12, 8)
-	k.ellipsoid(Vector3(0.06, 0.1, 0.07), Color(0.95, 0.95, 0.92), MeshKit.xf(Vector3(0, 0.3, -0.18), Vector3(-30, 0, 0)), 8, 5)
+	k.ellipsoid(Vector3(0.12, 0.07, 0.15), Color(0.92, 0.93, 0.95), MeshKit.at(0, 0.14, 0), 12, 7)
+	k.ellipsoid(Vector3(0.1, 0.03, 0.12), Color(0.36, 0.74, 0.92), MeshKit.at(0, 0.19, -0.01), 10, 5)
 	for sx in [-1.0, 1.0]:
-		k.ellipsoid(Vector3(0.04, 0.09, 0.13), Color(0.94, 0.94, 0.9), MeshKit.at(sx * 0.16, 0.21, -0.01), 8, 5)
-		k.cyl(0.015, 0.08, Pal.ORANGE, MeshKit.at(sx * 0.06, 0.0, 0.0), 5)
+		for i in 3:
+			var z := -0.08 + i * 0.08
+			k.cyl(0.012, 0.16, Color(0.3, 0.32, 0.36), MeshKit.xf(Vector3(sx * 0.1, 0.14, z), Vector3(0, 0, sx * 120)), 4)
+			k.cyl(0.01, 0.14, Color(0.3, 0.32, 0.36), MeshKit.xf(Vector3(sx * 0.23, 0.07, z), Vector3(0, 0, sx * 20)), 4)
+	k.cyl(0.006, 0.12, Pal.STEEL_DARK, MeshKit.at(0.04, 0.2, -0.08), 4)
+	k.sphere(0.015, Items.lit(Color(1.0, 0.4, 0.4), 0.4), MeshKit.at(0.04, 0.33, -0.08), 5, 3)
 	return k.commit()
 
 
-func _chicken_head() -> Mesh:
+func _drone() -> Mesh:
 	var k := MeshKit.new()
-	k.sphere(0.1, Color(1, 1, 0.98), MeshKit.at(0, 0.03, 0.03), 10, 7)
-	k.cone(0.035, 0.07, Pal.ORANGE, MeshKit.xf(Vector3(0, 0.02, 0.12), Vector3(90, 0, 0)), 6)
-	for i in 3:
-		k.sphere(0.03, Pal.RED, MeshKit.at(0, 0.13, -0.02 + i * 0.03), 6, 4)
-	k.ellipsoid(Vector3(0.02, 0.035, 0.02), Pal.RED, MeshKit.at(0, -0.04, 0.1), 6, 4)
-	for sx in [-1.0, 1.0]:
-		k.sphere(0.017, Color(0.1, 0.08, 0.08), MeshKit.at(sx * 0.07, 0.05, 0.07), 6, 4)
+	k.rbox(Vector3(0.18, 0.07, 0.18), 0.03, Color(0.94, 0.95, 0.96), MeshKit.at(0, 0, 0))
+	k.rbox(Vector3(0.06, 0.02, 0.02), 0.008, Items.lit(Color(0.5, 1.0, 0.6), 0.4), MeshKit.at(0, 0, 0.095))
+	for i in 4:
+		var a := TAU * i / 4.0 + PI * 0.25
+		var p := Vector3(cos(a) * 0.17, 0.02, sin(a) * 0.17)
+		k.rbox(Vector3(0.18, 0.02, 0.025), 0.008, Color(0.3, 0.32, 0.36), MeshKit.xf(p * 0.5, Vector3(0, -rad_to_deg(a), 0)))
+		k.cyl(0.02, 0.04, Color(0.3, 0.32, 0.36), MeshKit.at(p.x, p.y, p.z), 6)
+		k.cyl(0.085, 0.006, Color(0.8, 0.84, 0.88, 0.85), MeshKit.at(p.x, p.y + 0.045, p.z), 12)
+	k.rbox(Vector3(0.12, 0.02, 0.04), 0.008, Color(0.4, 0.42, 0.46), MeshKit.at(0, -0.06, 0))
 	return k.commit()
 
 
-func _cow_body() -> Mesh:
+func _cart() -> Mesh:
 	var k := MeshKit.new()
-	var white := Color(0.99, 0.98, 0.96)
-	var spot := Color(0.2, 0.18, 0.22)
-	k.rbox(Vector3(0.55, 0.42, 0.85), 0.2, white, MeshKit.at(0, 0.55, 0))
-	k.ellipsoid(Vector3(0.2, 0.14, 0.2), spot, MeshKit.at(0.2, 0.66, 0.1), 10, 6)
-	k.ellipsoid(Vector3(0.16, 0.12, 0.18), spot, MeshKit.at(-0.22, 0.52, -0.2), 10, 6)
-	k.ellipsoid(Vector3(0.12, 0.08, 0.12), spot, MeshKit.at(0.05, 0.77, -0.25), 10, 6)
-	k.ellipsoid(Vector3(0.1, 0.07, 0.1), Pal.PINK, MeshKit.at(0, 0.33, -0.15), 8, 5)
-	for sx in [-0.17, 0.17]:
-		for sz in [-0.27, 0.27]:
-			k.cyl(0.075, 0.38, white, MeshKit.at(sx, 0.0, sz), 8, 0.03)
-			k.cyl(0.08, 0.08, Color(0.35, 0.25, 0.22), MeshKit.at(sx, 0.0, sz), 8, 0.03)
-	return k.commit()
-
-
-func _cow_head() -> Mesh:
-	var k := MeshKit.new()
-	var white := Color(0.99, 0.98, 0.96)
-	k.ellipsoid(Vector3(0.22, 0.21, 0.2), white, MeshKit.at(0, 0.05, 0.08), 12, 8)
-	k.ellipsoid(Vector3(0.18, 0.12, 0.1), Color(1.0, 0.7, 0.72), MeshKit.at(0, -0.04, 0.24), 12, 7)
+	var body := Color(0.42, 0.44, 0.48)
+	k.cyl(0.24, 0.24, body, MeshKit.at(0, 0.12, 0), 4, 0.03, 0.3)
+	k.ellipsoid(Vector3(0.2, 0.08, 0.2), Color(0.84, 0.5, 0.3), MeshKit.at(0, 0.38, 0), 8, 4)
+	k.ellipsoid(Vector3(0.08, 0.05, 0.08), Color(0.72, 0.46, 0.8), MeshKit.at(0.08, 0.42, 0.06), 6, 3)
 	for sx in [-1.0, 1.0]:
-		k.sphere(0.022, Color(0.55, 0.3, 0.32), MeshKit.at(sx * 0.07, -0.03, 0.335), 6, 4)
-		k.sphere(0.03, Color(0.1, 0.08, 0.08), MeshKit.at(sx * 0.1, 0.12, 0.23), 8, 5)
-		k.ellipsoid(Vector3(0.1, 0.04, 0.06), white, MeshKit.xf(Vector3(sx * 0.24, 0.12, 0.04), Vector3(0, 0, sx * -20)), 8, 4)
-		k.cone(0.035, 0.11, Color(1.0, 0.92, 0.7), MeshKit.xf(Vector3(sx * 0.12, 0.22, 0.02), Vector3(0, 0, -sx * 25)), 6)
-	k.ellipsoid(Vector3(0.1, 0.07, 0.04), Color(0.2, 0.18, 0.22), MeshKit.at(0.08, 0.18, 0.18), 8, 4)
+		for sz in [-1.0, 1.0]:
+			k.cyl(0.06, 0.04, Pal.RUBBER, MeshKit.xf(Vector3(sx * 0.2, 0.06, sz * 0.14), Vector3(0, 0, 90)) * MeshKit.at(0, -0.02, 0), 8)
 	return k.commit()

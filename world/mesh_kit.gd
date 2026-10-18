@@ -186,7 +186,9 @@ func rbox(size: Vector3, r: float, col: Color, t := Transform3D.IDENTITY, steps 
 ## top; repeat a point to make a hard edge there. cols: one colour per profile
 ## point (or a single colour).
 func lathe(profile: PackedVector2Array, col, t := Transform3D.IDENTITY, segs := 16, arc := TAU) -> MeshKit:
-	segs = maxi(5, int(round(segs * detail)))
+	# few segments = a deliberate polygon (hexagon token, square planter): keep it
+	if segs >= 10:
+		segs = maxi(8, int(round(segs * detail)))
 	var count := profile.size()
 	var pn := PackedVector2Array()
 	pn.resize(count)

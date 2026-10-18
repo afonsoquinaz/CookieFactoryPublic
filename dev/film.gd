@@ -24,9 +24,9 @@ func _process(dt: float) -> void:
 		if _wait <= 0.0 and Shot.args().has("van"):
 			var w: World = get_tree().current_scene.get("world")
 			for n in w.bnodes.values():
-				if n is VehicleB and n.kind == "dock":
+				if n is VehicleB and n.kind == "van":
 					for i in 3:
-						(n as VehicleB).cargo.add("c:shortbread", false)
+						(n as VehicleB).cargo.add("t:shortbread", false)
 					(n as VehicleB)._depart()
 					break
 		return

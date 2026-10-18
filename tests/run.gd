@@ -4,7 +4,7 @@ extends Node
 ## reachable), balance curves, Game state (Empire levels, builders and
 ## timers, placing, upgrading, finishing with gems, obstacles, land, staff,
 ## orders), save round-trip with time away, holders, the grid, the road
-## network, and a real World where the bakery bakes, porters keep it fed,
+## network, and a real World where the server bakes, porters keep it fed,
 ## construction sites turn into buildings and every building spawns.
 
 var _fails := 0
@@ -60,18 +60,18 @@ func _test_tables() -> void:
 			ok(d.has("craft"), "%s has a craft time" % k)
 	for t in Defs.ITEMS:
 		ok(Icons.tex(t) != null, "icon for item " + t)
-		ok(t == "wheat" or Defs.producer_of(t) != "", "something produces " + t)
+		ok(t == "power" or Defs.producer_of(t) != "", "something produces " + t)
 		ok(Items.mesh(t).get_surface_count() > 0, "mesh for item " + t)
 	var seen := {}
 	for r in Defs.RECIPES:
 		ok(not seen.has(r["id"]), "recipe id unique " + r["id"])
 		seen[r["id"]] = true
 		ok(Icons.tex("ck_" + r["id"]) != null, "cookie icon for " + r["id"])
-		ok(Defs.COOKIE_LOOK.has(r["id"]), "cookie look for " + r["id"])
+		ok(Defs.MODEL_LOOK.has(r["id"]), "cookie look for " + r["id"])
 		for i in r["ings"]:
-			ok(Defs.ITEMS.has(i) and i != "wheat", "%s uses a real non-wheat ingredient %s" % [r["id"], i])
-		ok((r["ings"] as Array).size() <= 7, "%s fits in a bakery (7 silos)" % r["id"])
-		ok(Defs.slots_level((r["ings"] as Array).size()) <= Bal.max_level("bakery"), "a bakery can grow enough silos for " + r["id"])
+			ok(Defs.ITEMS.has(i) and i != "power", "%s uses a real non-wheat ingredient %s" % [r["id"], i])
+		ok((r["ings"] as Array).size() <= 7, "%s fits in a server (7 bays)" % r["id"])
+		ok(Defs.slots_level((r["ings"] as Array).size()) <= Bal.max_level("server"), "a server can grow enough bays for " + r["id"])
 	for role in Defs.ROLE_ORDER:
 		ok(Icons.tex(Defs.ROLES[role]["icon"]) != null, "icon for role " + role)
 	for k in Defs.OBSTACLES:
@@ -98,9 +98,9 @@ func _test_balance() -> void:
 			ok(Bal.upgrade_cost(k, l + 1) >= Bal.upgrade_cost(k, l), "%s: upgrades cost more each level" % k)
 	ok(Bal.finish_gems(10.0) == 0 and Bal.finish_gems(30.0) == 0, "short jobs finish free")
 	ok(Bal.finish_gems(60.0) >= 1 and Bal.finish_gems(3600.0) > Bal.finish_gems(600.0), "longer jobs cost more gems")
-	ok(Defs.bakery_slots(1) == 1 and Defs.bakery_slots(4) == 2 and Defs.bakery_slots(40) == 7, "bakery silos grow with level")
-	ok(Defs.limit_of("farm_wheat") == -1 and Defs.limit_of("flowers") == -1, "farms and decor are unlimited")
-	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("board") == 1 and Defs.limit_of("palace") == 1, "huts, the board and the palace are limited")
+	ok(Defs.server_slots(1) == 1 and Defs.server_slots(4) == 2 and Defs.server_slots(40) == 7, "server bays grow with level")
+	ok(Defs.limit_of("src_power") == -1 and Defs.limit_of("planter") == -1, "farms and decor are unlimited")
+	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
 
 
 # ---------------------------------------------------------------- game state
@@ -108,12 +108,12 @@ func _test_balance() -> void:
 func _test_game_state() -> void:
 	Game.reset_state()
 	ok(Game.level == 1 and not Defs.BUILDINGS.has("hall"), "a new empire is level 1, with no Cookie Hall")
-	for k in ["bakery", "farm_wheat", "dock", "pantry", "cabin"]:
+	for k in ["server", "src_power", "van", "depot", "dorm"]:
 		ok(Game.count_ready(k) == 1, "a new empire has a ready " + k)
 	ok(Game.builders() == 2 and Game.free_builders() == 2, "two builders to start")
-	ok(Game.workers_with("porter") == 3, "three porters to start")
+	ok(Game.workers_with("courier") == 3, "three porters to start")
 	ok(Game.obstacles.size() >= 5, "obstacles to clear on the starting land")
-	ok(Game.build_block("farm_egg") == "Not enough money", "only money stands between you and a hen house")
+	ok(Game.build_block("src_silicon") == "Not enough money", "only money stands between you and a hen house")
 	for k in Defs.BUILD_ORDER:
 		var by := Game.build_block(k)
 		ok(by == "" or by == "Not enough money" or by.begins_with("Needs") and by.contains("gems"), "%s is open from the start (%s)" % [k, by])
@@ -123,28 +123,28 @@ func _test_game_state() -> void:
 		for c in Grid.cells(Game.cell_of(b0), Defs.size_of(b0["kind"]), int(b0["rot"])):
 			ok(not Roads.is_street(c), "%s is off the High Street" % b0["kind"])
 	Game.money = 1000.0
-	ok(Game.build_block("farm_sugar") == "", "a sugar field can be built")
-	var b := Game.place("farm_sugar", Vector2i(-7, 3), 0)
+	ok(Game.build_block("src_data") == "", "a sugar field can be built")
+	var b := Game.place("src_data", Vector2i(-7, 3), 0)
 	ok(not b.is_empty() and int(b["lvl"]) == 0, "a new building starts under construction")
 	ok(Game.jobs.size() == 1 and Game.free_builders() == 1, "a builder is busy on it")
-	ok(Game.count_ready("farm_sugar") == 0 and not Game.can_make("sugar"), "not working while being built")
+	ok(Game.count_ready("src_data") == 0 and not Game.can_make("data"), "not working while being built")
 	Game.clock += 2.0
 	Game._check_jobs()
 	ok(int(b["lvl"]) == 0, "still being built after 2 s")
-	Game.clock += Bal.build_time("farm_sugar", 0)
+	Game.clock += Bal.build_time("src_data", 0)
 	Game._check_jobs()
-	ok(int(b["lvl"]) == 1 and Game.jobs.is_empty() and Game.can_make("sugar"), "built when the timer runs out")
+	ok(int(b["lvl"]) == 1 and Game.jobs.is_empty() and Game.can_make("data"), "built when the timer runs out")
 	# upgrades take a builder and time
 	var bk: Dictionary = {}
 	for x in Game.buildings:
-		if x["kind"] == "bakery":
+		if x["kind"] == "server":
 			bk = x
 	var uid := int(bk["uid"])
-	ok(Game.upgrade(uid), "bakery upgrade starts")
+	ok(Game.upgrade(uid), "server upgrade starts")
 	ok(int(bk["lvl"]) == 1 and Game.job_of(uid).size() > 0, "upgrade in progress")
 	ok(Game.upgrade_block(uid) != "", "can't upgrade twice at once")
 	ok(Game.finish_now(Game.job_of(uid)), "short job finishes free")
-	ok(int(bk["lvl"]) == 2, "bakery reached level 2")
+	ok(int(bk["lvl"]) == 2, "server reached level 2")
 	bk["lvl"] = 30
 	Game.money = 1e9
 	ok(Game.upgrade_block(uid) == "", "nothing caps building levels but their max")
@@ -157,12 +157,12 @@ func _test_game_state() -> void:
 	ok(Game.level == 3, "money that isn't earned doesn't count")
 	ok(Game.level_progress() > 0.0 and Game.level_progress() < 1.0, "progress toward the next level")
 	Game.money = 1e6
-	ok(Game.build_block("farm_cocoa") == "", "a cocoa grove right away")
+	ok(Game.build_block("src_coolant") == "", "a cocoa grove right away")
 	# both builders busy
 	Game.upgrade(uid)
-	Game.place("farm_wheat", Vector2i(3, -8), 0)
+	Game.place("src_power", Vector2i(3, -8), 0)
 	ok(Game.free_builders() == 0, "both builders busy")
-	ok(Game.build_block("farm_cocoa").contains("builder"), "no free builder: can't build")
+	ok(Game.build_block("src_coolant").contains("builder"), "no free builder: can't build")
 	Game.gems = 0
 	var long := {}
 	for j in Game.jobs:
@@ -188,19 +188,19 @@ func _test_game_state() -> void:
 	ok(Game.obstacles.size() > n0, "new land comes with obstacles")
 	ok(not Game.can_buy_chunk(Vector2i(5, 5)), "plots far away can't be bought")
 	# staff
-	ok(Game.assign_porter("farmer", 7), "a porter becomes a farmer")
-	ok(Game.workers_with("farmer", 7) == 1 and Game.workers_with("porter") == 2, "one farmer, two porters")
-	Game.assign_porter("chef", 8)
-	ok(not Game.assign_porter("chef", 8), "the last porter stays a porter")
-	ok(Game.unassign("chef", 8) and Game.workers_with("porter") == 2, "back to portering")
+	ok(Game.assign_courier("tech", 7), "a porter becomes a farmer")
+	ok(Game.workers_with("tech", 7) == 1 and Game.workers_with("courier") == 2, "one farmer, two porters")
+	Game.assign_courier("engineer", 8)
+	ok(not Game.assign_courier("engineer", 8), "the last porter stays a porter")
+	ok(Game.unassign("engineer", 8) and Game.workers_with("courier") == 2, "back to portering")
 	Game.money = 1e9
-	var cap := Game.cabin_capacity()
+	var cap := Game.dorm_capacity()
 	while Game.can_hire():
 		Game.hire()
 	ok(Game.workers.size() == cap, "hire up to what you can house")
 	# orders
-	Game.place("board", Vector2i(-6, 6), 0, {}, false)
-	Game.known_recipes["sugar"] = true
+	Game.place("desk", Vector2i(-6, 6), 0, {}, false)
+	Game.known_recipes["data"] = true
 	Game.refill_orders()
 	ok(Game.orders.size() == Game.order_slots(), "the board fills with orders")
 	var o: Dictionary = Game.orders[0]
@@ -214,17 +214,17 @@ func _test_game_state() -> void:
 func _test_save_roundtrip() -> void:
 	Game.reset_state()
 	Game.money = 5000.0
-	Game.place("farm_sugar", Vector2i(-7, 3), 0)
+	Game.place("src_data", Vector2i(-7, 3), 0)
 	Game.buy_chunk(Vector2i(1, 0))
 	var d := Game.to_dict()
 	d = JSON.parse_string(JSON.stringify(d))
 	Game.from_dict(d)
-	ok(Game.count_of("farm_sugar") == 1 and Game.jobs.size() == 1, "save keeps buildings and jobs")
+	ok(Game.count_of("src_data") == 1 and Game.jobs.size() == 1, "save keeps buildings and jobs")
 	ok(Game.owns_chunk(Vector2i(1, 0)) and Game.obstacles.size() > 0, "save keeps land and obstacles")
 	# an hour away: the build finished
 	d["time"] = int(d["time"]) - 3600
 	Game.from_dict(d)
-	ok(Game.jobs.is_empty() and Game.count_ready("farm_sugar") == 1, "builds finish while you're away")
+	ok(Game.jobs.is_empty() and Game.count_ready("src_data") == 1, "builds finish while you're away")
 	ok(Game.offline_seconds >= 3599.0, "time away is known")
 	Game.reset_state()
 
@@ -243,10 +243,10 @@ func _test_grid() -> void:
 	g.clear_obstacle("5,5")
 	ok(not g.blocked(Vector2i(5, 5)), "cleared")
 	# entrances: the middle of the front edge, one or two cells
-	ok(Building.entrance_of("farm_wheat", Vector2i(0, 0), 0) == ([Vector2i(1, 3)] as Array[Vector2i]), "3-wide entrance is one cell in front")
-	ok(Building.entrance_of("pantry", Vector2i(0, 0), 0).size() == 2, "2-wide entrance is two cells")
-	ok(Building.entrance_of("farm_wheat", Vector2i(0, 0), 2) == ([Vector2i(1, -1)] as Array[Vector2i]), "turned around, the entrance is behind")
-	ok(Building.entrance_of("flowers", Vector2i(0, 0), 0).is_empty(), "decor has no entrance")
+	ok(Building.entrance_of("src_power", Vector2i(0, 0), 0) == ([Vector2i(1, 3)] as Array[Vector2i]), "3-wide entrance is one cell in front")
+	ok(Building.entrance_of("depot", Vector2i(0, 0), 0).size() == 2, "2-wide entrance is two cells")
+	ok(Building.entrance_of("src_power", Vector2i(0, 0), 2) == ([Vector2i(1, -1)] as Array[Vector2i]), "turned around, the entrance is behind")
+	ok(Building.entrance_of("planter", Vector2i(0, 0), 0).is_empty(), "decor has no entrance")
 
 
 func _test_roads_unit() -> void:
@@ -283,21 +283,21 @@ func _test_roads_unit() -> void:
 
 
 func _test_holders() -> void:
-	var a := Holder.new().setup(5, ["wheat"], Holder.Layout.COLUMN)
+	var a := Holder.new().setup(5, ["power"], Holder.Layout.COLUMN)
 	var b := Holder.new().setup(2, [], Holder.Layout.COLUMN)
 	b.accept_cat = ["raw"]
 	add_child(a)
 	add_child(b)
 	for i in 3:
-		a.add("wheat", false)
-	ok(not a.can_accept("sugar"), "typed holder refuses other items")
-	ok(b.can_accept("wheat") and not b.can_accept("c:sugar") and not b.can_accept("butter"), "category filter")
-	ok(Holder.fly(a, b, "wheat", 0.05), "fly starts")
+		a.add("power", false)
+	ok(not a.can_accept("data"), "typed holder refuses other items")
+	ok(b.can_accept("power") and not b.can_accept("t:sugar") and not b.can_accept("gpu"), "category filter")
+	ok(Holder.fly(a, b, "power", 0.05), "fly starts")
 	ok(a.count() == 2 and b.incoming == 1, "item in flight is reserved")
 	await get_tree().create_timer(0.2).timeout
 	ok(b.count() == 1 and b.incoming == 0, "item landed")
-	Holder.fly(a, b, "wheat", 0.05)
-	ok(not Holder.fly(a, b, "wheat", 0.05), "full target refuses")
+	Holder.fly(a, b, "power", 0.05)
+	ok(not Holder.fly(a, b, "power", 0.05), "full target refuses")
 	await get_tree().create_timer(0.2).timeout
 	a.queue_free()
 	b.queue_free()
@@ -328,23 +328,23 @@ func _test_world() -> void:
 			ok(n.on_road(), "%s is on the road" % n.kind)
 	for c in w.roads.cells:
 		ok(w.grid.at(c) == 0 and w.grid.obstacle_at(c) == "", "road cell %s is free land" % c)
-	var bakery: BakeryB = w.buildings_of("bakery")[0]
-	ok(bakery.recipe == "shortbread", "the first bakery bakes shortbread")
+	var server: ServerB = w.buildings_of("server")[0]
+	ok(server.recipe == "pico", "the first server bakes shortbread")
 	# bake for real
 	for i in 3:
-		bakery.flour.add("wheat", false)
-	var t := await _wait_until(func(): return bakery.tray.count() >= bakery.batch(), 40.0)
-	ok(bakery.tray.count() >= bakery.batch(), "the bakery baked a batch (%.1fs)" % t)
-	ok(bakery.tray.items[0] == "c:shortbread", "it baked shortbread")
+		server.cells.add("power", false)
+	var t := await _wait_until(func(): return server.bench.count() >= server.batch(), 40.0)
+	ok(server.bench.count() >= server.batch(), "the server baked a batch (%.1fs)" % t)
+	ok(server.bench.items[0] == "t:shortbread", "it baked shortbread")
 	# porters bring wheat from the field
-	bakery.flour.clear_all()
-	var farm: FarmB = w.buildings_of("farm_wheat")[0]
+	server.cells.clear_all()
+	var farm: SourceB = w.buildings_of("src_power")[0]
 	for i in 6:
-		farm.crate.add("wheat", false)
-	t = await _wait_until(func(): return bakery.flour.count() > 0 or not bakery.doughs.is_empty(), 60.0)
-	ok(bakery.flour.count() > 0 or not bakery.doughs.is_empty(), "porters brought wheat along the road (%.1fs)" % t)
-	# a sugar field is built by a builder, then the bakery bakes sugar cookies
-	var sb := Game.place("farm_sugar", Vector2i(-7, 3), 2)
+		farm.crate.add("power", false)
+	t = await _wait_until(func(): return server.cells.count() > 0 or not server.packets.is_empty(), 60.0)
+	ok(server.cells.count() > 0 or not server.packets.is_empty(), "porters brought wheat along the road (%.1fs)" % t)
+	# a sugar field is built by a builder, then the server bakes sugar cookies
+	var sb := Game.place("src_data", Vector2i(-7, 3), 2)
 	await get_tree().process_frame
 	var site := w.building(int(sb["uid"]))
 	ok(site is SiteB, "a construction site while it's being built")
@@ -352,27 +352,27 @@ func _test_world() -> void:
 	Game.finish_now(Game.job_of(int(sb["uid"])))
 	await get_tree().process_frame
 	var built := w.building(int(sb["uid"]))
-	ok(built is FarmB, "the site turned into the farm")
-	t = await _wait_until(func(): return bakery.recipe == "sugar", 40.0, 4.0)
-	ok(bakery.recipe == "sugar", "Auto switched the bakery to sugar cookies once sugar was harvested (%.1fs)" % t)
-	ok(bakery.silos.has("sugar"), "a sugar silo")
+	ok(built is SourceB, "the site turned into the farm")
+	t = await _wait_until(func(): return server.recipe == "data", 40.0, 4.0)
+	ok(server.recipe == "data", "Auto switched the server to sugar cookies once sugar was harvested (%.1fs)" % t)
+	ok(server.bays.has("data"), "a sugar silo")
 	# switch recipe with dough already rolling down the tube
 	for i in 4:
-		bakery.flour.add("wheat", false)
-		bakery.silos["sugar"].add("sugar", false)
-	await _wait_until(func(): return not bakery.doughs.is_empty(), 10.0, 2.0)
-	bakery.choose("shortbread")
-	ok(bakery.recipe == "shortbread" and not bakery.silos.has("sugar"), "choosing a recipe changes the silos")
+		server.cells.add("power", false)
+		server.bays["data"].add("data", false)
+	await _wait_until(func(): return not server.packets.is_empty(), 10.0, 2.0)
+	server.choose("pico")
+	ok(server.recipe == "pico" and not server.bays.has("data"), "choosing a recipe changes the bays")
 	var baked0 := int(Game.stats["batches"])
 	t = await _wait_until(func(): return int(Game.stats["batches"]) > baked0, 20.0, 4.0)
 	ok(int(Game.stats["batches"]) > baked0, "dough already in the tube still gets baked after a switch (%.1fs)" % t)
-	bakery.choose("")
+	server.choose("")
 	# a building on top of a road: the road goes around
 	var before := w.roads.connected.size()
 	var road_cell: Vector2i = w.roads.cells.keys()[w.roads.cells.size() / 2]
-	var spot := w.check_spot("flowers", road_cell, 0)
+	var spot := w.check_spot("planter", road_cell, 0)
 	if spot["ok"]:
-		Game.place("flowers", road_cell, 0)
+		Game.place("planter", road_cell, 0)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		ok(not w.roads.is_road(road_cell), "no road under the new flower bed")
@@ -384,15 +384,15 @@ func _test_world() -> void:
 			var path: Array = w.roads.paths.get(n.uid, [])
 			if path.size() > 2:
 				var c2: Vector2i = path[path.size() / 2]
-				var s2 := w.check_spot("flowers", c2, 0)
+				var s2 := w.check_spot("planter", c2, 0)
 				# either it's fine (another way round) or it says what it would cut off
 				if not s2["ok"] and not str(s2["reason"]).contains("cut off") and not str(s2["reason"]).contains("entrance"):
 					cut_ok = false
 	ok(cut_ok, "spots on roads are refused only for a reason")
 	# entrances must stay clear
-	var e: Vector2i = bakery.entrance_cells()[0]
-	ok(not w.check_spot("flowers", e, 0)["ok"], "can't build on the Bakery's entrance")
-	ok(not w.check_spot("flowers", Vector2i(3, Roads.STREET_Y), 0)["ok"], "can't build on the High Street")
+	var e: Vector2i = server.entrance_cells()[0]
+	ok(not w.check_spot("planter", e, 0)["ok"], "can't build on the Bakery's entrance")
+	ok(not w.check_spot("planter", Vector2i(3, Roads.STREET_Y), 0)["ok"], "can't build on the High Street")
 	# every kind of building spawns, answers the info panel and shows every look
 	Game.money = 1e15
 	for c in [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(2, 0), Vector2i(2, 1), Vector2i(3, 0), Vector2i(3, 1)]:
@@ -404,7 +404,7 @@ func _test_world() -> void:
 		if cx + sz.x > 60:
 			cx = 4
 			cy += 7
-		var b := Game.place(kind, Vector2i(cx, cy), 0, {"stage": 0} if kind == "palace" else {}, false)
+		var b := Game.place(kind, Vector2i(cx, cy), 0, {"stage": 0} if kind == "mega" else {}, false)
 		cx += sz.x + 1
 		await get_tree().process_frame
 		var n := w.building(int(b["uid"]))

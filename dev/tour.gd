@@ -15,10 +15,10 @@ func _ready() -> void:
 	hud = get_tree().current_scene.get("ui")
 	Game.money = 60
 	await _shot("0_welcome")
-	var bakery: BakeryB = world.buildings_of("bakery")[0]
-	# a real tap on the bakery
+	var server: ServerB = world.buildings_of("server")[0]
+	# a real tap on the server
 	var cam := get_viewport().get_camera_3d()
-	var sp := cam.unproject_position(bakery.global_position + Vector3(0, 0.5, 0))
+	var sp := cam.unproject_position(server.global_position + Vector3(0, 0.5, 0))
 	for pressed in [true, false]:
 		var e := InputEventScreenTouch.new()
 		e.index = 0
@@ -27,21 +27,21 @@ func _ready() -> void:
 		Input.parse_input_event(e)
 		await get_tree().process_frame
 	await _wait(0.6)
-	print("tour tap selected: ", hud.selected == bakery)
-	if hud.selected != bakery:
-		hud.select(bakery)
+	print("tour tap selected: ", hud.selected == server)
+	if hud.selected != server:
+		hud.select(server)
 	await _shot("1_selected")
 	Game.money = 200
 	await _wait(0.6)
 	await _shot("1b_upgrade_ready")
-	hud.open_building(bakery, "upgrade")
+	hud.open_building(server, "upgrade")
 	await _wait(0.8)
 	await _shot("1c_panel")
-	Game.upgrade(bakery.uid)
+	Game.upgrade(server.uid)
 	hud._sheet.close()
 	await _wait(1.0)
 	await _shot("2_timer")
-	Game.finish_now(Game.job_of(bakery.uid))
+	Game.finish_now(Game.job_of(server.uid))
 	hud.deselect()
 	await _wait(1.0)
 	await _shot("3_build_sugar")
@@ -50,7 +50,7 @@ func _ready() -> void:
 	await _shot("3b_build_panel")
 	hud._sheet.close()
 	await _wait(0.4)
-	hud.start_placement("farm_sugar")
+	hud.start_placement("src_data")
 	await _wait(1.0)
 	await _shot("3c_placing")
 	hud.placement._confirm()
@@ -65,9 +65,9 @@ func _ready() -> void:
 	world.cam.fly_to(Vector3(2, 0, 6), 1.0)
 	await _wait(1.5)
 	await _shot("6_south_side")
-	var dock: Building = world.buildings_of("dock")[0]
+	var dock: Building = world.buildings_of("van")[0]
 	for i in 3:
-		(dock as VehicleB).cargo.add("c:shortbread", false)
+		(dock as VehicleB).cargo.add("t:shortbread", false)
 	(dock as VehicleB)._depart()
 	await _wait(1.2)
 	await _shot("7_van_out")

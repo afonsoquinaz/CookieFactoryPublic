@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Cookie Empire UI icons with the OpenAI Images API.
+"""Generate Token Empire UI icons with the OpenAI Images API.
 
 Usage:
     python3 tools/gen_icons.py                 # generate everything missing
@@ -12,7 +12,6 @@ Reads the API key from env var OPENAI_APIKEY (never printed).
 Raw 1024px sources -> tools/icon_src/<name>.png (gitignored)
 Processed 256px    -> assets/icons/<name>.png
 Also: assets/app_icon.png (1024 opaque) and assets/emblem.png (512 transparent).
-The old childish "Cookie Factory" sources live in tools/icon_src/old_childish/.
 
 Models: transparent icons use gpt-image-1.5 (gpt-image-2 has no transparent
 background support); the opaque app icon uses gpt-image-2.
@@ -51,12 +50,12 @@ MARGIN = 0.06
 WORKERS = 4
 
 STYLE = (
-    "single centered object, refined minimalist 3D render, matte ceramic / clay material "
-    "with subtle real material hints (brushed steel, wood grain, linen), muted sophisticated "
-    "palette (warm cream, sage green, terracotta, walnut brown, chocolate, brushed steel, "
-    "soft brass accents), soft natural studio light with gentle shadow on the object only, "
-    "calm premium aesthetic like a high-end artisan bakery brand or Monument Valley, clean "
-    "silhouette, NO outlines, NO cartoon faces or eyes, NO glossy candy look, NO text, "
+    "single centered object, refined minimalist 3D render, soft matte clay / ceramic material "
+    "with subtle real material hints (brushed aluminium, frosted glass, white plastic, graphite, "
+    "a little walnut), clean modern tech palette (warm white, light grey, graphite, teal, soft "
+    "cyan glow accents, small touches of amber and brass), soft studio light, emissive parts "
+    "glow gently, calm premium aesthetic like a high-end tech product render or Monument Valley, "
+    "clean silhouette, NO outlines, NO cartoon faces or eyes, NO glossy candy look, NO text, "
     "transparent background. "
     "Consistent icon-set framing: three-quarter view from slightly above, the object fills "
     "about 80% of the square frame, soft key light from the upper left, isolated object "
@@ -65,139 +64,137 @@ STYLE = (
 )
 
 ICONS = [
-    ("wheat", "a tied sheaf of ripe golden wheat with a linen band; the wheat ears are warm golden-amber (not white), with fine awns, golden straw stalks"),
-    ("sugar", "three cut sugar cane stalks bundled with twine; the stalks are clearly sugar cane: long, slender, segmented with visible ring-shaped nodes like bamboo, muted sage-green and straw-yellow with a few narrow leaves at the top, pale fibrous cut ends"),
-    ("cocoa", "a ripe ochre-terracotta cocoa pod, one half cut open showing pale beans"),
-    ("egg", "three brown and cream eggs in a small woven nest"),
-    ("milk", "a simple glass milk bottle with a cream paper cap"),
-    ("cookie", "one perfect golden chocolate-chip cookie, slightly realistic, matte"),
-    ("dough", "a ball of pale cookie dough with a few chocolate chips"),
-    ("coin", "a thick matte gold coin with a subtle embossed cookie emblem"),
-    ("cash", "a neat stack of muted sage-green banknotes with a plain paper band"),
-    ("gem", "a single faceted gemstone in muted rose quartz, cut like a classic brilliant, matte satin finish"),
-    ("farmer", "a woven straw hat resting on a small wooden-handled hoe (object only, no person)"),
-    ("gatherer", "a wicker harvest basket with a linen cloth"),
-    ("feeder", "a brushed steel ingredient scoop with flour"),
-    ("collector", "a dark steel baking tray with three cookies and a folded linen cloth"),
-    ("loader", "a dark steel hand truck (dolly) carrying a kraft cardboard box"),
-    ("worker", "a folded sage-green work apron with a brass buckle"),
-    ("hire", 'a plain canvas apron hanging on a wooden peg, with a prominent round brass medallion tag pinned on the apron chest, the tag about a third of the apron width, with a bold raised plus-sign symbol (a simple cross shape) clearly visible on it'),
-    ("speed", "a minimal plain cream leather running shoe with no logo and no markings on its side, with three short parallel brass speed lines floating just behind the heel, separate from the shoe, suggesting fast motion; the shoe is angled forward as if mid-stride"),
-    ("backpack", "two stacked kraft cardboard boxes with twine"),
-    ("truck", "a sleek cream delivery van (side 3/4 view), terracotta stripe"),
-    ("oven", "a terracotta brick dome bread oven with dark iron door and warm glow"),
-    ("conveyor", "a short dark steel conveyor segment with a glass cover and a cookie"),
-    ("hopper", "a brushed steel funnel silo on dark steel legs"),
-    ("storage", "a walnut wood shelf with glass jars and linen sacks"),
-    ("star", "a matte brass eight-point star medal"),
-    ("lock", "a matte brass padlock"),
-    ("gear", "a matte brushed steel cog"),
-    ("recipe", "an open linen-bound recipe book with a cookie beside it"),
-    ("price", "a kraft paper price tag with twine and a small gold coin"),
-    ("farm", "a tiny square field of golden wheat with a low dry-stone wall"),
-    ("factory", "a small elegant brick bakery building with a chimney"),
-    ("trophy", "a matte brass trophy cup"),
-    ("clock", "a minimal brass pocket watch"),
-    ("chicken", "a calm white hen (stylized, no cartoon eyes)"),
-    ("cow", "a calm black-and-white dairy cow head (stylized, dignified)"),
-    ("boost", "a brass lightning bolt"),
-    ("shop", "a small striped canvas market awning stall"),
-    # ---- v3: new ingredients
-    ("oats", "a small linen sack overflowing with rolled oat flakes, a few oat stalks beside it"),
-    ("berry", "three ripe red strawberries with green leafy tops in a tiny woven punnet"),
-    ("hazelnut", "a small cluster of brown hazelnuts, one cracked open, with a green leafy husk"),
-    ("honey", "a squat glass jar of golden honey with a wooden honey dipper resting across it"),
-    ("vanilla", "a bundle of dark vanilla pods tied with twine beside a pale cream orchid flower"),
-    ("cinnamon", "a small bundle of rolled cinnamon sticks tied with twine and a star anise"),
-    ("orange", "a ripe orange with a glossy green leaf and one cut half showing segments"),
-    ("butter", "a pale yellow block of butter on a small walnut board with a butter knife"),
-    ("chocolate", "a thick bar of dark chocolate with a few squares broken off"),
-    ("jam", "a small glass jar of red strawberry jam with a linen cloth lid and twine"),
-    ("caramel", "a few glossy amber caramel squares stacked, with a drizzle of caramel"),
-    ("praline", "a few glossy chocolate hazelnut praline bonbons in paper cups"),
-    ("candied", "strips of glossy candied orange peel half dipped in dark chocolate on parchment"),
-    # ---- v3: packaging
-    ("box", "a closed kraft cardboard cookie box with a round cookie sticker seal and twine"),
-    ("gift", "an elegant cream gift box with a terracotta satin ribbon and bow"),
-    # ---- v3: buildings and machines
-    ("mixer", "a large brushed steel stand mixer bowl on a cream machine base with a dough hook"),
-    ("tube", "a short square glass production tube section on a dark steel frame, empty"),
-    ("churn", "an old-fashioned wooden butter churn with brass bands and a plunger"),
-    ("chocolatier", "a copper chocolate melting pot with a wooden paddle and dark chocolate inside"),
-    ("kettle", "a large copper jam kettle on a small iron stand with red jam inside"),
-    ("caramel_pot", "a heavy copper saucepan of bubbling amber caramel with a wooden spoon"),
-    ("roaster", "a cast iron drum nut roaster with a crank handle and hazelnuts"),
-    ("candy", "a marble candy table with a small copper pot and candied orange strips"),
-    ("packer", "a compact cream cookie-box packing machine with a small conveyor and a kraft box"),
-    ("wrapper", "a gift wrapping station: a ribbon spool on a small walnut stand with a gift box"),
-    ("rack", "a tall walnut bakery cooling rack with trays of cookies"),
-    ("pantry", "a walnut pantry cupboard with open doors showing jars and linen sacks"),
-    ("train", "a small elegant cream and sage steam locomotive (side 3/4 view)"),
-    ("airship", "a small elegant cream airship blimp with a walnut gondola and brass propeller"),
-    ("cabin", "a small timber staff cabin with a terracotta roof and a round window"),
-    ("well", "a small stone water well with a wooden roof and a bucket"),
-    ("fountain", "a small round stone fountain with a gentle water jet"),
-    ("statue", "a brass statue of a giant cookie on a stone plinth"),
-    ("flowers", "a small raised wooden flower bed with lavender and cream daisies"),
-    ("lamp", "an elegant black iron street lamp with a warm glowing lantern"),
-    ("palace", "a grand elegant palace made of cookies and cream stone with brass domes"),
-    ("board", "a wooden order notice board on two posts with pinned paper notes"),
-    ("land", "a folded parchment land deed map with a brass pin"),
-    ("research", "a brass microscope beside an open notebook and a cookie"),
-    ("hammer", "a classic wooden-handled claw hammer crossed with a small brass ruler"),
-    # ---- v4: town
-    ("hall", "a charming small town hall building: cream timber-framed walls, a terracotta tiled gable roof with a small clock tower and a brass weathervane, an arched wooden double door with a striped awning, a round cookie emblem sign over the door"),
-    ("builder", "a yellow construction hard hat resting on a wooden-handled claw hammer and a small rolled blueprint"),
-    ("bakery", "a small bakery production line: a cream stand mixer on the left, a short square glass tube with a dough ball in the middle, a terracotta brick dome oven with a warm glow on the right, on a chequered tile floor"),
-    ("porter", "a sage-green wooden hand cart with two big wheels carrying a kraft cookie box and a small linen flour sack"),
-    ("road", "a short curved section of warm grey cobblestone path with neat stones"),
-    ("move", "four brass arrows pointing outward in a cross shape (move symbol)"),
-    ("rotate", "a curved brass arrow forming a three-quarter circle (rotate symbol)"),
-    ("tree", "a small round sage-green tree with a walnut trunk"),
+    # ---- resources
+    ("power", "a chunky dark graphite battery cell with a glowing green charge window and brass terminals"),
+    ("data", "a translucent glowing cyan data cube sitting on a small dark base, thin lines of light inside it"),
+    ("coolant", "a blue plastic coolant jerrycan with a white cap and a white band with a simple snowflake shape"),
+    ("silicon", "a polished grey silicon crystal ingot (a boule) lying on a small walnut cradle, one thin shiny wafer disc leaning beside it"),
+    ("copper", "three bright copper ingots stacked, with a coil of copper wire beside them"),
+    ("code", "a slim dark rounded slab like a code editor window, with colourful horizontal bars of different lengths like lines of code (no letters)"),
+    ("labels", "a small stack of white index cards with coloured tab tags and a green check mark shape on top"),
+    ("feedback", "two small speech bubbles: a white one with a pink thumbs-up shape and a pink one with a gold star"),
+    ("rare", "a small wooden crate filled with glittering purple, teal and pink crystals"),
+    ("papers", "a neat stack of white research papers with a softly glowing warm light bulb resting on top"),
+    ("fiber", "a spool of glowing pink fibre-optic cable with dark grey flanges"),
+    ("experts", "a purple leather-bound book with gold page edges and a black graduation mortarboard resting on it"),
+    ("gpu", "a modern graphics card with a black shroud, two round fans and a green circuit board edge with a thin glowing green strip"),
+    ("dataset", "a classic database symbol: three stacked rounded blue discs with softly glowing cyan rims"),
+    ("finetune", "an orange cartridge module with a small dark dial knob and a row of gold contacts"),
+    ("hbm", "a blue memory module stick with black chips and a row of gold pins"),
+    ("reward", "a golden five-point star trophy on a small dark plinth"),
+    ("synth", "a glowing violet cube held inside a brushed steel cage frame"),
+    # ---- products
+    ("token", "one glowing coin token: a hexagonal teal coin with a softly glowing rim and a small bright dot in the centre"),
+    ("batch", "a slim light-grey hard carry case with a glowing cyan seam and a small coin token on top"),
+    ("agent", "a small white cube-shaped robot parcel with a dark face screen showing two glowing cyan eyes and a short antenna with a glowing tip"),
+    ("tk_pico", "one small round mint-green coin token with a softly glowing rim and a single white dot in the centre"),
+    ("tk_mini", "one round sky-blue coin token with a glowing rim and three white dots in a row"),
+    ("tk_chat7", "one round blue coin token with a glowing rim and a white speech bubble shape"),
+    ("tk_chat13", "one hexagonal indigo coin token with a glowing rim and a white speech bubble shape with three dots"),
+    ("tk_wiki13", "one hexagonal ivory coin token with a small open blue book on its face"),
+    ("tk_code13", "one rounded square violet coin token with white curly code brackets on its face"),
+    ("tk_tool30", "one hexagonal amber coin token with a white gear on its face"),
+    ("tk_vision70", "one round teal coin token with a white eye shape on its face"),
+    ("tk_assist70", "one hexagonal soft orange coin token with a white five-point star on its face"),
+    ("tk_code70", "one rounded square deep indigo coin token with white code brackets and a slash on its face"),
+    ("tk_align70", "one round rose-pink coin token with a white heart on its face"),
+    ("tk_long120", "one wide rounded rectangular navy coin token with white bars like a sound wave on its face"),
+    ("tk_reason200", "one hexagonal lavender coin token with three white ascending steps on its face"),
+    ("tk_sage400", "one round golden coin token with a small medal and star on its face"),
+    ("tk_omni400", "one hexagonal magenta coin token with a white prism splitting a tiny rainbow on its face"),
+    ("tk_moe", "one rounded square deep purple coin token with three small white cubes on its face"),
+    ("tk_frontier", "one eight-point star-shaped ivory coin token with a small brass crown and a glowing golden rim"),
+    # ---- sources
+    ("src_power", "a small solar farm: a few dark blue solar panels on stands on a light gravel pad"),
+    ("src_data", "a white web crawler station: a small satellite dish on a white pedestal with blinking lights and a tiny six-legged crawler robot beside it"),
+    ("src_coolant", "a small white hyperboloid cooling tower with a blue pipe ring and a soft wisp of steam"),
+    ("src_silicon", "a silicon crystal puller furnace: a white cylinder with a glowing orange window and a tall steel rod above it"),
+    ("src_copper", "a small copper mine: a grey rocky ore heap with bright copper veins, a pickaxe stuck in it and a little ore cart"),
+    ("src_code", "a developer desk with a monitor glowing with purple lines of code, a keyboard and a mug"),
+    ("src_labels", "a standing table with a tablet and small stacks of coloured label cards"),
+    ("src_feedback", "a white rating kiosk with a dark screen and a green thumbs-up button and a red thumbs-down button"),
+    ("src_rare", "a cluster of glowing purple, pink and teal rare-earth crystals growing from a grey rock"),
+    ("src_papers", "a whiteboard on a stand covered in coloured equation scribbles (no letters), with a glowing light bulb beside it"),
+    ("src_fiber", "a fibre hub: a steel A-frame holding a glowing pink fibre-optic cable spool"),
+    ("src_experts", "a cosy expert corner: a purple armchair, a side table with a warm lamp and a small bookshelf"),
+    # ---- compute + labs
+    ("server", "a compact AI inference server: a glass request tube on a dark rack with small module towers above it and a big glowing GPU core block at one end"),
+    ("fab", "a small white cleanroom chip fab machine with a round window showing a glowing silicon wafer"),
+    ("refinery", "three glass distillation columns full of glowing blue data liquid with steel caps and connecting pipes"),
+    ("tune_lab", "a sloped tuning console with sliders and a big dial, and a small screen with orange bar charts"),
+    ("hbm_works", "a stacking press machine with a stack of black and blue memory dies under its platen"),
+    ("rlhf_gym", "an orange robot arm on a pedestal over a green training mat with a glowing gold star"),
+    ("synth_lab", "a glowing violet reactor sphere held in a steel frame with a brass ring around it"),
+    # ---- storage + packing
+    ("depot", "a modern supply depot shelf unit with crates, a blue coolant can and a battery cell"),
+    ("cache", "a dark storage rack of glowing storage blades with a few coin tokens on a shelf"),
+    ("batcher", "a white sorter machine feeding a short roller conveyor carrying a light grey case"),
+    ("agent_studio", "an assembly table with small white cube robots and an overhead robot arm"),
+    # ---- sales
+    ("van", "a sleek white electric delivery van with a teal stripe and a small roof antenna (side three-quarter view)"),
+    ("cafe", "a small modern café front with a glass window showing glowing chat screens and a speech-bubble sign above"),
+    ("desk", "an enterprise reception desk in front of a big dark screen showing contract cards"),
+    ("hyperloop", "a white hyperloop pod capsule on a glowing maglev guideway entering a round tube portal"),
+    ("droneport", "a large white quadcopter cargo drone with a cargo basket, hovering over a round landing pad"),
+    # ---- campus
+    ("builder", "a yellow construction hard hat resting on a claw hammer and a small rolled blueprint"),
+    ("dorm", "a small modern modular house with white walls, wood cladding on one end and solar panels on a flat roof"),
+    ("mega", "a futuristic AI megacluster: long white halls with four cooling towers and a glowing cyan sphere core on top inside a brass ring"),
+    # ---- decor
+    ("planter", "a white square planter box with green plants and small flowers, a teal rim"),
+    ("tree", "a small round sage-green tree with a walnut trunk in a round concrete ring"),
     ("hedge", "a neatly trimmed box hedge block in sage green"),
-    ("bench", "a walnut and black iron park bench"),
-    ("chef", "a white chef toque hat resting next to a steel whisk"),
-    ("beehive", "a cream wooden beehive box with a small brass bee on top"),
-    ("greenhouse", "a small glass greenhouse with a walnut frame and green plants inside"),
-    ("market", "a small elegant cookie shop front with a terracotta awning and a display window"),
-    ("deliver", "a kraft parcel with twine and a small brass bell"),
-    ("pond", "a small round garden pond with lily pads, a few reeds and a stone rim"),
-    ("gazebo", "a small elegant white wooden garden gazebo with a terracotta roof"),
-    ("topiary", "a neat round topiary bush in a terracotta pot"),
-    ("banner", "a tall cream and terracotta fabric banner on a wooden pole with a small cookie emblem"),
-    ("picnic", "a small walnut picnic table with a checked cloth and a plate of cookies"),
-    ("windmill", "a small cream stone windmill with wooden sails and a terracotta cap"),
-    # ---- v3: cookies (one per recipe)
-    ("ck_shortbread", "one pale golden rectangular shortbread biscuit with fork pricks"),
-    ("ck_sugar", "one round sugar cookie sparkling with coarse sugar crystals"),
-    ("ck_cocoa", "one round cocoa crinkle cookie, dark brown with white powdered sugar cracks"),
-    ("ck_milk", "one round pale milk biscuit with a stamped flower pattern"),
-    ("ck_butter", "one Danish butter cookie ring with a ridged piped swirl"),
-    ("ck_choc", "one golden chocolate chip cookie with big chocolate chunks"),
-    ("ck_oat", "one rustic oatmeal cookie with visible oat flakes"),
-    ("ck_double", "one dark double chocolate cookie with white and dark chunks"),
-    ("ck_jam", "one round thumbprint cookie with a glossy red jam centre"),
-    ("ck_honey", "one honey oat cookie with a glossy golden honey glaze"),
-    ("ck_hazel", "one cookie topped with chopped hazelnuts and a chocolate drizzle"),
-    ("ck_caramel", "one thin caramel stroopwafel cookie with a waffle grid pattern"),
-    ("ck_vanilla", "one round vanilla sable cookie with dark vanilla seed specks and a sugar rim"),
-    ("ck_praline", "one cookie topped with a glossy chocolate praline swirl and a hazelnut"),
-    ("ck_cinnamon", "one cinnamon swirl cookie with a spiral of cinnamon and white icing drizzle"),
-    ("ck_florentine", "one lacy florentine cookie with candied orange and a chocolate underside"),
-    ("ck_royal", "one luxurious royal cookie with ivory icing, gold leaf flecks and a tiny crown pattern"),
+    ("lamp", "a sleek modern smart street lamp with a slim graphite pole and a cool white LED light bar"),
+    ("substation", "a small electrical substation transformer with copper-orange insulators and a yellow warning sign"),
+    ("bench", "a walnut and graphite park bench"),
+    ("bikes", "a bike rack with three colourful city bikes"),
+    ("flag", "a tall white flagpole with a teal flag bearing a round coin emblem"),
+    ("robot", "a friendly small white robot statue standing on a plinth, with a dark face screen with two cyan eyes"),
+    ("battery", "a battery bank of three white cabinets with green charge lights"),
+    ("foodtruck", "a cheerful orange food truck with an open serving hatch and a white awning"),
+    ("coffee", "a dark brown coffee cart with an espresso machine and a big coffee cup sign with steam"),
+    ("turbine", "a slim white wind turbine with three blades"),
+    ("gpu_statue", "a golden graphics card statue standing on a white plinth"),
+    # ---- staff
+    ("courier", "a navy blue courier cap resting on a steel hand truck carrying a light grey case"),
+    ("tech", "a white safety helmet with a blue stripe resting on an orange hi-vis vest with a wrench"),
+    ("engineer", "a neatly folded purple hoodie with black over-ear headphones resting on it"),
+    ("hire", "a white staff ID badge on a teal lanyard with a bold plus sign shape on the badge"),
+    ("worker", "a white staff ID badge on a teal lanyard"),
+    # ---- ui
+    ("coin", "a thick matte gold coin with a subtle embossed hexagon emblem"),
+    ("cash", "a neat stack of muted green banknotes with a plain paper band"),
+    ("gem", "a single glowing faceted cyan spark crystal, cut like a classic brilliant gem, with a soft inner light"),
+    ("star", "a matte brass eight-point star medal"),
+    ("trophy", "a matte brass trophy cup"),
+    ("lock", "a matte brushed aluminium padlock"),
+    ("gear", "a matte brushed steel cog"),
+    ("clock", "a minimal brushed aluminium stopwatch"),
+    ("boost", "a glowing cyan lightning bolt"),
+    ("speed", "a sleek white electric scooter with three short speed lines behind it"),
+    ("price", "a white price tag with a teal string and a small gold coin"),
+    ("recipe", "a small glowing neural network diagram: white circles connected by thin cyan lines, on a dark rounded slab"),
+    ("research", "a brass microscope beside a glowing tablet showing a rising chart"),
+    ("hammer", "a classic wooden-handled claw hammer crossed with a small steel ruler"),
+    ("land", "a folded blueprint map of land plots with a teal map pin"),
+    ("move", "four teal arrows pointing outward in a cross shape (move symbol)"),
+    ("rotate", "a curved teal arrow forming a three-quarter circle (rotate symbol)"),
+    ("storage", "a light grey shelving unit with crates and a battery cell"),
+    ("bay", "a single white server module tower with a teal band and a glowing light column"),
+    ("deliver", "a light grey parcel case with a glowing teal seam and a small brass bell"),
 ]
 
 APP_ICON_PROMPT = (
-    "premium mobile app icon for 'Cookie Empire': one perfect chocolate chip cookie, matte "
-    "stylized-realistic 3D, centered, resting on a deep chocolate-brown background with a "
-    "very subtle thin brass laurel ring around it, soft studio light, elegant and minimal, "
-    "no text, no letters, no words. Full-bleed square artwork filling the whole canvas edge "
-    "to edge, square corners, no rounded corners, no border, no frame"
+    "premium mobile app icon for an AI tycoon game called Token Empire: one glowing hexagonal "
+    "token coin with a soft cyan rim and a bright core, matte stylized-realistic 3D, centered, on a "
+    "deep midnight-navy background with a very subtle thin brass circuit ring around it, soft studio "
+    "light, elegant and minimal, no text, no letters, no words. Full-bleed square artwork filling the "
+    "whole canvas edge to edge, square corners, no rounded corners, no border, no frame"
 )
 
 EMBLEM_PROMPT = (
-    "an elegant emblem: a perfect chocolate chip cookie inside a thin brass laurel wreath, "
-    "matte refined 3D, minimal, no text, no letters, transparent background, isolated, "
+    "an elegant emblem: a glowing hexagonal token coin with a cyan rim inside a thin brass circuit "
+    "laurel ring, matte refined 3D, minimal, no text, no letters, transparent background, isolated, "
     "front view, no floor, no backdrop, no cast shadow"
 )
 

@@ -5,16 +5,16 @@ func _ready():
 	var t0 := Time.get_ticks_usec()
 	w.rebuild_roads()
 	print("BENCH rebuild_roads %.1f ms" % ((Time.get_ticks_usec() - t0) / 1000.0))
-	var b: Building = w.buildings_of("bakery")[0]
+	var b: Building = w.buildings_of("server")[0]
 	for dx in [0, 1, 2, 3]:
 		t0 = Time.get_ticks_usec()
-		var s := w.check_spot("bakery", b.cell() + Vector2i(dx, 0), b.rot(), b.uid)
+		var s := w.check_spot("server", b.cell() + Vector2i(dx, 0), b.rot(), b.uid)
 		var t1 := Time.get_ticks_usec()
-		var r := w.preview_road("bakery", b.cell() + Vector2i(dx, 0), b.rot(), b.uid)
+		var r := w.preview_road("server", b.cell() + Vector2i(dx, 0), b.rot(), b.uid)
 		var t2 := Time.get_ticks_usec()
 		print("BENCH check_spot %.1f ms (%s)  preview_road %.1f ms" % [(t1 - t0) / 1000.0, s["reason"], (t2 - t1) / 1000.0])
 	t0 = Time.get_ticks_usec()
-	var sp = Placement.free_spot(w, "farm_wheat", Vector2i(0, 0), 0)
+	var sp = Placement.free_spot(w, "src_power", Vector2i(0, 0), 0)
 	print("BENCH free_spot %.1f ms" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	for i in 3:
 		t0 = Time.get_ticks_usec()

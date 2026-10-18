@@ -26,23 +26,23 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	var bakery: Building = world.buildings_of("bakery")[0]
-	await _act("select bakery", func(): hud.select(bakery))
-	await _act("info panel", func(): hud.open_building(bakery))
+	var server: Building = world.buildings_of("server")[0]
+	await _act("select server", func(): hud.select(server))
+	await _act("info panel", func(): hud.open_building(server))
 	await _act("close panel", func(): hud._sheet.close())
-	await _act("move bakery", func(): hud.start_placement("bakery", bakery.uid))
+	await _act("move server", func(): hud.start_placement("server", server.uid))
 	for i in 4:
 		await _act("slide %d" % i, func(): world.cam.global_position += Vector3(2.0, 0, 0))
 	await _act("rotate", func(): hud.placement._rotate())
 	await _act("cancel move", func(): hud.placement.finish(false))
-	await _act("upgrade bakery", func(): Game.upgrade(bakery.uid) if Game.job_of(bakery.uid).is_empty() else Game.finish_now(Game.job_of(bakery.uid)))
+	await _act("upgrade server", func(): Game.upgrade(server.uid) if Game.job_of(server.uid).is_empty() else Game.finish_now(Game.job_of(server.uid)))
 	await _act("build panel", func(): hud.open_build())
 	await _act("close build", func(): hud._sheet.close())
 	await _act("staff panel", func(): hud.open_staff())
 	await _act("close staff", func(): hud._sheet.close())
 	await _act("research", func(): hud.open_sheet(ResearchPanel.new()))
 	await _act("settings", func(): hud.open_sheet(SettingsPanel.new()))
-	await _act("recipes", func(): hud.open_recipes(bakery))
+	await _act("recipes", func(): hud.open_recipes(server))
 	await _act("close", func(): hud._sheet.close())
 	for kind in Defs.BUILD_ORDER:
 		await _act("place " + kind, func(): hud.start_placement(kind, 0))

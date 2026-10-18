@@ -61,12 +61,12 @@ func _ready() -> void:
 	Game.jobs_changed.connect(_sync_jobs)
 	Game.researched.connect(_on_research)
 	Game.money_changed.connect(_on_money)
-	# a brand-new empire: a few sheaves are already waiting in the wheat crate
-	if int(Game.stats["cookies"]) == 0 and float(Game.stats["earned"]) == 0.0:
+	# a brand-new empire: a few power cells are already waiting at the solar farm
+	if int(Game.stats["tokens"]) == 0 and float(Game.stats["earned"]) == 0.0:
 		for n in bnodes.values():
-			if n is FarmB and (n as FarmB).crate.count() == 0:
+			if n is SourceB and (n as SourceB).crate.count() == 0:
 				for i in 4:
-					(n as FarmB).crate.add("wheat", false)
+					(n as SourceB).crate.add("power", false)
 				break
 
 
@@ -178,7 +178,7 @@ func _on_upgraded(uid: int, _lvl: int) -> void:
 		n.refresh()
 		n.bump(0.08)
 		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 2.0, 0), Pal.GOLD, 16, false)
-		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 3.2, 0), "Level %d!" % n.level if not n is PalaceB else "New stage!", Color(1.0, 0.9, 0.5), 80)
+		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 3.2, 0), "Level %d!" % n.level if not n is MegaB else "New stage!", Color(1.0, 0.9, 0.5), 80)
 		Sfx.play("upgrade", -2.0)
 	_sync_jobs()
 
@@ -193,7 +193,7 @@ func _on_land(_c: Vector2i) -> void:
 func _on_cleared(key: String, gems: int) -> void:
 	var n: Node3D = obst_nodes.get(key)
 	if n and gems > 0:
-		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 2.2, 0), "+%d gems" % gems, Color(1.0, 0.7, 0.8), 90)
+		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 2.2, 0), "+%d sparks" % gems, Color(1.0, 0.7, 0.8), 90)
 		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 1.2, 0), Color(0.95, 0.55, 0.7), 14, false)
 		Sfx.play("cash", -4.0, 1.3)
 
@@ -685,7 +685,7 @@ func _sync_workers() -> void:
 	var seen := {}
 	for d in Game.workers:
 		var id := int(d["id"])
-		if d["role"] == "farmer":
+		if d["role"] == "tech":
 			continue
 		seen[id] = true
 		if workers.has(id):
@@ -711,8 +711,8 @@ func _sync_workers() -> void:
 			w3.queue_free()
 			workers.erase(id)
 	for n in bnodes.values():
-		if n is FarmB:
-			(n as FarmB).sync_farmers()
+		if n is SourceB:
+			(n as SourceB).sync_techs()
 	_synced_once = true
 
 
@@ -724,9 +724,9 @@ func rest_seat(w: Worker) -> Vector3:
 		if workers[id] == w:
 			break
 		i += 1
-	var cabins := buildings_of("cabin")
+	var cabins := buildings_of("dorm")
 	if not cabins.is_empty():
-		var c: CabinB = cabins[i / 8 % cabins.size()]
+		var c: DormB = cabins[i / 8 % cabins.size()]
 		return c.seat(i % 8)
 	for n in bnodes.values():
 		if n.has_entrance() and not n is SiteB:
@@ -736,12 +736,12 @@ func rest_seat(w: Worker) -> Vector3:
 
 ## Whether resting worker w sits on a bench there.
 func rest_sits(_w: Worker) -> bool:
-	return not buildings_of("cabin").is_empty()
+	return not buildings_of("dorm").is_empty()
 
 
 ## Which way a resting worker faces: out from the cabin's front.
 func rest_face(w: Worker) -> Vector3:
-	var cabins := buildings_of("cabin")
+	var cabins := buildings_of("dorm")
 	if cabins.is_empty():
 		return Vector3(0, 0, 1)
 	var i := workers.values().find(w)

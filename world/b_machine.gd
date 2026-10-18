@@ -1,9 +1,9 @@
 class_name MachineB
 extends Building
-## Kitchen machines turn ingredients into better ones (Butter Churn,
-## Chocolatier, Jam Kettle, Caramel Pot, Praline Roaster, Candy Kitchen);
-## the Box Packer packs 6 cookies of a kind into a box; the Gift Wrapper wraps
-## a box into a gift. Inputs go on the left pad, results come off the right.
+## Labs turn resources into better ones (Chip Fab, Data Refinery, Fine-Tune
+## Lab, HBM Works, RLHF Gym, Synth Lab); the Batcher batches 6 tokens of a
+## model into a batch; the Agent Studio wraps a batch into an agent run.
+## Inputs go on the left pad, results come off the right.
 
 const IN_POS := Vector3(-1.05, 0, 0.15)
 const OUT_POS := Vector3(1.05, 0, 0.15)
@@ -30,9 +30,9 @@ func _build() -> void:
 	ob.position = OUT_POS
 	add_child(ob)
 	var hs: Array[Holder] = []
-	if kind == "packer" or kind == "wrapper":
+	if kind == "batcher" or kind == "agent_studio":
 		var h := Holder.new().setup(24, [], Holder.Layout.GRID)
-		h.accept_cat = ["cookie"] if kind == "packer" else ["box"]
+		h.accept_cat = ["token"] if kind == "batcher" else ["batch"]
 		h.grid = Vector2i(2, 2)
 		h.cell = Vector2(0.4, 0.36)
 		h.max_visible = 24
@@ -84,19 +84,19 @@ func solid_rects() -> Array[Rect2]:
 
 
 func _visual(root: Node3D, t: int) -> void:
-	Mats.inst(MeshKit.cached("mach_%s_%d" % [kind, t], func(): return KitchenArt.machine(kind, t)), root)
-	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return KitchenArt.bench(t)), root, MeshKit.at(IN_POS.x, 0, IN_POS.z))
-	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return KitchenArt.bench(t)), root, MeshKit.at(OUT_POS.x, 0, OUT_POS.z))
+	Mats.inst(MeshKit.cached("mach_%s_%d" % [kind, t], func(): return LabArt.machine(kind, t)), root)
+	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return LabArt.bench(t)), root, MeshKit.at(IN_POS.x, 0, IN_POS.z))
+	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return LabArt.bench(t)), root, MeshKit.at(OUT_POS.x, 0, OUT_POS.z))
 	_anim = Node3D.new()
-	_anim.position = KitchenArt.anim_pivot(kind, t)
+	_anim.position = LabArt.anim_pivot(kind, t)
 	root.add_child(_anim)
-	Mats.inst(MeshKit.cached("machpart_%s_%d" % [kind, t], func(): return KitchenArt.part(kind, t)), _anim, Transform3D.IDENTITY, false)
+	Mats.inst(MeshKit.cached("machpart_%s_%d" % [kind, t], func(): return LabArt.part(kind, t)), _anim, Transform3D.IDENTITY, false)
 
 
 func _on_level() -> void:
 	for t in inputs:
-		inputs[t].capacity = Bal.packer_in_cap(level) if t == "*" else Bal.machine_in_cap(level)
-	output.capacity = Bal.packer_out_cap(level) if kind in ["packer", "wrapper"] else Bal.machine_out_cap(level)
+		inputs[t].capacity = Bal.batcher_in_cap(level) if t == "*" else Bal.machine_in_cap(level)
+	output.capacity = Bal.batcher_out_cap(level) if kind in ["batcher", "agent_studio"] else Bal.machine_out_cap(level)
 	_update()
 
 
@@ -112,32 +112,32 @@ func _update() -> void:
 func craft_time() -> float:
 	var base := 0.0
 	match kind:
-		"packer": base = Bal.pack_time(level)
-		"wrapper": base = Bal.wrap_time(level)
+		"batcher": base = Bal.batch_time(level)
+		"agent_studio": base = Bal.agent_time(level)
 		_: base = Bal.craft_time(kind, level)
 	return base / staff_mult()
 
 
 func staff_mult() -> float:
-	return Bal.chef_boost(Game.workers_with("chef", uid))
+	return Bal.engineer_boost(Game.workers_with("engineer", uid))
 
 
 ## What to make next: [consume {item: n}, produce [items]] or [].
 func _recipe_ready() -> Array:
-	if kind == "packer":
+	if kind == "batcher":
 		var h: Holder = inputs["*"]
 		var counts := {}
 		for t in h.items:
 			counts[t] = int(counts.get(t, 0)) + 1
 		for t in counts:
-			if counts[t] >= Bal.BOX_SIZE:
-				return [{t: Bal.BOX_SIZE}, ["b:" + Defs.recipe_of(t)]]
+			if counts[t] >= Bal.BATCH_SIZE:
+				return [{t: Bal.BATCH_SIZE}, ["b:" + Defs.recipe_of(t)]]
 		return []
-	if kind == "wrapper":
+	if kind == "agent_studio":
 		var h2: Holder = inputs["*"]
 		if h2.count() > 0:
 			var t2 := h2.items[0]
-			return [{t2: 1}, ["g:" + Defs.recipe_of(t2)]]
+			return [{t2: 1}, ["a:" + Defs.recipe_of(t2)]]
 		return []
 	for t in def["in"]:
 		if inputs[t].count() < int(def["in"][t]):
@@ -176,8 +176,8 @@ func _process(dt: float) -> void:
 	_starve = 0.0 if crafting else _starve + dt
 	_show_want(_missing() if _starve > 4.0 else "")
 	if _anim:
-		KitchenArt.animate(kind, _anim, _t, crafting)
-	if crafting and kind in ["kettle", "caramel_pot", "chocolatier", "candy"]:
+		LabArt.animate(kind, _anim, _t, crafting)
+	if crafting and kind in ["fab", "hbm_works", "synth_lab"]:
 		_steam_t -= dt
 		if _steam_t <= 0.0:
 			_steam_t = 0.5
@@ -188,7 +188,7 @@ func _process(dt: float) -> void:
 func _missing() -> String:
 	if output.space() <= 0:
 		return ""
-	if kind == "packer" or kind == "wrapper":
+	if kind == "batcher" or kind == "agent_studio":
 		return ""
 	for t in def["in"]:
 		if inputs[t].count() < int(def["in"][t]):
@@ -240,8 +240,8 @@ func load_contents(d: Dictionary) -> void:
 
 func status() -> String:
 	match kind:
-		"packer": return "6 cookies of a kind -> 1 box (+25% value)"
-		"wrapper": return "1 box -> 1 gift (+60% value)"
+		"batcher": return "6 tokens of a model -> 1 batch (+25% value)"
+		"agent_studio": return "1 batch -> 1 agent run (+60% value)"
 	var a := []
 	for t in def["in"]:
 		a.append("%d %s" % [int(def["in"][t]), Defs.item_name(t).to_lower()])
@@ -255,11 +255,11 @@ func info() -> Array:
 	var out := [["clock", "One batch every %.1fs" % craft_time()]]
 	for t in inputs:
 		var h: Holder = inputs[t]
-		out.append([Defs.item_icon(t) if t != "*" else ("cookie" if kind == "packer" else "box"), "In: %d / %d" % [h.count(), h.capacity]])
+		out.append([Defs.item_icon(t) if t != "*" else ("token" if kind == "batcher" else "batch"), "In: %d / %d" % [h.count(), h.capacity]])
 	out.append(["storage", "Out: %d / %d" % [output.count(), output.capacity]])
-	var chefs := Game.workers_with("chef", uid)
+	var chefs := Game.workers_with("engineer", uid)
 	if chefs > 0:
-		out.append(["chef", "%d chef%s: x%.1f speed" % [chefs, "s" if chefs > 1 else "", staff_mult()]])
+		out.append(["engineer", "%d chef%s: x%.1f speed" % [chefs, "s" if chefs > 1 else "", staff_mult()]])
 	return out
 
 
@@ -268,12 +268,12 @@ func upgrade_info() -> Array:
 	var now := 0.0
 	var nxt := 0.0
 	match kind:
-		"packer":
-			now = Bal.pack_time(level)
-			nxt = Bal.pack_time(n)
-		"wrapper":
-			now = Bal.wrap_time(level)
-			nxt = Bal.wrap_time(n)
+		"batcher":
+			now = Bal.batch_time(level)
+			nxt = Bal.batch_time(n)
+		"agent_studio":
+			now = Bal.agent_time(level)
+			nxt = Bal.agent_time(n)
 		_:
 			now = Bal.craft_time(kind, level)
 			nxt = Bal.craft_time(kind, n)
