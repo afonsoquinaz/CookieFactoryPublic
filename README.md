@@ -207,9 +207,9 @@ The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful pl
 | Serving Chat 7B | about 8 min |
 | Lab level 4 | about 14 min |
 | Serving Chat 13B | about 18 min |
-| Lab level 5 | about 20 min |
-| Lab level 6 | about 28 min |
-| Lab level 8 | about 73 min |
+| Lab level 5 | about 21 min |
+| Lab level 6 | about 30 min |
+| Lab level 8 | about 77 min |
 
 The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T token deliveries.
 
