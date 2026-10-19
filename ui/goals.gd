@@ -36,7 +36,7 @@ func _ready() -> void:
 	h.add_child(_icon)
 	_text = Kit.game("", 21, Kit.WHITE, 6)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text.custom_minimum_size.x = 380
+	_text.custom_minimum_size.x = 340
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(_text)
 	_arrow = Node3D.new()
@@ -53,7 +53,7 @@ func _ready() -> void:
 
 
 func layout(vs: Vector2, top_inset: float) -> void:
-	var w := minf(vs.x - 40, 520.0)
+	var w := minf(vs.x - 230, 520.0)
 	_card.size = Vector2(w, 0)
 	_card.position = Vector2((vs.x - _card.size.x) * 0.5, 108 + top_inset)
 	_card.pivot_offset = _card.size * 0.5

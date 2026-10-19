@@ -74,6 +74,7 @@ func _ready() -> void:
 			"staff": ui.call("open_staff")
 			"build": ui.call("open_build")
 			"settings": ui.call("open_sheet", SettingsPanel.new())
+			"today", "league", "pass", "events", "album", "me": ui.call("open_live", a["panel"])
 	if a.has("startup"):
 		add_child(load("res://dev/startup.gd").new())
 	if a.has("tris"):
@@ -150,6 +151,48 @@ func _demo_state() -> void:
 	Game.hired = 5
 	Game.obstacles["4,10"] = {"kind": "oak", "gems": 2}
 	Game.obstacles["2,13"] = {"kind": "rock", "gems": 1}
+	_demo_live()
+
+
+## The daily layer mid-week, for screenshots: a streak, quests under way,
+## crates in every state, a league week, a Pass season, an inbox message.
+func _demo_live() -> void:
+	Live.reset_state()
+	Live.profile["name"] = "Nimbus Garage"
+	Live.profile["logo"] = 3
+	Live.tick()
+	Live.streak = 12
+	Live.streak_best = 12
+	Live.last_goal_day = Live.today() - 1
+	Live.goal_days = []
+	for k in range(1, 13):
+		Live.goal_days.append(Live.today() - k)
+	Live.freeze_days = [Live.today() - 4]
+	Live.goal_days.erase(Live.today() - 4)
+	Live.freezes = 1
+	Live.goal_got = int(Live.goal * 0.6)
+	Live.day_counts = {}
+	var q0: Dictionary = Live.quests[0]
+	Live.day_counts[LiveDefs.QUESTS[q0["id"]]["metric"]] = float(q0["n"])
+	Live.quests[1]["claimed"] = false
+	Live.stamps = 4
+	Live.login_idx = 3
+	Live.crates = [
+		{"kind": "server", "seed": 11, "state": "ready", "end": 0},
+		{"kind": "gpu", "seed": 12, "state": "unlocking", "end": Live.now() + 5 * 3600 + 1234},
+		{"kind": "supply", "seed": 13, "state": "locked", "end": 0},
+	]
+	Live.boosters = {"warp15": 2, "warp60": 1, "overclock": 1}
+	Live.league["tier"] = 3
+	Live.league["best"] = 3
+	Live.league["joined"] = true
+	Live.league["points"] = 640
+	Live.season["sp"] = 1340
+	Live.counters = {"quests": 34.0, "crates": 9.0, "upgrades": 62.0}
+	Live.badges = {"quests": 1}
+	Live.mastery = {"pico": 4200, "mini": 1300, "chat7": 240, "chat13": 60}
+	Live.mastery_claimed = {"pico": 2}
+	Live.add_msg("League week over", "You finished #3 in the Gold League with 1,240 points. Promoted to Sapphire!", "trophy", {"gems": 8, "crate": "server"})
 
 
 ## Every building kind laid out in rows (--showcase[=tier]) for art reviews;

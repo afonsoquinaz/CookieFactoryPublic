@@ -100,6 +100,7 @@ func serve(c: Customer) -> bool:
 	for t in bought:
 		amount += Game.sell([t], Bal.CAFE_MULT * (1.0 + Bal.latency_bonus(Defs.recipe_of(t))))
 	Game.stats["customers"] = int(Game.stats["customers"]) + 1
+	Game.track("customers")
 	var where := c.global_position + Vector3(0, 2.2, 0)
 	UI3D.pop_text(get_tree().current_scene, where, "+$%s" % Fmt.num(amount), Color(1.0, 0.88, 0.3), 64)
 	world.sold.emit(amount, bought.size(), where)

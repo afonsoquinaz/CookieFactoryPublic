@@ -393,6 +393,7 @@ func _depart() -> void:
 		"hyperloop": mult = Bal.LOOP_MULT
 		"droneport": gift = Bal.DRONE_AGENT_MULT
 	var amount := Game.sell(cargo.items.duplicate(), mult, gift)
+	Game.track("trips")
 	var where := vehicle.global_position + Vector3(0, 2.0, 0)
 	world.sold.emit(amount, n, where)
 	Fx.coins(get_tree().current_scene, where, mini(12, 3 + n / 4))

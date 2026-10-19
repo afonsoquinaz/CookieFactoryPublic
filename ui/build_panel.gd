@@ -109,6 +109,11 @@ func _card(kind: String) -> Control:
 		ml.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ml.custom_minimum_size.x = 150
 		tv.add_child(ml)
+	if not Live.is_unlocked(kind):
+		var lk := Kit.label("Locked  ·  " + LiveDefs.EXCLUSIVE[kind], 14, Kit.TERRACOTTA_EDGE, 0, false)
+		lk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lk.custom_minimum_size.x = 150
+		tv.add_child(lk)
 	var desc := Kit.label(d["desc"], 14, Kit.MUTED, 0, false)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size.x = 260
@@ -123,7 +128,7 @@ func _card(kind: String) -> Control:
 		b.set_text_value("All built" if mx > 1 else "Built")
 		b.set_colors(Kit.PAPER_DARK, Kit.LINE)
 	else:
-		b.set_icon("gem" if gp > 0 else "coin", 26)
+		b.set_icon("lock" if not Live.is_unlocked(kind) else ("gem" if gp > 0 else "coin"), 26)
 		b.set_text_value(str(gp) if gp > 0 else ("Free" if price <= 0.0 else Fmt.num(price)))
 		var ok := Game.build_block(kind) == ""
 		b.set_colors(Kit.SAGE if ok else Kit.GREY, Kit.SAGE_EDGE if ok else Kit.GREY_EDGE)

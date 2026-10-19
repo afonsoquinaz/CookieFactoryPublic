@@ -39,6 +39,16 @@ var _build_dot: Control
 var _research_dot: Control
 var _staff_dot: Label
 var _toast_box: VBoxContainer
+var _streak_chip: JuicyButton
+var _btn_today: JuicyButton
+var _btn_league: JuicyButton
+var _btn_pass: JuicyButton
+var _today_dot: Control
+var _event_chip: PanelContainer
+var _event_label: Label
+var _event_icon: TextureRect
+var _live_t := 0.0
+var _pending_cards: Array = []              # Live reward cards waiting for the HUD
 var _sheet: Sheet
 var _shown_money := 0.0
 var _bar: HBoxContainer
@@ -99,6 +109,12 @@ func _ready() -> void:
 	Game.level_up.connect(_on_level_up)
 	world.terrain.era_changed.connect(_on_era)
 	Game.toast.connect(toast)
+	Live.reward.connect(func(t, s, items): _queue_card(func(): reward_card(t, s, items)))
+	Live.league_result.connect(func(r): _queue_card(func(): _league_popup(r)))
+	Live.goal_done.connect(_on_goal_done)
+	Live.event_started.connect(func(id):
+		if playing:
+			toast("%s is on!" % LiveDefs.EVENTS[id]["name"], LiveDefs.EVENTS[id]["icon"]))
 	Game.rush_changed.connect(_on_rush)
 	Game.building_built.connect(_on_built)
 	Game.job_done.connect(_on_job_done)
@@ -146,10 +162,23 @@ func skip_title() -> void:
 func _welcome_back() -> void:
 	if Game.offline_reward > 0:
 		_offline_popup(Game.offline_reward)
+	_flush_cards.call_deferred()
+
+
+## Live cards (streak milestones, league results...) wait until you're playing.
+func _queue_card(show: Callable) -> void:
+	_pending_cards.append(show)
+	if playing:
+		_flush_cards.call_deferred()
+
+
+func _flush_cards() -> void:
+	while not _pending_cards.is_empty():
+		(_pending_cards.pop_front() as Callable).call()
 
 
 func _set_hud_visible(on: bool) -> void:
-	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _token_chip, _trend_chip, _builders_chip, timers]:
+	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _token_chip, _trend_chip, _builders_chip, timers, _streak_chip, _btn_today, _btn_league, _btn_pass, _event_chip]:
 		c.visible = on
 	if on:
 		_trend_chip.visible = Game.trending != ""
@@ -249,10 +278,177 @@ func _build_top() -> void:
 	_lvl_fill.add_theme_stylebox_override("panel", Kit.skin("fill_gold", 10))
 	_lvl_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	track.add_child(_lvl_fill)
+	_build_live()
 	_gear = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(72, 72))
 	_gear.set_glyph("settings", 34)
 	_gear.pressed.connect(func(): open_sheet(SettingsPanel.new()))
 	add_child(_gear)
+
+
+## The daily layer's corner: the streak flame (left), Today / League / Pass
+## buttons down the right edge, and an event banner when one is on.
+func _build_live() -> void:
+	_streak_chip = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(104, 56))
+	_streak_chip.set_icon("flame", 38)
+	_streak_chip.pressed.connect(func(): open_live("today"))
+	add_child(_streak_chip)
+	_btn_today = _side_button("calendar", "Today", func(): open_live("today"))
+	_today_dot = _dot(_btn_today)
+	_today_dot.position = Vector2(56, -8)
+	_btn_league = _side_button("shield", "", func(): open_live("league"))
+	_btn_pass = _side_button("pass", "Pass", func(): open_live("pass"))
+	_event_chip = PanelContainer.new()
+	_event_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
+	_event_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_event_chip.visible = false
+	add_child(_event_chip)
+	var eh := Kit.hbox(6)
+	_event_chip.add_child(eh)
+	_event_icon = Kit.icon("event", 34)
+	eh.add_child(_event_icon)
+	_event_label = Kit.game("", 17, Color(1.0, 0.75, 0.95), 5)
+	eh.add_child(_event_label)
+
+
+func _side_button(icon: String, label: String, on_press: Callable) -> JuicyButton:
+	var b := Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 14, Vector2(84, 84))
+	b.row.queue_free()
+	var v := Kit.vbox(-6)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	v.offset_bottom = -8
+	b.add_child(v)
+	var ic := Kit.icon(icon, 46)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(ic)
+	var l := Kit.game(label, 14, Kit.WHITE, 4)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(l)
+	b.set_meta("label", l)
+	b.set_meta("icon", ic)
+	b.row = Kit.hbox()
+	b.pressed.connect(on_press)
+	add_child(b)
+	return b
+
+
+func open_live(tab := "today") -> void:
+	deselect()
+	LivePanel.last_tab = tab
+	var p := LivePanel.new()
+	p.hud = self
+	open_sheet(p)
+
+
+## Refreshes the streak chip, the side buttons and the event banner.
+func _update_live() -> void:
+	_streak_chip.set_text_value(str(Live.streak))
+	_streak_chip.icon_rect.modulate = LiveDefs.flame_color(Live.streak, Live.goal_is_done)
+	_streak_chip.set_colors(Kit.CHARCOAL if Live.goal_is_done else Color(0.36, 0.28, 0.2), Kit.CHARCOAL_EDGE)
+	var n := Live.claimables()
+	_today_dot.visible = n > 0 and _sheet == null
+	(_today_dot.get_child(0) as Label).text = str(n) if n < 10 else "9+"
+	# an evening nudge while the streak waits for today's tokens
+	var hour := posmod(Live.local(), 86400) / 3600
+	if Live.streak > 0 and not Live.goal_is_done and hour >= 18 and int(Time.get_ticks_msec() / 500) % 6 == 0:
+		Kit.bounce(_streak_chip, 0.12)
+	var ll: Label = _btn_league.get_meta("label")
+	var li: TextureRect = _btn_league.get_meta("icon")
+	li.modulate = (LiveDefs.LEAGUES[int(Live.league["tier"])]["color"] as Color).lightened(0.15)
+	ll.text = ("#%d" % Live.my_rank()) if Live.league["joined"] else Live.league_name()
+	(_btn_pass.get_meta("label") as Label).text = "Tier %d" % Live.pass_tier()
+	# League and Pass join the corner once the first steps are done
+	_btn_league.visible = Game.level >= 2 or Live.league["joined"] and int(Game.stats["tokens"]) > 20
+	_btn_pass.visible = Game.level >= 2
+	var act := Live.active_events()
+	_event_chip.visible = playing and not act.is_empty()
+	if not act.is_empty():
+		var id: String = act[0]
+		var w := Live.event_window(id)
+		var left := Fmt.time(float(int(w[1]) - Live.local())) if not w.is_empty() else ""
+		var txt: String = LiveDefs.EVENTS[id]["name"]
+		if id == "spotlight":
+			txt = "Spotlight: %s x3" % Defs.recipe(Live.spotlight_model())["name"]
+		elif id == "community":
+			txt = "Community Day: tokens x2"
+		_event_label.text = "%s  ·  %s" % [txt, left]
+		_event_icon.texture = Icons.tex(LiveDefs.EVENTS[id]["icon"])
+
+
+func _on_goal_done(streak: int) -> void:
+	if not playing:
+		return
+	Sfx.play("levelup", -4.0, 1.3)
+	Kit.bounce(_streak_chip, 0.25)
+	toast("Daily goal done! %d-day streak" % streak, "flame")
+
+
+## A card listing what a reward gave.
+func reward_card(head: String, sub: String, items: Array) -> void:
+	var lines := []
+	for it in items:
+		lines.append(str(it[1]))
+	Sfx.play("levelup", -2.0)
+	_popup(head, sub, "  ·  ".join(lines), items[0][0] if not items.is_empty() else "gift", "Nice!")
+
+
+## Opening a crate: the crate bounces open, then its loot.
+func crate_popup(kind: String, items: Array) -> void:
+	var lines := []
+	for it in items:
+		lines.append(str(it[1]))
+	Sfx.play("cash")
+	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 24)
+	_popup(LiveDefs.CRATES[kind]["name"] + " opened!", "Here's what was inside:", "\n".join(lines), "crate_" + kind, "Collect")
+
+
+func _league_popup(r: Dictionary) -> void:
+	var t := int(r["tier"])
+	var nt := clampi(t + int(r["move"]), 0, LiveDefs.LEAGUES.size() - 1)
+	var head: String = ["You stayed in %s", "Promoted to %s!", "Down to %s"][int(r["move"]) if int(r["move"]) >= 0 else 2] % LiveDefs.LEAGUES[nt]["name"]
+	var rew := Live.describe(r["reward"])
+	_popup(head, "Last week you finished #%d in the %s League with %d points." % [int(r["rank"]), LiveDefs.LEAGUES[t]["name"], int(r["points"])],
+		("Reward in your inbox: " + rew) if rew != "" else "A new week has started. Good luck!", "shield", "Let's go", func(): open_live("today" if rew != "" else "league"))
+
+
+## A snapshot of the lab with a stats banner, saved or shared.
+func snapshot() -> void:
+	if is_instance_valid(_sheet):
+		_sheet.close()
+		await get_tree().create_timer(0.35).timeout
+	var keep := []
+	for c in get_children():
+		if c is Control and (c as Control).visible:
+			keep.append(c)
+			(c as Control).visible = false
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", Kit.skin("card_dark", 30, Vector4(24, 14, 24, 18)))
+	add_child(card)
+	var v := Kit.vbox(2)
+	card.add_child(v)
+	var h := Kit.hbox(10)
+	v.add_child(h)
+	h.add_child(Kit.icon("brand", 64))
+	var hv := Kit.vbox(0)
+	h.add_child(hv)
+	hv.add_child(Kit.game(Live.profile["name"], 32, Kit.WHITE, 6))
+	hv.add_child(Kit.game("Token Empire", 18, Color(0.7, 0.96, 1.0), 4))
+	v.add_child(Kit.game("%s tokens served  ·  Lab level %d" % [Fmt.num(int(Game.stats["tokens"])), Game.level], 20, Kit.WHITE, 4))
+	v.add_child(Kit.game("%d-day streak  ·  %s League  ·  %d models" % [Live.streak, Live.league_name(), Game.known_recipes.size()], 18, Color(1.0, 0.86, 0.5), 4))
+	v.add_child(Kit.game("Join me: " + Live.friend_code(), 16, Color(0.8, 0.86, 0.94), 4))
+	var vs := get_viewport_rect().size
+	card.size = card.get_combined_minimum_size()
+	card.position = Vector2((vs.x - card.size.x) * 0.5, vs.y - card.size.y - 40)
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	card.queue_free()
+	for c in keep:
+		if is_instance_valid(c):
+			c.visible = true
+	var where := Share.save_png(img)
+	Sfx.play("cash")
+	toast("Snapshot saved: " + where.get_file() if not OS.has_feature("web") else "Snapshot downloaded", "share")
 
 
 func _update_level() -> void:
@@ -516,6 +712,9 @@ func _refresh_actions() -> void:
 	b.append(["info", "research", "Info", Kit.CHARCOAL])
 	if not j2.is_empty():
 		b.append(["finish", "gem", _finish_label(j2), Kit.BRASS])
+		var wk := Live.best_warp(Game.job_left(j2))
+		if wk != "" and Game.job_left(j2) > Bal.FREE_FINISH:
+			b.append(["warp", "clock", "Warp %s x%d" % ["15m" if wk == "warp15" else "1h", int(Live.boosters[wk])], Kit.CHARCOAL])
 	elif not n is SiteB and Bal.max_level(n.kind) > 1 and n.level < Bal.max_level(n.kind):
 		b.append(["upgrade", "hammer", "$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level)), Kit.SAGE])
 	if n is ServerB:
@@ -611,6 +810,11 @@ func _on_action(id: String) -> void:
 		"finish":
 			var j := Game.job_of_obstacle(selected_ob) if selected_ob != "" else Game.job_of(n.uid)
 			_finish(j)
+		"warp":
+			var jw := Game.job_of(n.uid)
+			if Live.use_warp(Live.best_warp(Game.job_left(jw)), jw):
+				Sfx.play("upgrade")
+				toast("Time warped!", "clock")
 	_refresh_actions.call_deferred()
 
 
@@ -724,15 +928,24 @@ func _layout() -> void:
 	_builders_chip.position = Vector2(vs.x - _builders_chip.size.x - 14, 96 + top)
 	_token_chip.size = _token_chip.get_combined_minimum_size()
 	_token_chip.position = Vector2(_gem_chip.position.x + _gem_chip.size.x + 10, 88 + top)
+	_streak_chip.size = _streak_chip.custom_minimum_size
+	_streak_chip.position = Vector2(40, 140 + top)
 	_trend_chip.size = _trend_chip.get_combined_minimum_size()
-	_trend_chip.position = Vector2(40, 140 + top)
+	_trend_chip.position = Vector2(154, 144 + top)
+	_event_chip.size = _event_chip.get_combined_minimum_size()
+	_event_chip.position = Vector2(40, 204 + top)
+	var sy := 170.0 + top
+	for b in [_btn_today, _btn_league, _btn_pass]:
+		b.size = b.custom_minimum_size
+		b.position = Vector2(vs.x - b.size.x - 14, sy)
+		sy += b.size.y + 10
 	var bs := _bar.get_combined_minimum_size()
 	_bar.size = Vector2(vs.x, bs.y)
 	_bar.position = Vector2(0, vs.y - bs.y - 30)
 	actions.layout(vs)
 	_toast_box.size = Vector2(minf(vs.x - 40, 600), 0)
-	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 230 + top)
-	goals.layout(vs, top + 56.0)
+	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 330 + top)
+	goals.layout(vs, top + 110.0)
 
 
 func _process(dt: float) -> void:
@@ -747,6 +960,10 @@ func _process(dt: float) -> void:
 	_token_label.text = Fmt.num(int(Game.stats["tokens"])) + (("  ·  %s/s" % (("%.1f" % tr) if tr < 10.0 else Fmt.num(tr))) if tr > 0.05 else "")
 	if playing and placement == null:
 		_update_buttons(dt)
+	_live_t -= dt
+	if _live_t <= 0.0 and playing:
+		_live_t = 0.5
+		_update_live()
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
 	if (selected != null or selected_ob != "") and placement == null:
 		_sel_t += dt

@@ -18,6 +18,8 @@ config/icon="res://icon.png"
 [autoload]
 
 Game="*res://autoload/game.gd"
+Live="*res://autoload/live.gd"
+Notifier="*res://autoload/notifier.gd"
 Sfx="*res://autoload/sfx.gd"
 Quality="*res://autoload/quality.gd"
 

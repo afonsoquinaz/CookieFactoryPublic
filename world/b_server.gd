@@ -481,6 +481,7 @@ func _finish() -> void:
 	var item := "t:" + recipe
 	var n := batch()
 	Game.stats["batches"] = int(Game.stats["batches"]) + 1
+	Game.track("batches")
 	Game.discover(recipe)
 	Sfx.play("oven_ding", -12.0, 1.25)
 	var mouth := to_world(CORE_X - 0.25, BUS_Z + 0.95, 0.1)

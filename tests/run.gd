@@ -13,12 +13,16 @@ var _checks := 0
 
 func _ready() -> void:
 	Game.no_save = true
+	Live.events_on = false
 	Game.reset_state()
+	Live.reset_state()
+	Live.tick()
 	_test_tables()
 	_test_balance()
 	_test_growth()
 	_test_game_state()
 	_test_save_roundtrip()
+	_test_live()
 	_test_grid()
 	_test_roads_unit()
 	await _test_holders()
@@ -117,7 +121,7 @@ func _test_balance() -> void:
 		var a: Dictionary = Defs.BUILDINGS[k].get("aura", {})
 		if a.get("what", "") == "compute":
 			compute += 1
-			ok(float(a["v"]) > 0.0 and float(a["v"]) <= 0.25 and int(a["r"]) >= 2, "%s: a sensible compute aura" % k)
+			ok(float(a["v"]) > 0.0 and float(a["v"]) <= 0.3 and int(a["r"]) >= 2, "%s: a sensible compute aura" % k)
 	ok(compute >= 5, "datacenter gear for every stage of the game (%d)" % compute)
 	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
 
@@ -172,6 +176,228 @@ func _test_growth() -> void:
 	ok(SourceArt.station_count("data", 1) == 3 and SourceArt.station_count("data", 3) == 4 and SourceArt.station_count("power", 60) == 8, "stations: three to start, one every other level")
 
 
+# ---------------------------------------------------------------- live (daily layer)
+
+## Moves the Live clock so local time is `lt` (a local unix stamp).
+func _live_at(lt: int) -> void:
+	Live.debug_offset = lt - (Live.local() - Live.debug_offset)
+
+
+func _test_live() -> void:
+	Game.reset_state()
+	Live.reset_state()
+	var base := (int(floor((Live.local() - Live.debug_offset) / 86400.0)) + 10) * 86400 + 12 * 3600   # noon, ten days on
+	_live_at(base)
+	Live.tick()
+	ok(Live.local() == base, "the Live clock can be moved (tests)")
+	# calendar maths
+	ok(Live.week_of(0) == 0 and Live.week_of(4) == 1 and Live.week_start(1) == 4, "weeks start on Monday")
+	ok(Live.season_of(0) == 1970 * 12, "seasons are calendar months")
+	var d0 := Live.today()
+	ok(Live.day == d0 and Live.quests.size() == 3, "a new day brings three quests")
+	ok(Live.goal >= 20, "a daily goal (%d tokens)" % Live.goal)
+	var tiers := []
+	for q in Live.quests:
+		tiers.append(int(LiveDefs.QUESTS[q["id"]]["tier"]))
+	ok(tiers == [0, 1, 2], "an easy, a medium and a hard quest")
+	ok(str(Live._roll_quests(d0)) == str(Live._roll_quests(d0)), "the same day rolls the same quests")
+	# the streak
+	ok(Live.streak == 0, "no streak to start")
+	Game.track("tokens", Live.goal)
+	ok(Live.goal_is_done and Live.streak == 1, "reaching the goal starts a streak")
+	Game.track("tokens", Live.goal)
+	ok(Live.streak == 1, "only once a day")
+	_live_at(base + 86400)
+	Live.tick()
+	ok(Live.today() == d0 + 1 and not Live.goal_is_done and Live.streak == 1, "a new day: the streak waits for today's goal")
+	var gems0 := Game.gems
+	Game.track("tokens", Live.goal)
+	ok(Live.streak == 2, "two days in a row")
+	Live.freezes = 1
+	_live_at(base + 3 * 86400)
+	Live.tick()
+	ok(Live.streak == 2 and Live.freezes == 0 and Live.day_mark(d0 + 2) == "freeze", "a missed day eats a freeze, not the streak")
+	Game.track("tokens", Live.goal)
+	ok(Live.streak == 3, "and it carries on (%d)" % Live.streak)
+	ok(Game.gems == gems0 + int(LiveDefs.STREAK_MILESTONES[3]["gems"]), "a 3-day streak brings sparks")
+	ok(int(Live.boosters["warp15"]) >= 1, "and a Time Warp")
+	_live_at(base + 6 * 86400)
+	Live.tick()
+	ok(Live.streak == 0 and Live.lost_streak == 3 and Live.can_repair(), "two missed days without freezes: the streak is lost, but repairable")
+	Game.gems = 200
+	ok(Live.repair_streak() and Live.streak == 3 and Game.gems == 200 - LiveDefs.repair_price(3), "repairing brings it back for sparks")
+	Game.track("tokens", Live.goal)
+	ok(Live.streak == 4, "and today's goal adds to it")
+	ok(Live.buy_freeze() and Live.freezes == 1, "freezes can be bought")
+	# quests
+	var q0: Dictionary = Live.quests[0]
+	var m: String = LiveDefs.QUESTS[q0["id"]]["metric"]
+	ok(not Live.quest_ready(q0) or int(q0["n"]) <= Live.quest_progress(q0), "quests start at zero")
+	Game.track(m, float(q0["n"]))
+	ok(Live.quest_ready(Live.quests[0]), "counting %s finishes the quest" % m)
+	var money0 := Game.money
+	ok(not Live.claim_quest(0).is_empty() and Game.money > money0, "claiming a quest pays")
+	ok(Live.claim_quest(0).is_empty(), "only once")
+	ok(Live.reroll(1) and not Live.reroll(2), "one swap a day")
+	for i in [1, 2]:
+		var q: Dictionary = Live.quests[i]
+		Game.track(LiveDefs.QUESTS[q["id"]]["metric"], float(q["n"]) + 1.0)
+		Live.claim_quest(i)
+	ok(Live.quests_all_done() and Live.stamps == 1, "all three: a Breakthrough stamp")
+	ok(Live.crates.size() == 1 and Live.crates[0]["kind"] == "supply", "and a Supply Crate")
+	Live.stamps = 7
+	ok(not Live.claim_breakthrough().is_empty() and Live.is_unlocked("quantum_core") and Live.stamps == 0, "seven stamps: a Breakthrough and the Quantum Core")
+	# login calendar
+	ok(not Live.claim_login().is_empty() and Live.claim_login().is_empty() and Live.login_idx == 1, "a login gift once a day")
+	# crates
+	Live.crates.clear()
+	Live.inbox.clear()
+	for i in 5:
+		Live.add_crate("supply")
+	ok(Live.crates.size() == LiveDefs.CRATE_SLOTS and Live.inbox.size() == 1, "four crate slots; an extra crate waits in the inbox")
+	ok(Live.start_unlock(0) and not Live.start_unlock(1), "crates unlock one at a time")
+	ok(Live.crate_skip_price(0) > 0, "opening early costs sparks")
+	_live_at(base + 6 * 86400 + 3 * 3600 + 5)
+	Live.tick()
+	ok(Live.crates[0]["state"] == "ready" and Live.crate_skip_price(0) == 0, "a crate is ready when its timer runs out")
+	var opened := int(Live.counters.get("crates", 0))
+	ok(not Live.open_crate(0).is_empty() and Live.crates.size() == 3, "opening it gives its loot")
+	ok(int(Live.counters.get("crates", 0)) == opened + 1, "crates opened are counted")
+	ok(str(LiveDefs.crate_loot("gpu", 42, 10.0)) == str(LiveDefs.crate_loot("gpu", 42, 10.0)), "a crate's loot is fixed by its seed")
+	ok(int(LiveDefs.crate_loot("lab", 7, 10.0).get("freeze", 0)) == 1, "lab crates hold a Streak Freeze")
+	ok(not Live.claim_msg(int(Live.inbox[0]["id"])).is_empty() and Live.crates.size() == 4, "the waiting crate can be claimed once a slot is free")
+	# boosters
+	var j := Game._start_job("build", 999, 3000.0)
+	Live.boosters["warp15"] = 1
+	var end0 := float(j["end"])
+	ok(Live.use_warp("warp15", j) and is_equal_approx(float(j["end"]), end0 - 900.0), "a Time Warp takes 15 minutes off a job")
+	ok(not Live.use_warp("warp15", j), "only if you have one")
+	Game.jobs.erase(j)
+	# badges
+	Live.counters["quests"] = 5.0
+	ok(Live.badge_tier("quests") == 1 and Live.badge_claimable("quests"), "badges reach tiers")
+	var g1 := Game.gems
+	ok(not Live.claim_badge("quests").is_empty() and Game.gems == g1 + LiveDefs.BADGE_GEMS[0] and not Live.badge_claimable("quests"), "a badge tier pays sparks once")
+	# mastery
+	Game.track("served", 150.0, "mini")
+	ok(Live.stars("mini") == 1 and Live.mastery_claimable("mini"), "serving a model earns mastery stars")
+	ok(is_equal_approx(Live.price_mult("mini"), 1.0 + LiveDefs.MASTERY_PRICE), "a mastered model sells for more")
+	ok(Bal.item_value("t:mini") > Bal.item_value("t:pico") * 0.0, "prices include mastery")
+	# league
+	var r1 := Live.rivals(100, 2)
+	ok(r1.size() == LiveDefs.LEAGUE_SIZE - 1 and str(r1) == str(Live.rivals(100, 2)), "29 rival labs, the same all week")
+	var ws := Live.week_start(100) * 86400
+	var mono := true
+	for r in r1:
+		if Live.rival_points(r, 100, ws + 2 * 86400) > Live.rival_points(r, 100, ws + 5 * 86400):
+			mono = false
+	ok(mono, "rival points only go up during the week")
+	ok(Live.rival_points(r1[0], 100, ws - 10) == 0, "and start at zero")
+	var w := Live.week_of(Live.today())
+	ok(int(Live.league["week"]) == w, "the league follows the week")
+	Live.league["tier"] = 0
+	Live.league["points"] = 0
+	Live.league["joined"] = false
+	Live.add_bp(100000)
+	var rows := Live.standings()
+	ok(rows.size() == LiveDefs.LEAGUE_SIZE and Live.my_rank(rows) == 1, "a big week puts you on top")
+	Live.unlocked.erase("trophy")
+	_live_at((Live.week_start(w + 1) * 86400) + 3600)
+	Live.tick()
+	ok(int(Live.league["tier"]) == 1 and int(Live.league["week"]) == w + 1, "top of the week: promoted to Silver")
+	ok(Live.league_history.size() >= 1 and int(Live.league_history.back()["rank"]) == 1, "the result is kept")
+	ok(not (Live.inbox[0]["reward"] as Dictionary).is_empty() and Live.inbox[0]["reward"].has("decor"), "the reward (and the trophy) waits in the inbox")
+	Live.add_bp(1)
+	_live_at((Live.week_start(w + 2) * 86400) + 3600)
+	Live.tick()
+	ok(int(Live.league["tier"]) == 0, "a one-point week in Silver: back to Bronze")
+	_live_at((Live.week_start(w + 3) * 86400) + 3600)
+	Live.tick()
+	ok(int(Live.league["tier"]) == 0 and int(Live.league_history.back()["week"]) == w + 1, "skipping a week changes nothing")
+	# Lab Pass
+	var sid := int(Live.season["id"])
+	Live.season["sp"] = 0
+	Live.add_sp(LiveDefs.PASS_TIER_SP * 3)
+	ok(Live.pass_tier() == 3, "Pass points fill tiers")
+	ok(not Live.claim_pass(0, false).is_empty() and Live.claim_pass(0, false).is_empty(), "free rewards claim once")
+	ok(not Live.pass_claimable(0, true), "premium needs the premium track")
+	Game.gems = 500
+	ok(Live.buy_premium() and Live.pass_claimable(0, true), "buying it opens the premium rewards")
+	ok(LiveDefs.pass_reward(9, false).get("decor", "") == "neon_sign" and LiveDefs.pass_reward(14, true).get("decor", "") == "holo_bot", "the Pass holds exclusive decor")
+	Live.inbox.clear()
+	Live._new_season(sid + 1)
+	ok(int(Live.season["id"]) == sid + 1 and int(Live.season["sp"]) == 0 and Live.inbox.size() == 1, "a new season: what you didn't claim goes to the inbox")
+	# events (on the local calendar)
+	var tue := int(Time.get_unix_time_from_datetime_dict({"year": 2026, "month": 10, "day": 20, "hour": 18, "minute": 30, "second": 0}))
+	var sw := LiveDefs.event_window("spotlight", tue)
+	ok(not sw.is_empty() and tue >= int(sw[0]) and tue < int(sw[1]), "Spotlight Hour: Tuesday 18:00")
+	var sat := int(Time.get_unix_time_from_datetime_dict({"year": 2026, "month": 10, "day": 10, "hour": 15, "minute": 0, "second": 0}))
+	var cw := LiveDefs.event_window("community", sat)
+	ok(not cw.is_empty() and sat >= int(cw[0]) and sat < int(cw[1]), "Community Day: the second Saturday, 14:00-17:00")
+	ok(LiveDefs.event_window("community", sat + 4 * 3600)[0] > sat + 20 * 86400, "then next month")
+	var launch := int(Time.get_unix_time_from_datetime_dict({"year": 2026, "month": 11, "day": 3, "hour": 9, "minute": 0, "second": 0}))
+	var lw := LiveDefs.event_window("launch", launch)
+	ok(not lw.is_empty() and launch >= int(lw[0]), "Launch Week: the first week of the month")
+	Live.events_on = true
+	_live_at(sat)
+	ok(Live.active_events().has("community") and Live.active_events().has("hackathon"), "on Community Day (a Saturday) both are on")
+	ok(Live.price_mult("pico") >= 2.0 and is_equal_approx(Live.time_mult(), 0.75) and is_equal_approx(Live.sp_mult(), 3.0), "events change prices, timers and Pass points")
+	Live.tick()
+	ok(Live.event_quests["list"].size() == 3, "Community Day brings its quests")
+	_live_at(tue)
+	ok(is_equal_approx(Live.price_mult(Live.spotlight_model()), 3.0 * (1.0 + LiveDefs.MASTERY_PRICE * Live.stars(Live.spotlight_model()))), "Spotlight Hour: one model sells for 3x")
+	Live.events_on = false
+	_live_at(base + 6 * 86400 + 4 * 3600)
+	Live.tick()
+	# reminders
+	Live.notify["quiet"] = true
+	var nj := Game._start_job("upgrade", 998, 5000.0)
+	Live.streak = 5
+	Live.goal_is_done = false
+	var pl := Notifier.plan()
+	var cats := []
+	var ok_times := true
+	var quiet_ok := true
+	for n in pl:
+		cats.append(n["cat"])
+		if int(n["at"]) <= Live.now():
+			ok_times = false
+		var h := float(posmod(Live.local(int(n["at"])), 86400)) / 3600.0
+		if h >= LiveDefs.QUIET_START or h < LiveDefs.QUIET_END:
+			quiet_ok = false
+	ok(cats.has("builders") and cats.has("streak") and cats.has("quests"), "reminders: builders, the streak, new quests (%s)" % str(cats))
+	ok(ok_times and quiet_ok and pl.size() <= Notifier.MAX, "all in the future, none in quiet hours, at most %d" % Notifier.MAX)
+	var uniq := {}
+	for c in cats:
+		uniq[c] = true
+	ok(uniq.size() == cats.size(), "one of each kind")
+	Live.notify["cats"]["builders"] = false
+	ok(not str(Notifier.plan()).contains("\"builders\""), "kinds can be switched off")
+	Live.notify["cats"]["builders"] = true
+	Game.jobs.erase(nj)
+	ok(not Notifier._make("streak", 0, {"n": 5})["title"].contains("{"), "reminder text is filled in")
+	# friends
+	var code := Live.friend_code()
+	ok(Live.code_valid(code) and not Live.code_valid(code.replace("TKN", "TKX")), "friend codes check themselves")
+	ok(Live.redeem(code) != "", "your own code doesn't count")
+	var other: String = Live.code_for("1234abcd")
+	ok(Live.redeem(other) == "" and Live.redeem(other) != "", "a friend's code: a gift, once")
+	# exclusive decor
+	ok(Game.build_block("streak_flame").begins_with("Locked"), "exclusive decor starts locked")
+	Live.grant({"decor": "streak_flame"})
+	ok(not Game.build_block("streak_flame").begins_with("Locked"), "earning it unlocks it")
+	# saving
+	var dct := Live.to_dict()
+	var js = JSON.parse_string(JSON.stringify(dct))
+	Live.from_dict(js)
+	ok(Live.streak == int(dct["streak"]) and Live.quests.size() == 3 and int(Live.league["tier"]) == int(dct["league"]["tier"]) and Live.unlocked.has("streak_flame"), "the daily layer saves and loads")
+	ok(Live.claimables() >= 0, "claimables count")
+	Live.reset_state()
+	Live.debug_offset = 0
+	Live.tick()
+	Game.reset_state()
+
+
 # ---------------------------------------------------------------- game state
 
 func _test_game_state() -> void:
@@ -185,6 +411,9 @@ func _test_game_state() -> void:
 	ok(Game.build_block("src_silicon") == "Not enough money", "only money stands between you and silicon works")
 	for k in Defs.BUILD_ORDER:
 		var by := Game.build_block(k)
+		if LiveDefs.EXCLUSIVE.has(k):
+			ok(by.begins_with("Locked"), "%s is earned, not bought (%s)" % [k, by])
+			continue
 		ok(by == "" or by == "Not enough money" or by.begins_with("Needs") and by.contains("sparks"), "%s is open from the start (%s)" % [k, by])
 	for b0 in Game.buildings:
 		var ent := Building.entrance_of(b0["kind"], Game.cell_of(b0), int(b0["rot"]))

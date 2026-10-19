@@ -14,6 +14,8 @@ var _head: Node3D
 var _fans: Array[Node3D] = []
 var _leds: Array[Node3D] = []
 var _beacon: Node3D
+var _spin: Node3D
+var _bob: Node3D
 
 
 func solid_rects() -> Array[Rect2]:
@@ -112,6 +114,19 @@ func _visual(root: Node3D, _t: int) -> void:
 				k.sphere(0.08, Color(1.0, 0.35, 0.25, 0.25), MeshKit.at(0, 0, 0), 8, 5)
 				return k.commit()), _beacon, Transform3D.IDENTITY, false)
 			mi.material_override = Mats.glow()
+		"neon_sign", "quantum_core", "trophy":
+			_spin = Node3D.new()
+			_spin.position = Vector3(0, {"neon_sign": 1.9, "quantum_core": 1.55, "trophy": 1.05}[kind], 0)
+			root.add_child(_spin)
+			var mi := Mats.inst(MeshKit.cached("decor_spin_" + kind, func(): return DecorB.spinner(kind)), _spin, Transform3D.IDENTITY, false)
+			if kind != "trophy":
+				mi.material_override = Mats.glow()
+		"holo_bot", "streak_flame", "server_fountain":
+			_bob = Node3D.new()
+			_bob.position = Vector3(0, {"holo_bot": 0.55, "streak_flame": 0.75, "server_fountain": 1.25}[kind], 0)
+			root.add_child(_bob)
+			var mi2 := Mats.inst(MeshKit.cached("decor_bob_" + kind, func(): return DecorB.spinner(kind)), _bob, Transform3D.IDENTITY, false)
+			mi2.material_override = Mats.glow()
 		"lamp":
 			var l := OmniLight3D.new()
 			l.light_color = Color(0.85, 0.95, 1.0)
@@ -133,6 +148,14 @@ func _process(dt: float) -> void:
 		_leds[1].visible = on == 1
 	if _beacon:
 		_beacon.visible = fmod(_t + uid * 0.37, 1.6) < 0.5
+	if _spin:
+		_spin.rotation.y += dt * (0.8 if kind == "trophy" else 1.6)
+	if _bob:
+		_bob.position.y = {"holo_bot": 0.55, "streak_flame": 0.75, "server_fountain": 1.25}[kind] + sin(_t * 2.2) * 0.06
+		if kind == "streak_flame":
+			_bob.scale = Vector3(1.0, 1.0 + sin(_t * 7.0) * 0.08, 1.0)
+		if kind == "holo_bot":
+			_bob.rotation.y = sin(_t * 0.6) * 0.8
 	if _steam and kind == "generator":
 		_steam.position.y = 1.95 + fmod(_t * 0.5, 0.4)
 		_steam.scale = Vector3.ONE * (0.8 + fmod(_t * 0.5, 0.4))
@@ -152,6 +175,46 @@ func status() -> String:
 		"compute": return "Servers and labs within %d tiles work %d%% faster." % [int(a["r"]), roundi(float(a["v"]) * 100)]
 		"global_price": return "Every token sells for 5% more."
 	return ""
+
+
+## The moving part of an exclusive decor piece (glowing unless noted).
+static func spinner(kind: String) -> Mesh:
+	var k := MeshKit.new()
+	match kind:
+		"neon_sign":
+			Items.token_into(k, "frontier", 0.26, 0.06, MeshKit.xf(Vector3.ZERO, Vector3(90, 0, 0)))
+			k.torus(0.3, 0.02, Color(0.4, 0.95, 1.0, 0.4), MeshKit.xf(Vector3.ZERO, Vector3(90, 0, 0)), 18, 5)
+		"holo_bot":
+			var c := Color(0.45, 0.9, 1.0, 0.35)
+			k.capsule(0.13, 0.36, c, MeshKit.at(0, 0.0, 0), 10, 3)
+			k.sphere(0.13, c, MeshKit.at(0, 0.52, 0), 10, 6)
+			k.rbox(Vector3(0.16, 0.05, 0.02), 0.02, Color(1.0, 1.0, 1.0, 0.3), MeshKit.at(0, 0.54, 0.12))
+			k.capsule(0.04, 0.3, c, MeshKit.xf(Vector3(0.2, 0.2, 0.06), Vector3(-40, 0, 30)), 6, 2)
+			k.torus(0.2, 0.012, c, MeshKit.at(0, -0.2, 0), 16, 4)
+		"server_fountain":
+			for i in 4:
+				var a := TAU * i / 4.0 + PI / 4.0
+				for j in 5:
+					var f := float(j) / 4.0
+					var p := Vector3(cos(a) * lerpf(0.1, 0.75, f), sin(f * PI) * 0.45, sin(a) * lerpf(0.1, 0.75, f))
+					k.sphere(0.06 - j * 0.006, Color(0.5, 0.9, 1.0, 0.4), MeshKit.at(p.x, p.y, p.z), 8, 5)
+		"trophy":
+			var g := Pal.BRASS.lightened(0.15)
+			k.cyl(0.14, 0.06, g, MeshKit.at(0, -0.5, 0), 12)
+			k.cyl(0.04, 0.2, g, MeshKit.at(0, -0.45, 0), 8)
+			k.lathe(PackedVector2Array([Vector2(0.04, -0.26), Vector2(0.2, -0.12), Vector2(0.24, 0.12), Vector2(0.22, 0.12), Vector2(0.18, -0.1), Vector2(0.0, -0.22)]), g, Transform3D.IDENTITY, 16)
+			for sx in [-1.0, 1.0]:
+				k.torus(0.08, 0.02, g, MeshKit.xf(Vector3(sx * 0.25, 0.0, 0), Vector3(90, 0, 0)), 12, 4)
+			k.star(0.08, 0.035, 5, 0.02, Color(1.0, 0.95, 0.7, 0.4), MeshKit.xf(Vector3(0, -0.02, 0.21), Vector3(0, 0, 0)))
+		"streak_flame":
+			k.cone(0.24, 0.6, Color(1.0, 0.55, 0.15, 0.3), MeshKit.at(0, 0.0, 0), 10)
+			k.cone(0.15, 0.42, Color(1.0, 0.85, 0.3, 0.25), MeshKit.at(0, 0.05, 0), 8)
+			k.sphere(0.2, Color(1.0, 0.5, 0.15, 0.3), MeshKit.at(0, 0.05, 0), 10, 6)
+		"quantum_core":
+			k.sphere(0.32, Color(0.75, 0.55, 1.0, 0.3), Transform3D.IDENTITY, 14, 8)
+			for i in 3:
+				k.torus(0.46, 0.015, Color(0.6, 0.9, 1.0, 0.35), MeshKit.xf(Vector3.ZERO, Vector3(60 * i, 0, 35)), 22, 4)
+	return k.commit()
 
 
 static func mesh(k_: String) -> Mesh:
@@ -347,6 +410,48 @@ static func mesh(k_: String) -> Mesh:
 				for h in [0.45, 1.05]:
 					k.rbox(Vector3(5.2, 0.03, 0.03), 0.01, Color(0.62, 0.64, 0.66), Transform3D(b, b * Vector3(0, h, 2.6)))
 			k.rbox(Vector3(0.3, 0.3, 0.02), 0.02, Color(0.96, 0.8, 0.26), MeshKit.at(0, 0.8, 2.62))
+		"neon_sign":
+			# a post with a glowing token on top (the token spins: see spinner)
+			k.cyl(0.16, 0.12, Color(0.2, 0.21, 0.24), MeshKit.at(0, 0, 0), 12, 0.02)
+			k.cyl(0.04, 1.5, Color(0.24, 0.25, 0.28), MeshKit.at(0, 0.1, 0), 8)
+			k.torus(0.32, 0.03, Color(0.24, 0.25, 0.28), MeshKit.xf(Vector3(0, 1.9, 0), Vector3(90, 0, 0)), 18, 5)
+		"holo_bot":
+			# a projector puck (the hologram floats over it: see spinner)
+			k.cyl(0.36, 0.12, Color(0.2, 0.21, 0.24), MeshKit.at(0, 0, 0), 16, 0.03)
+			k.cyl(0.28, 0.03, lit.call(Color(0.4, 0.9, 1.0)), MeshKit.at(0, 0.12, 0), 16)
+			for i in 6:
+				var a := TAU * i / 6.0
+				k.rbox(Vector3(0.05, 0.03, 0.05), 0.01, lit.call(Color(0.4, 0.9, 1.0)), MeshKit.at(cos(a) * 0.34, 0.09, sin(a) * 0.34))
+		"server_fountain":
+			# a round basin of glowing coolant around a little rack, water arcs (see spinner)
+			k.cyl(1.2, 0.36, Color(0.86, 0.87, 0.88), MeshKit.at(0, 0, 0), 24, 0.05)
+			k.cyl(1.05, 0.04, lit.call(Color(0.36, 0.8, 1.0)), MeshKit.at(0, 0.32, 0), 24)
+			k.rbox(Vector3(0.5, 1.0, 0.5), 0.05, Color(0.18, 0.19, 0.22), MeshKit.at(0, 0.6, 0))
+			for j in 6:
+				k.rbox(Vector3(0.04, 0.025, 0.01), 0.005, lit.call(Color(0.5, 1.0, 0.6) if j % 2 else Color(0.4, 0.8, 1.0)), MeshKit.at(-0.12 + (j % 3) * 0.12, 0.6 + (j / 3) * 0.25, 0.255))
+			for i in 4:
+				var a2 := TAU * i / 4.0 + PI / 4.0
+				k.cyl(0.06, 0.2, Pal.STEEL, MeshKit.at(cos(a2) * 0.9, 0.3, sin(a2) * 0.9), 8)
+		"trophy":
+			# a plinth for the cup (the cup turns: see spinner)
+			k.rbox(Vector3(0.7, 0.5, 0.7), 0.06, Color(0.2, 0.21, 0.24), MeshKit.at(0, 0.25, 0))
+			k.rbox(Vector3(0.74, 0.05, 0.74), 0.02, Pal.BRASS, MeshKit.at(0, 0.5, 0))
+			k.rbox(Vector3(0.4, 0.1, 0.02), 0.01, Pal.BRASS, MeshKit.at(0, 0.3, 0.355))
+		"streak_flame":
+			# a brazier (the flame flickers over it: see spinner)
+			k.cyl(0.3, 0.12, Color(0.2, 0.21, 0.24), MeshKit.at(0, 0, 0), 14, 0.02)
+			k.cyl(0.08, 0.5, Color(0.24, 0.25, 0.28), MeshKit.at(0, 0.1, 0), 10)
+			k.cyl(0.34, 0.16, Pal.BRASS, MeshKit.at(0, 0.58, 0), 16, 0.02, 0.42)
+		"quantum_core":
+			# a glass column on a heavy base, cooling rings, the core spins inside (see spinner)
+			k.cyl(1.0, 0.3, Color(0.2, 0.21, 0.24), MeshKit.at(0, 0, 0), 20, 0.04)
+			k.cyl(0.84, 0.05, lit.call(Color(0.7, 0.5, 1.0)), MeshKit.at(0, 0.3, 0), 20)
+			for r in 3:
+				k.torus(0.62, 0.05, Color(0.86, 0.87, 0.9), MeshKit.at(0, 0.7 + r * 0.6, 0), 24, 6)
+			for i in 4:
+				var a3 := TAU * i / 4.0
+				k.cyl(0.05, 2.0, Color(0.3, 0.32, 0.36), MeshKit.at(cos(a3) * 0.66, 0.3, sin(a3) * 0.66), 8)
+			k.cyl(0.7, 0.12, Color(0.2, 0.21, 0.24), MeshKit.at(0, 2.3, 0), 20, 0.03)
 		"gpu_statue":
 			# a golden graphics card on a plinth
 			k.rbox(Vector3(1.4, 0.6, 1.0), 0.08, Color(0.9, 0.91, 0.92), MeshKit.at(0, 0.3, 0))

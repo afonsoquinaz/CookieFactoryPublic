@@ -60,6 +60,8 @@ func _plan() -> void:
 			steps.append(_panel.bind("build", tab[0]))
 		for p in ["staff", "research", "settings", "recipes", "building"]:
 			steps.append(_panel.bind(p, ""))
+		for t in ["today", "league", "pass", "album"]:
+			steps.append(_panel.bind("live", t))
 
 
 ## Levels that show each visual tier (and the top level, for level props).
@@ -198,6 +200,9 @@ func _panel(which: String, arg: String) -> void:
 		"staff": s = StaffPanel.new()
 		"research": s = ResearchPanel.new()
 		"settings": s = SettingsPanel.new()
+		"live":
+			LivePanel.last_tab = arg
+			s = LivePanel.new()
 		"recipes":
 			var bs := world.buildings_of("server")
 			if bs.is_empty():
@@ -210,5 +215,6 @@ func _panel(which: String, arg: String) -> void:
 			s = BuildingPanel.new().setup(world, bs2[0], "")
 	s.process_mode = Node.PROCESS_MODE_DISABLED
 	hud.add_child(s)
+	LivePanel.last_tab = "today"
 	s.flush()
 	_show(s, 2)
