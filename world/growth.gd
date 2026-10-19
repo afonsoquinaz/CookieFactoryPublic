@@ -161,7 +161,7 @@ static func _agent_hub() -> Array:
 static func _trainer() -> Array:
 	return [
 		_s(-3.4, 2.95, "chiller"), _top(-2.6, -3.75, "ac"), _s(2.0, 3.1, "plant"), _top(2.6, -3.75, "vent"),
-		_s(-2.0, 3.1, "battery"), _s(3.6, -0.15, "cabinet", -90.0), _s(-3.65, -0.15, "tanks", 90.0), _s(0.0, 3.1, "kiosk"),
+		_s(-2.0, 3.1, "battery"), _s(3.45, 1.05, "cabinet", -90.0), _s(1.85, 1.0, "tanks"), _s(0.0, 3.1, "kiosk"),
 		_s(3.55, 3.4, "lamp"), _top(0.0, -3.75, "solar_s"),
 	]
 

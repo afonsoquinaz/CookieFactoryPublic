@@ -20,6 +20,7 @@ var inputs := {}               # item -> Holder
 var _gpu_nodes: Array[MeshInstance3D] = []
 var _curve: MeshInstance3D
 var _label: Label3D
+var _badge: Node3D
 var _labels := {}
 var _pw := 0.0
 var _curve_step := -1
@@ -43,9 +44,9 @@ func _build() -> void:
 	_label = UI3D.label("", 30, Color(0.7, 0.96, 1.0))
 	_label.position = Vector3(0.6, 5.0, -3.4)
 	add_child(_label)
-	var b := UI3D.badge("trainer", Pal.STEEL_DARK, 0.6)
-	b.position = Vector3(-2.8, 4.6, -3.4)
-	add_child(b)
+	_badge = UI3D.badge("trainer", Pal.STEEL_DARK, 0.6)
+	_badge.position = Vector3(-2.8, 4.6, -3.4)
+	add_child(_badge)
 
 
 func solid_rects() -> Array[Rect2]:
@@ -58,7 +59,12 @@ func _visual(root: Node3D, t: int) -> void:
 	for i in Bal.trainer_gpu_slots(Bal.max_level(kind)):
 		var mi := Mats.inst(null, root, MeshKit.at(-2.5 + (i % 6) * 1.0, 0.45 + (i / 6) * 0.42, -1.5))
 		_gpu_nodes.append(mi)
-	_curve = Mats.inst(null, root, MeshKit.at(0.6, (3.0 + t * 0.3) * 0.55 + 0.3, -3.42), false)
+	var sp := InfraArt.trainer_screen(t)
+	_curve = Mats.inst(null, root, MeshKit.at(sp.x, sp.y, sp.z), false)
+	if _label:
+		_label.position = Vector3(0.6, InfraArt.trainer_label_y(t), -1.5)
+	if _badge:
+		_badge.position = Vector3(-2.8, InfraArt.trainer_label_y(t) - 0.4, -1.5)
 	_curve.material_override = Mats.glow()
 	_gpu_shown = -1
 	_curve_step = -1
