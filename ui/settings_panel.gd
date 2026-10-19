@@ -40,8 +40,8 @@ func _build() -> void:
 	st.add_child(v)
 	v.add_child(Kit.game("Your lab", 30, Kit.INK, 0))
 	var s: Dictionary = Game.stats
-	for line in ["Tokens served: %s" % Fmt.num(int(s["tokens"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
-			"Batches inferred: %s" % Fmt.num(int(s["batches"])), "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
+	for line in ["Tokens served: %s" % Fmt.tokens(float(s["tokens"])), "Money earned: $%s" % Fmt.num(int(s["earned"])),
+			"Contracts: %s  ·  Modules in orbit: %d" % [Fmt.num(int(s["orders"])), Market.orbit_modules], "Staff: %d  ·  Builders: %d" % [Game.workers.size(), Game.builders()],
 			"Lab level %d: %s" % [Game.level, Defs.level_title(Game.level)],
 			"Time played: %s" % Fmt.time(float(s["play_time"]))]:
 		v.add_child(Kit.label(line, 18, Kit.MUTED, 0, false))

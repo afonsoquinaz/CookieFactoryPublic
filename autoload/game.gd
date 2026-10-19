@@ -32,7 +32,7 @@ signal victory
 signal tracked(metric: String, n: float, arg: String)   # for Live: quests, goals, badges
 
 const SAVE_PATH := "user://token_empire_v1.json"
-const VERSION := 1
+const VERSION := 2                     # 2 = the inference economy (1 migrates)
 
 var money := 0.0
 var gems := 0
@@ -50,7 +50,7 @@ var cleared := 0
 var workers: Array = []       # [{id, role, target}] target = building uid (technicians/engineers)
 var next_worker_id := 1
 var hired := 0
-var stats := {"tokens": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0}
+var stats := {"tokens": 0.0, "earned": 0.0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0.0}
 var known_recipes := {}       # model id -> true once served
 var orders: Array = []        # [{item, count, got, reward, gems}]
 var trending := ""
@@ -61,7 +61,7 @@ var income_rate := 0.0
 var rush_time := 0.0
 var rush_cooldown := 0.0
 var offline_reward := 0.0
-var offline_tokens := 0          # tokens served while you were away (collected with the reward)
+var offline_tokens := 0.0        # K tokens served while you were away (collected with the reward)
 var offline_seconds := 0.0
 var won := false
 
@@ -101,7 +101,7 @@ func reset_state() -> void:
 	workers = []
 	next_worker_id = 1
 	hired = 0
-	stats = {"tokens": 0, "earned": 0.0, "batches": 0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0}
+	stats = {"tokens": 0.0, "earned": 0.0, "play_time": 0.0, "orders": 0, "customers": 0, "frontier": 0.0}
 	known_recipes = {}
 	orders = []
 	trending = ""
@@ -110,16 +110,17 @@ func reset_state() -> void:
 	rush_time = 0.0
 	rush_cooldown = 0.0
 	offline_reward = 0.0
-	offline_tokens = 0
+	offline_tokens = 0.0
 	offline_seconds = 0.0
 	won = false
 	_counts = {}
+	Market.reset_state()
 	_starting_empire()
 
 
 ## A new empire on four plots of valley along the High Street: a Solar
 ## Farm, an Inference Server (a garage rig serving Pico 1B) and a Supply
-## Depot on the north side; Staff Housing, an API Depot and two Builder's
+## Depot on the north side; Staff Housing, an API Gateway and two Builder's
 ## Huts on the south side; three couriers, and some brambles, e-waste and
 ## an old container to clear.
 func _starting_empire() -> void:
@@ -129,7 +130,7 @@ func _starting_empire() -> void:
 	_add("src_power", Vector2i(-6, -5), 0)
 	_add("server", Vector2i(-2, -5), 0)
 	_add("depot", Vector2i(4, -4), 0)
-	_add("van", Vector2i(-1, 2), 2)
+	_add("gateway", Vector2i(-1, 2), 2)
 	_add("hut", Vector2i(3, 2), 2)
 	_add("hut", Vector2i(5, 2), 2)
 	_add("dorm", Vector2i(-4, 2), 2)
@@ -249,10 +250,10 @@ func recent_income() -> float:
 
 
 ## Tokens served somewhere else (time away): they count for the Lab level.
-func add_tokens(n: int) -> void:
-	if n <= 0:
+func add_tokens(n: float) -> void:
+	if n <= 0.0:
 		return
-	stats["tokens"] = int(stats["tokens"]) + n
+	stats["tokens"] = float(stats["tokens"]) + n
 	_check_level()
 
 
@@ -261,33 +262,37 @@ func track(metric: String, n := 1.0, arg := "") -> void:
 	tracked.emit(metric, n, arg)
 
 
-## Sells items through a channel. Returns the money made.
-func sell(items: Array, mult := 1.0, agent_mult := 1.0) -> float:
-	var total := 0.0
-	var n := 0
-	for t in items:
-		var v := Bal.item_value(t) * mult
-		if Defs.cat(t) == "agent":
-			v *= agent_mult
-		total += v
-		var tc := Defs.token_count(t)
-		n += tc
-		var rid := Defs.recipe_of(t)
-		if rid == "frontier":
-			stats["frontier"] = int(stats["frontier"]) + 1
-		track("served", tc, rid)
-		if rid == trending:
-			track("trend_tokens", tc)
-		if Defs.cat(t) == "agent":
-			track("agents", 1)
-	stats["tokens"] = int(stats["tokens"]) + n
-	track("tokens", n)
-	track("sales", n)
-	_token_window.append([_clock, n])
-	total = roundf(total)
-	add_money(total)
+## Tokens served through a channel (Market): k thousand tokens of model
+## rid earned `money`. Counts for the Lab level, quests and badges.
+func serve(rid: String, k: float, money: float, channel := "api") -> void:
+	if k <= 0.0:
+		return
+	stats["tokens"] = float(stats["tokens"]) + k
+	stats["served_" + rid] = float(stats.get("served_" + rid, 0.0)) + k
+	if rid == Defs.MEGA_MODEL:
+		stats["frontier"] = float(stats["frontier"]) + k
+	_token_window.append([_clock, k])
+	track("tokens", k)
+	track("served", k, rid)
+	track("sales", k)
+	if rid == trending:
+		track("trend_tokens", k)
+	if channel == "agent":
+		track("agents", k)
+	elif channel == "api":
+		track("api_tokens", k)
+	add_money(money)
 	_check_level()
-	return total
+
+
+## Downloads an open-weights model (a licence fee). True if bought.
+func download(rid: String) -> bool:
+	var r := Defs.recipe(rid)
+	if r.is_empty() or known_recipes.has(rid) or int(r["open"]) < 0 or not spend(float(r["open"])):
+		return false
+	discover(rid)
+	track("downloads")
+	return true
 
 
 # ---------------------------------------------------------------- buildings
@@ -561,7 +566,6 @@ func _complete(j: Dictionary) -> void:
 			var b3 := building(int(j["uid"]))
 			if not b3.is_empty():
 				b3["stage"] = int(b3.get("stage", 0)) + 1
-				b3["frontier"] = 0
 				building_upgraded.emit(int(b3["uid"]), int(b3["lvl"]))
 				if int(b3["stage"]) >= Defs.MEGA_STAGES.size() - 1:
 					won = true
@@ -805,6 +809,8 @@ func order_slots() -> int:
 
 
 ## Keeps the Enterprise Desk full of contracts for models you know how to serve.
+## Enterprise contracts: "serve 4.5M tokens of Code 13B through the API".
+## They add demand for that model (Market) and pay a bonus when done.
 func refill_orders() -> void:
 	if count_of("desk") == 0:
 		return
@@ -813,49 +819,30 @@ func refill_orders() -> void:
 		return
 	while orders.size() < order_slots():
 		var rid: String = ks[randi() % ks.size()]
-		# lean toward your better recipes
+		# lean toward your better models
 		if ks.size() > 2 and randf() < 0.6:
 			rid = ks[ks.size() - 1 - randi() % mini(3, ks.size())]
 		var r := Defs.recipe(rid)
-		var kind := "t"
-		if count_of("batcher") > 0 and randf() < 0.4:
-			kind = "b"
-		if count_of("agent_studio") > 0 and randf() < 0.3:
-			kind = "a"
-		var n := Bal.order_count(float(r["price"]))
-		if kind != "t":
-			n = maxi(2, n / 6)
-		var item := "%s:%s" % [kind, rid]
-		var reward := roundf(Bal.item_value(item) * n * 2.5)
-		var g := 1 + Defs.RECIPES.find(r) / 4 + (1 if kind != "t" else 0)
-		orders.append({"item": item, "count": n, "got": 0, "reward": reward, "gems": g})
+		var n := Bal.order_count(rid)
+		var reward := LiveDefs.snap(Bal.token_price(rid) * n * 1.5)
+		var g := 1 + Defs.RECIPES.find(r) / 4
+		orders.append({"model": rid, "count": n, "got": 0.0, "reward": reward, "gems": g})
 	orders_changed.emit()
 
 
-## An item was delivered to the Enterprise Desk. Returns true if it was wanted.
-func deliver(item: String) -> bool:
-	for o in orders:
-		if o["item"] == item and int(o["got"]) < int(o["count"]):
-			o["got"] = int(o["got"]) + 1
-			if int(o["got"]) >= int(o["count"]):
-				orders.erase(o)
-				add_money(float(o["reward"]))
-				add_gems(int(o["gems"]))
-				stats["orders"] = int(stats["orders"]) + 1
-				track("orders")
-				toast.emit("Contract complete! +$%s  +%d sparks" % [Fmt.num(o["reward"]), int(o["gems"])], "gem")
-				refill_orders()
-			orders_changed.emit()
-			return true
-	return false
+## A contract was served in full: its bonus.
+func contract_done(o: Dictionary) -> void:
+	if not orders.has(o):
+		return
+	orders.erase(o)
+	add_money(float(o["reward"]))
+	add_gems(int(o["gems"]))
+	stats["orders"] = int(stats["orders"]) + 1
+	track("orders")
+	toast.emit("Contract complete! +$%s  +%d sparks" % [Fmt.num(o["reward"]), int(o["gems"])], "gem")
+	refill_orders()
+	orders_changed.emit()
 
-
-func wanted_items() -> Array[String]:
-	var out: Array[String] = []
-	for o in orders:
-		if int(o["got"]) < int(o["count"]):
-			out.append(o["item"])
-	return out
 
 # ---------------------------------------------------------------- workers
 
@@ -958,12 +945,14 @@ func to_dict() -> Dictionary:
 		"known": known_recipes.keys(), "orders": orders, "trending": trending, "trend_t": trend_t,
 		"settings": settings, "tutorial": tutorial_step,
 		"time": int(Time.get_unix_time_from_system()), "income": recent_income(), "trate": token_rate(),
-		"rush_cd": rush_cooldown, "won": won,
+		"rush_cd": rush_cooldown, "won": won, "market": Market.to_dict(),
 	}
 
 
 func from_dict(d: Dictionary) -> void:
 	reset_state()
+	if int(d.get("v", 0)) == 1:
+		d = migrate_v1(d)
 	if int(d.get("v", 0)) != VERSION:
 		return
 	money = float(d.get("money", 0.0))
@@ -1011,6 +1000,7 @@ func from_dict(d: Dictionary) -> void:
 		settings[k] = s[k]
 	tutorial_step = int(d.get("tutorial", 0))
 	won = bool(d.get("won", false))
+	Market.from_dict(d.get("market", {}))
 	level = level_for(float(stats["tokens"]))
 	var away := maxf(0.0, float(Time.get_unix_time_from_system() - int(d.get("time", 0))))
 	rush_cooldown = maxf(0.0, float(d.get("rush_cd", 0.0)) - away)
@@ -1022,9 +1012,49 @@ func from_dict(d: Dictionary) -> void:
 	offline_reward = 0.0
 	if away > 60.0 and rate > 0.0:
 		offline_reward = roundf(rate * minf(away, Bal.offline_cap_hours() * 3600.0) * Bal.OFFLINE_FACTOR)
-	offline_tokens = 0
+	offline_tokens = 0.0
 	if away > 60.0:
-		offline_tokens = int(float(d.get("trate", 0.0)) * minf(away, Bal.offline_cap_hours() * 3600.0) * Bal.OFFLINE_FACTOR)
+		offline_tokens = (float(d.get("trate", 0.0)) * minf(away, Bal.offline_cap_hours() * 3600.0) * Bal.OFFLINE_FACTOR)
+
+
+## Version 1 saves (tokens as things couriers carried) into the inference
+## economy: vans become API Gateways, hyperloops Edge PoPs, drone ports
+## Agent Hubs; token caches, batchers and agent studios are sold back at
+## full price; token stock, contracts and the server's bays are dropped.
+static func migrate_v1(d: Dictionary) -> Dictionary:
+	var rename := {"van": "gateway", "hyperloop": "edge", "droneport": "agent_hub"}
+	var gone := {"cache": true, "batcher": true, "agent_studio": true}
+	var keep := []
+	var refund := 0.0
+	var dropped := {}
+	for b in d.get("buildings", []):
+		var k := str(b["kind"])
+		if gone.has(k):
+			refund += float(Defs.BUILDINGS.get("depot", {"cost": 200})["cost"]) * 5.0 * maxi(1, int(b.get("lvl", 1)))
+			dropped[int(b["uid"])] = true
+			continue
+		if rename.has(k):
+			b["kind"] = rename[k]
+		var data: Dictionary = b.get("data", {})
+		for key in data.keys():
+			if key in ["bench", "cargo", "display", "inbox"] or str(key).begins_with("bay_"):
+				data.erase(key)
+		b["data"] = data
+		keep.append(b)
+	d["buildings"] = keep
+	var jobs := []
+	for j in d.get("jobs", []):
+		if not dropped.has(int(j.get("uid", 0))):
+			jobs.append(j)
+	d["jobs"] = jobs
+	d["orders"] = []
+	d["money"] = float(d.get("money", 0.0)) + refund
+	var st: Dictionary = d.get("stats", {})
+	st["tokens"] = float(st.get("tokens", 0))
+	st["frontier"] = 0.0
+	d["stats"] = st
+	d["v"] = 2
+	return d
 
 
 func save_game() -> void:

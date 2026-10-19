@@ -65,12 +65,9 @@ func _ready() -> void:
 	world.cam.fly_to(Vector3(2, 0, 6), 1.0)
 	await _wait(1.5)
 	await _shot("6_south_side")
-	var dock: Building = world.buildings_of("van")[0]
-	for i in 3:
-		(dock as VehicleB).cargo.add("t:shortbread", false)
-	(dock as VehicleB)._depart()
+	world.cam.fly_to(world.buildings_of("gateway")[0].global_position, 1.0)
 	await _wait(1.2)
-	await _shot("7_van_out")
+	await _shot("7_gateway")
 	print("tour step ", Game.tutorial_step)
 	get_tree().quit()
 

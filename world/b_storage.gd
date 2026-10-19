@@ -1,17 +1,15 @@
 class_name StorageB
 extends Building
-## Supply Depot (any resources) and Token Cache (tokens, batches, agent
-## runs): buffers near where things are made or sold, so couriers keep
-## things moving.
+## Supply Depot: a buffer for any hardware or resources near where it's
+## used, so couriers keep things moving.
 
 var store: Holder
 var _label: Label3D
 
 
 func _build() -> void:
-	var pantry := kind == "depot"
 	store = Holder.new().setup(30, [], Holder.Layout.GRID)
-	store.accept_cat = ["raw", "proc"] if pantry else ["token", "batch", "agent"]
+	store.accept_cat = ["raw", "proc"]
 	store.grid = Vector2i(4, 2)
 	store.cell = Vector2(0.44, 0.4)
 	store.max_visible = 48
@@ -37,7 +35,7 @@ func _visual(root: Node3D, t: int) -> void:
 
 
 func _on_level() -> void:
-	store.capacity = Bal.depot_cap(level) if kind == "depot" else Bal.cache_cap(level)
+	store.capacity = Bal.depot_cap(level)
 	_update()
 
 
@@ -73,13 +71,11 @@ func info() -> Array:
 
 
 func upgrade_info() -> Array:
-	if kind == "depot":
-		return [["Holds", str(Bal.depot_cap(level)), str(Bal.depot_cap(level + 1))]]
-	return [["Holds", str(Bal.cache_cap(level)), str(Bal.cache_cap(level + 1))]]
+	return [["Holds", str(Bal.depot_cap(level)), str(Bal.depot_cap(level + 1))]]
 
 
 ## Low platform for the stock in front + racking behind, richer per tier:
-## the depot has crates and canisters, the cache glowing storage blades.
+## crates and canisters.
 static func mesh(k_: String, t: int) -> Mesh:
 	var k := MeshKit.new()
 	var depot := k_ == "depot"

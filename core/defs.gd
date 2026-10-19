@@ -2,16 +2,16 @@ class_name Defs
 ## Static game definitions: resources, models, buildings, staff roles, biomes.
 ## Everything data-like lives here or in Bal so new content is a table entry.
 ##
-## Token Empire follows the AI supply chain: sources make raw resources
-## (power, web data, silicon, labels...), labs turn them into better ones
-## (GPUs, datasets, fine-tunes...), and an Inference Server feeds every
-## request through the modules its model needs and puts out tokens.
+## Token Empire follows the AI supply chain (see DESIGN.md): sources make
+## raw resources (power, coolant, silicon, web data, labels...), labs turn
+## them into hardware and training data (GPUs, HBM, datasets, fine-tunes...),
+## servers fitted with GPUs serve the models you own to customers who call
+## your API, and a Training Cluster turns data into new models.
 ##
-## Item ids:
+## Item ids (things couriers carry):
 ##   resources      "power", "gpu", ...             (raw from sources, refined in labs)
-##   tokens         "t:<model>"  e.g. "t:chat7"
-##   token batches  "b:<model>"  (6 tokens, batched)
-##   agent runs     "a:<model>"  (a batch wrapped into an agent workflow)
+## Model ids ("pico", "chat7"...) name models; "t:<model>" is only used to
+## draw a model's token (icons, signs).
 
 const RAW: Array[String] = ["power", "data", "coolant", "silicon", "copper", "code", "labels", "feedback", "rare", "papers", "fiber", "experts"]
 const PROCESSED: Array[String] = ["gpu", "dataset", "finetune", "hbm", "reward", "synth"]
@@ -38,28 +38,34 @@ const ITEMS := {
 	"synth": {"name": "Synthetic Data", "h": 0.22, "color": Color(0.66, 0.42, 0.92)},
 }
 
-## Models. An Inference Server serves the model you choose (or the best one
-## it can feed); every request burns power plus a dose of each module's
-## resource, one module bay each. Order = how they unlock.
-## params / lat (ms) / tag are flavour for the model picker.
+## Models (see DESIGN.md). Inference doesn't use data: a model is a set of
+## weights that needs enough VRAM on a server; the server then turns GPU
+## time and power into tokens. Amounts are in thousands of tokens (K):
+##   vram    GB a server needs to load it
+##   tps     K tokens/s one GPU serves of it
+##   price   $ per K tokens
+##   demand  K tokens/s its market wants at Lab level 1 (before channels)
+##   open    licence to download open weights ($), -1 = train it yourself
+##   train   training data the Training Cluster needs, compute = GPU-seconds
+##   agent   agents can use it (Agent Hub demand)
 const RECIPES := [
-	{"id": "pico", "name": "Pico 1B", "ings": [], "price": 3.0, "params": "1B", "lat": 15, "tag": "Runs on a gaming GPU. Tiny, local, instant."},
-	{"id": "mini", "name": "Mini 3B", "ings": ["data"], "price": 6.0, "params": "3B", "lat": 22, "tag": "Knows a little about everything on the web."},
-	{"id": "chat7", "name": "Chat 7B", "ings": ["data", "coolant"], "price": 11.0, "params": "7B", "lat": 35, "tag": "A friendly chat model. Runs warm."},
-	{"id": "chat13", "name": "Chat 13B", "ings": ["data", "coolant", "gpu"], "price": 17.0, "params": "13B", "lat": 55, "tag": "Bigger, smarter, needs real accelerators."},
-	{"id": "wiki13", "name": "Wiki 13B", "ings": ["data", "gpu", "dataset"], "price": 24.0, "params": "13B", "lat": 60, "tag": "Trained on clean data. Fewer made-up facts."},
-	{"id": "code13", "name": "Code 13B", "ings": ["data", "gpu", "code"], "price": 30.0, "params": "13B", "lat": 60, "tag": "Writes code, fixes bugs, explains regex."},
-	{"id": "tool30", "name": "Tool 30B", "ings": ["data", "code", "dataset"], "price": 38.0, "params": "30B", "lat": 80, "tag": "Calls tools and APIs on its own."},
-	{"id": "vision70", "name": "Vision 70B", "ings": ["data", "coolant", "gpu", "dataset"], "price": 48.0, "params": "70B", "lat": 110, "tag": "Sees images, reads charts."},
-	{"id": "assist70", "name": "Assist 70B", "ings": ["data", "dataset", "finetune"], "price": 60.0, "params": "70B", "lat": 110, "tag": "Fine-tuned to follow instructions."},
-	{"id": "code70", "name": "Code 70B", "ings": ["data", "gpu", "code", "finetune"], "price": 80.0, "params": "70B", "lat": 120, "tag": "Ships whole features. Writes the tests too."},
-	{"id": "align70", "name": "Aligned 70B", "ings": ["feedback", "finetune", "gpu", "coolant"], "price": 98.0, "params": "70B", "lat": 120, "tag": "Helpful, honest, harmless, tuned on feedback."},
-	{"id": "long120", "name": "Long 120B", "ings": ["data", "gpu", "coolant", "hbm"], "price": 125.0, "params": "120B", "lat": 180, "tag": "A million tokens of context. Needs a lot of memory."},
-	{"id": "reason200", "name": "Reason 200B", "ings": ["data", "gpu", "dataset", "coolant", "papers"], "price": 170.0, "params": "200B", "lat": 260, "tag": "Thinks step by step before it answers."},
-	{"id": "sage400", "name": "Sage 400B", "ings": ["data", "gpu", "dataset", "finetune", "reward"], "price": 220.0, "params": "400B", "lat": 320, "tag": "Polished by reinforcement learning from feedback."},
-	{"id": "omni400", "name": "Omni 400B", "ings": ["data", "gpu", "coolant", "hbm", "fiber"], "price": 270.0, "params": "400B", "lat": 340, "tag": "Text, images, audio and video, all at once."},
-	{"id": "moe", "name": "Expert MoE", "ings": ["papers", "hbm", "gpu", "synth"], "price": 340.0, "params": "8x220B", "lat": 300, "tag": "A mixture of experts, trained on synthetic data."},
-	{"id": "frontier", "name": "Frontier 1T", "ings": ["data", "coolant", "gpu", "finetune", "papers", "reward", "hbm"], "price": 600.0, "params": "1T", "lat": 450, "tag": "The best model in the world. For now."},
+	{"id": "pico", "name": "Pico 1B", "params": "1B", "lat": 15, "tag": "Runs on a gaming GPU. Tiny, local, instant.", "vram": 2, "tps": 1.0, "price": 3.0, "demand": 0.6, "open": 0, "train": {}, "compute": 0, "agent": false},
+	{"id": "mini", "name": "Mini 3B", "params": "3B", "lat": 22, "tag": "Open weights. Knows a little about everything on the web.", "vram": 6, "tps": 0.8, "price": 6.0, "demand": 0.6, "open": 40, "train": {}, "compute": 0, "agent": false},
+	{"id": "chat7", "name": "Chat 7B", "params": "7B", "lat": 35, "tag": "Open weights. A friendly chat model.", "vram": 16, "tps": 0.6, "price": 11.0, "demand": 0.6, "open": 400, "train": {}, "compute": 0, "agent": false},
+	{"id": "chat13", "name": "Chat 13B", "params": "13B", "lat": 55, "tag": "Your first own model. Bigger, smarter, needs a real GPU.", "vram": 28, "tps": 0.45, "price": 17.0, "demand": 0.5, "open": -1, "train": {"dataset": 20}, "compute": 600, "agent": false},
+	{"id": "wiki13", "name": "Wiki 13B", "params": "13B", "lat": 60, "tag": "Trained on clean, labelled data. Fewer made-up facts.", "vram": 28, "tps": 0.45, "price": 24.0, "demand": 0.4, "open": -1, "train": {"dataset": 30, "labels": 10}, "compute": 900, "agent": false},
+	{"id": "code13", "name": "Code 13B", "params": "13B", "lat": 60, "tag": "Writes code, fixes bugs, explains regex.", "vram": 28, "tps": 0.42, "price": 30.0, "demand": 0.4, "open": -1, "train": {"dataset": 15, "code": 30}, "compute": 900, "agent": false},
+	{"id": "tool30", "name": "Tool 30B", "params": "30B", "lat": 80, "tag": "Calls tools and APIs on its own. Agents love it.", "vram": 64, "tps": 0.35, "price": 38.0, "demand": 0.35, "open": -1, "train": {"dataset": 30, "code": 25, "finetune": 8}, "compute": 2400, "agent": true},
+	{"id": "vision70", "name": "Vision 70B", "params": "70B", "lat": 110, "tag": "Sees images, reads charts.", "vram": 150, "tps": 0.3, "price": 48.0, "demand": 0.3, "open": -1, "train": {"data": 60, "dataset": 50, "labels": 30}, "compute": 6000, "agent": false},
+	{"id": "assist70", "name": "Assist 70B", "params": "70B", "lat": 110, "tag": "Fine-tuned to follow instructions.", "vram": 150, "tps": 0.28, "price": 60.0, "demand": 0.3, "open": -1, "train": {"dataset": 50, "finetune": 30}, "compute": 6000, "agent": true},
+	{"id": "code70", "name": "Code 70B", "params": "70B", "lat": 120, "tag": "Ships whole features. Writes the tests too.", "vram": 150, "tps": 0.25, "price": 80.0, "demand": 0.3, "open": -1, "train": {"code": 80, "finetune": 25, "dataset": 40}, "compute": 8000, "agent": true},
+	{"id": "align70", "name": "Aligned 70B", "params": "70B", "lat": 120, "tag": "Helpful, honest, harmless, tuned on feedback.", "vram": 150, "tps": 0.24, "price": 98.0, "demand": 0.25, "open": -1, "train": {"finetune": 30, "feedback": 40}, "compute": 9000, "agent": false},
+	{"id": "long120", "name": "Long 120B", "params": "120B", "lat": 180, "tag": "A million tokens of context. Needs a lot of memory.", "vram": 260, "tps": 0.2, "price": 125.0, "demand": 0.25, "open": -1, "train": {"dataset": 100, "papers": 10, "hbm": 4}, "compute": 16000, "agent": false},
+	{"id": "reason200", "name": "Reason 200B", "params": "200B", "lat": 260, "tag": "Thinks step by step before it answers.", "vram": 420, "tps": 0.16, "price": 170.0, "demand": 0.2, "open": -1, "train": {"dataset": 120, "papers": 30, "reward": 15}, "compute": 30000, "agent": true},
+	{"id": "sage400", "name": "Sage 400B", "params": "400B", "lat": 320, "tag": "Polished by reinforcement learning from feedback.", "vram": 820, "tps": 0.13, "price": 220.0, "demand": 0.2, "open": -1, "train": {"reward": 50, "finetune": 50, "dataset": 120}, "compute": 60000, "agent": true},
+	{"id": "omni400", "name": "Omni 400B", "params": "400B", "lat": 340, "tag": "Text, images, audio and video, all at once.", "vram": 860, "tps": 0.12, "price": 270.0, "demand": 0.2, "open": -1, "train": {"dataset": 150, "labels": 60, "fiber": 30}, "compute": 70000, "agent": true},
+	{"id": "moe", "name": "Expert MoE", "params": "8x220B", "lat": 300, "tag": "A mixture of experts: huge, yet fast. Trained on synthetic data.", "vram": 1000, "tps": 0.12, "price": 340.0, "demand": 0.18, "open": -1, "train": {"synth": 60, "papers": 40, "dataset": 150}, "compute": 80000, "agent": true},
+	{"id": "frontier", "name": "Frontier 1T", "params": "1T", "lat": 450, "tag": "The best model in the world. For now.", "vram": 1800, "tps": 0.08, "price": 600.0, "demand": 0.15, "open": -1, "train": {"synth": 100, "reward": 80, "papers": 60, "experts": 60, "dataset": 250}, "compute": 200000, "agent": true},
 ]
 
 ## Token looks per model: colour, coin shape and the glyph on its face.
@@ -100,7 +106,8 @@ const TABS := [
 	["source", "Sources", "src_power"],
 	["server", "Compute", "server"],
 	["pack", "Storage", "depot"],
-	["sell", "Sales", "van"],
+	["sell", "Customers", "gateway"],
+	["space", "Space", "launchpad"],
 	["town", "Campus", "builder"],
 	["decor", "Decor", "planter"],
 ]
@@ -118,19 +125,19 @@ const BUILDINGS := {
 
 	# ---- sources (3x3): raw resources
 	"src_power": {"name": "Solar Farm", "cat": "source", "tab": "source", "icon": "src_power", "res": "power", "size": Vector2i(3, 3), "cost": 30, "growth": 2.2, "up": 12, "max": 60, "time": 5,
-		"desc": "Panels charge power cells. Every request burns power."},
+		"desc": "Panels charge power cells. Every GPU burns power while it serves."},
 	"src_data": {"name": "Web Crawler", "cat": "source", "tab": "source", "icon": "src_data", "res": "data", "size": Vector2i(3, 3), "cost": 40, "growth": 2.2, "up": 18, "max": 60, "time": 5,
-		"desc": "Crawls the web for text. Every model after the first needs data."},
+		"desc": "Crawls the web for text: the raw material of training."},
 	"src_coolant": {"name": "Cooling Tower", "cat": "source", "tab": "source", "icon": "src_coolant", "res": "coolant", "size": Vector2i(3, 3), "cost": 120, "growth": 2.2, "up": 30, "max": 60, "time": 10,
-		"desc": "Chills coolant for the bigger, hotter models."},
+		"desc": "Chills coolant. Servers with real GPUs run hot: without coolant they throttle."},
 	"src_silicon": {"name": "Silicon Works", "cat": "source", "tab": "source", "icon": "src_silicon", "res": "silicon", "size": Vector2i(3, 3), "cost": 250, "growth": 2.2, "up": 45, "max": 60, "time": 20,
 		"desc": "Melts sand and pulls pure silicon crystals, for chips and memory."},
 	"src_copper": {"name": "Copper Mine", "cat": "source", "tab": "source", "icon": "src_copper", "res": "copper", "size": Vector2i(3, 3), "cost": 400, "growth": 2.2, "up": 70, "max": 60, "time": 30,
 		"desc": "Copper for the wiring inside every chip."},
 	"src_code": {"name": "Code Commons", "cat": "source", "tab": "source", "icon": "src_code", "res": "code", "size": Vector2i(3, 3), "cost": 1500, "growth": 2.2, "up": 250, "max": 60, "time": 60,
-		"desc": "Open-source developers write code for coding models."},
+		"desc": "Open-source developers write code, to train coding models."},
 	"src_labels": {"name": "Labeling Studio", "cat": "source", "tab": "source", "icon": "src_labels", "res": "labels", "size": Vector2i(3, 3), "cost": 3000, "growth": 2.2, "up": 600, "max": 60, "time": 90,
-		"desc": "People label examples, for the fine-tune lab."},
+		"desc": "People label examples, for training and the fine-tune lab."},
 	"src_feedback": {"name": "Feedback Lounge", "cat": "source", "tab": "source", "icon": "src_feedback", "res": "feedback", "size": Vector2i(3, 3), "cost": 12000, "growth": 2.2, "up": 2200, "max": 60, "time": 300,
 		"desc": "Raters compare answers and say which is better."},
 	"src_rare": {"name": "Rare Earth Mine", "cat": "source", "tab": "source", "icon": "src_rare", "res": "rare", "size": Vector2i(3, 3), "cost": 30000, "growth": 2.2, "up": 5000, "max": 60, "time": 600,
@@ -138,13 +145,15 @@ const BUILDINGS := {
 	"src_papers": {"name": "Research Campus", "cat": "source", "tab": "source", "icon": "src_papers", "res": "papers", "size": Vector2i(3, 3), "cost": 150000, "growth": 2.2, "up": 30000, "max": 60, "time": 1200,
 		"desc": "Researchers turn ideas into papers. Precious."},
 	"src_fiber": {"name": "Fiber Hub", "cat": "source", "tab": "source", "icon": "src_fiber", "res": "fiber", "size": Vector2i(3, 3), "cost": 1.2e6, "growth": 2.2, "up": 2.8e5, "max": 60, "time": 1800,
-		"desc": "Spools of fibre-optic bandwidth for multimodal models."},
+		"desc": "Spools of fibre: install them in API Gateways for bandwidth, or train multimodal models."},
 	"src_experts": {"name": "Expert Network", "cat": "source", "tab": "source", "icon": "src_experts", "res": "experts", "size": Vector2i(3, 3), "cost": 6.0e6, "growth": 2.2, "up": 1.6e6, "max": 60, "time": 3600,
 		"desc": "Doctors, lawyers and professors write expert examples."},
 
-	# ---- compute: the inference server, a whole serving stack in one building
-	"server": {"name": "Inference Server", "cat": "server", "tab": "server", "icon": "server", "size": Vector2i(5, 3), "cost": 400, "growth": 8.0, "up": 40, "max": 40, "time": 10,
-		"desc": "Router, request bus, module bays and a GPU core in one. Choose the model it serves; upgrades add bays for bigger models."},
+	# ---- compute: inference servers and the training cluster
+	"server": {"name": "Inference Server", "cat": "server", "tab": "server", "icon": "server", "size": Vector2i(5, 3), "cost": 400, "growth": 6.0, "up": 40, "max": 40, "time": 10,
+		"desc": "Answers API calls with the model you load. Couriers slot in GPUs and HBM (more speed, more memory) and keep it fed with power and coolant. Engineers tune it."},
+	"trainer": {"name": "Training Cluster", "cat": "train", "tab": "server", "icon": "trainer", "size": Vector2i(4, 4), "cost": 500, "growth": 3.0, "up": 80, "max": 40, "time": 60,
+		"desc": "Trains new models from data, and refreshes old ones. Couriers bring the data; its GPUs do the maths."},
 
 	# ---- labs (2x2): turn resources into better ones
 	"fab": {"name": "Chip Fab", "cat": "lab", "tab": "server", "icon": "fab", "size": Vector2i(2, 2), "cost": 600, "growth": 2.4, "up": 110, "max": 50, "time": 60,
@@ -162,25 +171,23 @@ const BUILDINGS := {
 
 	# ---- storage + packing (2x2)
 	"depot": {"name": "Supply Depot", "cat": "pack", "tab": "pack", "icon": "depot", "size": Vector2i(2, 2), "cost": 200, "growth": 2.0, "up": 45, "max": 40, "time": 30,
-		"desc": "Stores resources close to where they're needed."},
-	"cache": {"name": "Token Cache", "cat": "pack", "tab": "pack", "icon": "cache", "size": Vector2i(2, 2), "cost": 300, "growth": 2.0, "up": 100, "max": 40, "time": 30,
-		"desc": "Stores tokens, batches and agents until they're sold."},
-	"batcher": {"name": "Batcher", "cat": "pack", "tab": "pack", "icon": "batcher", "size": Vector2i(2, 2), "cost": 2500, "growth": 2.4, "up": 400, "max": 50, "time": 300,
-		"desc": "Batches 6 tokens into a response worth 25% more."},
-	"agent_studio": {"name": "Agent Studio", "cat": "pack", "tab": "pack", "icon": "agent_studio", "size": Vector2i(2, 2), "cost": 200000, "growth": 2.4, "up": 48000, "max": 50, "time": 1800,
-		"desc": "Wraps a batch into an agent run worth 60% more."},
-
-	# ---- sales
-	"van": {"name": "API Depot", "cat": "sell", "tab": "sell", "icon": "van", "size": Vector2i(2, 3), "cost": 300, "growth": 3.0, "up": 45, "max": 50, "time": 10,
-		"desc": "Couriers load tokens; the API van drives off to town and sells them."},
+		"desc": "Stores resources close to where they're needed: spare GPUs, datasets, power cells."},
+	"gateway": {"name": "API Gateway", "cat": "sell", "tab": "sell", "icon": "gateway", "size": Vector2i(2, 3), "cost": 300, "growth": 3.0, "up": 45, "max": 50, "time": 10,
+		"desc": "Where developers' API calls come in: more customers, and the bandwidth to answer them. Install fiber spools for more bandwidth."},
 	"cafe": {"name": "Chat Café", "cat": "sell", "tab": "sell", "icon": "cafe", "size": Vector2i(3, 2), "cost": 500, "growth": 3.0, "up": 75, "max": 50, "time": 60,
-		"desc": "People drop in to chat with your models and pay 30% more. Decor nearby brings more of them."},
+		"desc": "People drop in to chat with your models live and pay 30% more, more for snappy models. Decor nearby brings more of them."},
 	"desk": {"name": "Enterprise Desk", "cat": "sell", "tab": "sell", "icon": "desk", "size": Vector2i(2, 1), "limit": 1, "cost": 800, "growth": 1.0, "up": 0, "max": 1, "time": 120,
-		"desc": "Enterprise contracts: deliver them for big rewards and sparks."},
-	"hyperloop": {"name": "Hyperloop Station", "cat": "sell", "tab": "sell", "icon": "hyperloop", "size": Vector2i(3, 3), "cost": 20000, "growth": 3.0, "up": 3500, "max": 50, "time": 3600,
-		"desc": "A hyperloop pod takes huge loads to the city."},
-	"droneport": {"name": "Drone Port", "cat": "sell", "tab": "sell", "icon": "droneport", "size": Vector2i(3, 3), "cost": 2.0e7, "growth": 3.0, "up": 3.9e6, "max": 50, "time": 7200,
-		"desc": "Cargo drones fly agent runs around the world: agents sell for double."},
+		"desc": "Enterprise contracts: serve their tokens through your API for big rewards and sparks."},
+	"edge": {"name": "Edge PoP", "cat": "sell", "tab": "sell", "icon": "edge", "size": Vector2i(3, 3), "cost": 20000, "growth": 3.0, "up": 3500, "max": 50, "time": 3600,
+		"desc": "A point of presence near your customers: lower latency for every model, and customers in new regions."},
+	"agent_hub": {"name": "Agent Hub", "cat": "sell", "tab": "sell", "icon": "agent_hub", "size": Vector2i(3, 3), "cost": 2.0e6, "growth": 3.0, "up": 4.0e5, "max": 50, "time": 7200,
+		"desc": "AI agents run long jobs on tool-capable models (Tool 30B and up), paying double per token."},
+
+	# ---- space
+	"launchpad": {"name": "Launch Complex", "cat": "space", "tab": "space", "icon": "launchpad", "size": Vector2i(4, 4), "cost": 5.0e7, "growth": 3.0, "up": 1.0e7, "max": 20, "time": 7200,
+		"desc": "Assembles orbital server modules (24 GPUs, 8 HBM, 60 power cells) and launches them. In orbit: free solar power and cooling, a little more latency."},
+	"groundstation": {"name": "Ground Station", "cat": "space", "tab": "space", "icon": "groundstation", "size": Vector2i(3, 3), "cost": 2.0e7, "growth": 2.5, "up": 4.0e6, "max": 30, "time": 3600,
+		"desc": "Big dishes that link your orbital datacenter: each carries the bandwidth of a few modules."},
 
 	# ---- decor (no builder needed; auras work in a radius of cells)
 	"planter": {"name": "Planter", "cat": "decor", "tab": "decor", "icon": "planter", "size": Vector2i(1, 1), "cost": 25, "growth": 1.06, "up": 0, "max": 1, "time": 0,
@@ -243,9 +250,10 @@ const BUILDINGS := {
 ## Order of cards in the build menu.
 const BUILD_ORDER: Array[String] = [
 	"src_power", "src_data", "src_coolant", "src_silicon", "src_copper", "src_code", "src_labels", "src_feedback", "src_rare", "src_papers", "src_fiber", "src_experts",
-	"server", "fab", "refinery", "tune_lab", "hbm_works", "rlhf_gym", "synth_lab",
-	"depot", "cache", "batcher", "agent_studio",
-	"van", "cafe", "desk", "hyperloop", "droneport",
+	"server", "trainer", "fab", "refinery", "tune_lab", "hbm_works", "rlhf_gym", "synth_lab",
+	"depot",
+	"gateway", "cafe", "desk", "edge", "agent_hub",
+	"launchpad", "groundstation",
 	"hut", "dorm", "mega",
 	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "net_cab", "rack_row", "chiller", "generator", "transformer", "gpu_statue",
 	"neon_sign", "holo_bot", "server_fountain", "trophy", "streak_flame", "quantum_core",
@@ -273,12 +281,12 @@ const EMPIRE := [
 ## Megacluster stages: money, frontier-token deliveries and build time.
 const MEGA_STAGES := [
 	{"name": "Groundbreaking", "cost": 2.0e8, "need": 0, "time": 28800},
-	{"name": "Power Plant", "cost": 1.5e9, "need": 200, "time": 43200},
-	{"name": "Cooling Halls", "cost": 9.0e9, "need": 600, "time": 86400},
-	{"name": "GPU Halls", "cost": 5.0e10, "need": 1500, "time": 129600},
-	{"name": "The Core", "cost": 1.6e11, "need": 4000, "time": 172800},
+	{"name": "Power Plant", "cost": 1.5e9, "need": 20000, "time": 43200},
+	{"name": "Cooling Halls", "cost": 9.0e9, "need": 60000, "time": 86400},
+	{"name": "GPU Halls", "cost": 5.0e10, "need": 150000, "time": 129600},
+	{"name": "The Core", "cost": 1.6e11, "need": 400000, "time": 172800},
 ]
-## The model whose tokens the Megacluster needs.
+## The model whose tokens (K, served while a stage waits) the Megacluster needs.
 const MEGA_MODEL := "frontier"
 
 ## Obstacles on your land: clear them (money + a builder) for space and sparks.
@@ -330,7 +338,7 @@ const ERAS := [
 	{"level": 1, "name": "Garage", "icon": "server", "desc": "Grass, cobbles and a gaming PC."},
 	{"level": 3, "name": "Startup Campus", "icon": "desk", "desc": "Concrete aprons, paver paths, an asphalt High Street and smart lamps."},
 	{"level": 6, "name": "Data Park", "icon": "substation", "desc": "Your land is paved, power pylons march along the street."},
-	{"level": 9, "name": "Hyperscale", "icon": "cache", "desc": "Raised-floor tiles, LED lane lines, datacenter halls on the horizon."},
+	{"level": 9, "name": "Hyperscale", "icon": "rack_row", "desc": "Raised-floor tiles, LED lane lines, datacenter halls on the horizon."},
 	{"level": 12, "name": "Megacluster", "icon": "mega", "desc": "A circuit-board floor with light pulsing along its traces."},
 ]
 
@@ -449,16 +457,6 @@ static func size_of(kind: String) -> Vector2i:
 ## Most copies of a building you can own (-1 = unlimited).
 static func limit_of(kind: String) -> int:
 	return int(BUILDINGS[kind].get("limit", -1))
-
-
-## Module bays a server has at level l (one resource each).
-static func server_slots(l: int) -> int:
-	return clampi(1 + (l - 1) / 3, 1, 7)
-
-
-## Server level needed for a model with n resources.
-static func slots_level(n: int) -> int:
-	return maxi(1, (n - 1) * 3 + 1)
 
 
 static func is_instant(kind: String) -> bool:

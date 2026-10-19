@@ -174,6 +174,51 @@ static func module(ing: String, t: int) -> Mesh:
 	return k.commit()
 
 
+## A GPU tray over the bus holding n of 3 accelerator boards (n = 0: an
+## empty slot, waiting for a courier to bring a GPU). Dead boards (failed,
+## waiting for a replacement) show dark with a red light.
+static func gpu_tray(n: int, dead: int, t: int) -> Mesh:
+	var k := MeshKit.new()
+	var shell: Color = [Pal.WOOD, Color(0.62, 0.64, 0.68), Color(0.9, 0.91, 0.93), Color(0.42, 0.45, 0.5), Color(0.18, 0.19, 0.22)][t]
+	var trim: Color = Pal.BRASS if t == 4 else Color(0.3, 0.32, 0.36)
+	k.cyl(0.1, 0.14, Pal.STEEL_DARK, MeshKit.at(0, 0, 0), 10, 0.02)
+	# the cage: two side rails and a base plate
+	k.rbox(Vector3(0.84, 0.06, 0.78), 0.02, trim, MeshKit.at(0, 0.16, 0))
+	for sx in [-1.0, 1.0]:
+		k.rbox(Vector3(0.05, 0.86, 0.78), 0.015, shell, MeshKit.at(sx * 0.41, 0.58, 0))
+	k.rbox(Vector3(0.84, 0.05, 0.78), 0.02, trim, MeshKit.at(0, 1.02, 0))
+	for i in 3:
+		var y := 0.3 + i * 0.25
+		if i < n:
+			var ok := i >= dead
+			# an accelerator board: dark body, a fan shroud, a light strip
+			k.rbox(Vector3(0.74, 0.18, 0.7), 0.03, Color(0.16, 0.17, 0.2), MeshKit.at(0, y, 0))
+			k.rbox(Vector3(0.6, 0.02, 0.72), 0.01, Color(0.3, 0.62, 0.42) if ok else Color(0.3, 0.3, 0.32), MeshKit.at(0, y + 0.1, 0))
+			for fx in [-0.18, 0.18]:
+				k.cyl(0.08, 0.02, Color(0.3, 0.32, 0.36), MeshKit.xf(Vector3(fx, y, 0.355), Vector3(90, 0, 0)), 10)
+			k.rbox(Vector3(0.66, 0.025, 0.01), 0.005, lit(Color(0.5, 1.0, 0.6), 0.35) if ok else lit(Color(1.0, 0.3, 0.25), 0.4), MeshKit.at(0, y - 0.06, 0.356))
+		else:
+			k.rbox(Vector3(0.7, 0.02, 0.66), 0.005, shell.darkened(0.25), MeshKit.at(0, y - 0.08, 0))
+	return k.commit()
+
+
+## HBM stacks on a shelf (n of `slots` filled).
+static func hbm_shelf(n: int, slots: int, t: int) -> Mesh:
+	var k := MeshKit.new()
+	var c: Color = [Pal.WOOD, Color(0.62, 0.64, 0.68), Color(0.9, 0.91, 0.93), Color(0.42, 0.45, 0.5), Color(0.18, 0.19, 0.22)][t]
+	var rows := maxi(2, ceili(slots / 4.0))
+	k.rbox(Vector3(1.3, 0.06, 0.06 + rows * 0.22), 0.02, c, MeshKit.at(0, 0.0, (rows - 2) * 0.11))
+	for i in slots:
+		var x := -0.54 + (i % 4) * 0.36
+		var z := -0.1 + (i / 4) * 0.22
+		if i < n:
+			k.rbox(Vector3(0.26, 0.22, 0.14), 0.02, Defs.ITEMS["hbm"]["color"], MeshKit.at(x, 0.14, z))
+			k.rbox(Vector3(0.2, 0.02, 0.01), 0.005, lit(Color(0.5, 0.86, 1.0), 0.35), MeshKit.at(x, 0.2, z + 0.072))
+		else:
+			k.rbox(Vector3(0.26, 0.015, 0.14), 0.005, c.darkened(0.3), MeshKit.at(x, 0.04, z))
+	return k.commit()
+
+
 ## Height of the top of a module for a tier (where its sign floats).
 static func module_top(t: int) -> float:
 	return [0.85, 1.0, 1.75, 1.75, 1.75][t]

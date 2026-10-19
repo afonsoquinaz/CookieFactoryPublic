@@ -1,19 +1,16 @@
 class_name DeskB
 extends Building
-## The Enterprise Desk: contracts up on a big screen ("40 Chat 7B
-## Tokens"). Deliver them on its pad for a big cash reward and sparks.
+## The Enterprise Desk: contracts up on a big screen ("serve 4.5M tokens of
+## Code 13B"). Enterprise customers' calls come in through the API on top of
+## everyone else's (paying x1.2) and the whole contract pays a bonus in cash
+## and sparks when it's served.
 
-var inbox: Holder
 var _rows: Array[Node3D] = []
+var _bars: Array[MeshInstance3D] = []
+var _labels: Array[Label3D] = []
 
 
 func _build() -> void:
-	inbox = Holder.new().setup(999, [], Holder.Layout.NONE)
-	inbox.accept_fn = func(t): return Game.wanted_items().has(t)
-	inbox.position = Vector3(0, 1.2, -0.5)
-	add_child(inbox)
-	inbox.landed.connect(_on_landed)
-	add_port(inbox, null, "in")
 	Game.orders_changed.connect(_refresh_rows)
 	Game.refill_orders()
 	_refresh_rows.call_deferred()
@@ -27,44 +24,61 @@ func _visual(root: Node3D, _t: int) -> void:
 	Mats.inst(MeshKit.cached("desk", DeskB.mesh), root)
 
 
-func _on_landed(t: String) -> void:
-	inbox.take(t)
-	Game.deliver(t)
-	bump(0.03)
-
-
-func need(t: String) -> float:
-	return 0.55 if Game.wanted_items().has(t) else 0.0
-
-
 func _refresh_rows() -> void:
 	for r in _rows:
 		r.queue_free()
 	_rows.clear()
+	_bars.clear()
+	_labels.clear()
 	var i := 0
 	for o in Game.orders:
 		var n := Node3D.new()
-		n.position = Vector3(-1.1 + (i % 2) * 2.2 * 0.5 + 0.55 * 0, 2.3 - (i / 2) * 0.62, -0.55)
 		n.position = Vector3(-0.85 + (i % 2) * 1.7, 2.35 - (i / 2) * 0.62, -0.5)
 		add_child(n)
-		var ic := UI3D.icon(Defs.item_icon(o["item"]), 0.0017)
-		ic.position = Vector3(-0.35, 0, 0)
+		var ic := UI3D.icon("tk_" + str(o["model"]), 0.0017)
+		ic.position = Vector3(-0.38, 0.04, 0)
 		n.add_child(ic)
-		var l := UI3D.label("%d/%d" % [int(o["got"]), int(o["count"])], 26)
-		l.position = Vector3(0.2, 0, 0)
+		var l := UI3D.label("", 22)
+		l.position = Vector3(0.18, 0.08, 0)
 		n.add_child(l)
+		var bar := Mats.inst(MeshKit.cached("desk_bar", func():
+			var k := MeshKit.new()
+			k.rbox(Vector3(1.0, 0.06, 0.01), 0.01, Items.lit(Color(0.45, 1.0, 0.7), 0.45), MeshKit.at(0.5, 0, 0))
+			return k.commit()), n)
+		bar.position = Vector3(-0.5, -0.17, 0.02)
 		_rows.append(n)
+		_bars.append(bar)
+		_labels.append(l)
 		i += 1
+	_update_rows()
+
+
+func _process(dt: float) -> void:
+	super(dt)
+	if int(_t * 2.0) != int((_t - dt) * 2.0):
+		_update_rows()
+
+
+func _update_rows() -> void:
+	for i in mini(_rows.size(), Game.orders.size()):
+		var o: Dictionary = Game.orders[i]
+		var f := clampf(float(o["got"]) / maxf(0.001, float(o["count"])), 0.0, 1.0)
+		_labels[i].text = "%s / %s" % [Fmt.tokens(o["got"]), Fmt.tokens(o["count"])]
+		_bars[i].scale = Vector3(maxf(0.01, f), 1, 1)
 
 
 func status() -> String:
-	return "Deliver contracts here for cash and sparks."
+	if Game.orders.is_empty():
+		return "Contracts arrive for models you can serve."
+	return "Serve these tokens through the API for a bonus in cash and sparks."
 
 
 func info() -> Array:
 	var out := []
 	for o in Game.orders:
-		out.append([Defs.item_icon(o["item"]), "%s  %d/%d  ->  $%s + %d sparks" % [Defs.item_name(o["item"]), int(o["got"]), int(o["count"]), Fmt.num(o["reward"]), int(o["gems"])]])
+		var rid: String = o["model"]
+		var note := "" if Market.cap.has(rid) else "  (no server runs it!)"
+		out.append(["tk_" + rid, "%s  %s / %s  ->  $%s + %d sparks%s" % [Defs.model_name(rid), Fmt.tokens(o["got"]), Fmt.tokens(o["count"]), Fmt.num(o["reward"]), int(o["gems"]), note]])
 	return out
 
 

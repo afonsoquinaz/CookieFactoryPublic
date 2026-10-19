@@ -28,6 +28,7 @@ var _roads_dirty := true
 
 
 func _ready() -> void:
+	Market.world = self
 	sun = Env.build(self)
 	Quality.changed.connect(_on_quality)
 	_on_quality.call_deferred(Quality.level)

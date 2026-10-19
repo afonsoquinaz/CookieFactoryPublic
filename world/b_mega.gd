@@ -1,25 +1,20 @@
 class_name MegaB
 extends Building
 ## The AGI Megacluster: the crown of the empire and the goal of the game.
-## It rises in five stages. Each stage needs Frontier 1T tokens delivered on
-## its pad (batches and agent runs count 6) and a payment from the info
-## panel. Finishing The Core wins the game.
+## It rises in five stages. Each stage needs Frontier 1T tokens served to
+## customers since the last stage (anywhere: API, café, contracts, agents,
+## orbit) and a payment from the info panel. Finishing The Core wins the game.
 
-var inbox: Holder
 var _label: Label3D
 var _sparkle_t := 0.0
 
 
 func _build() -> void:
-	inbox = Holder.new().setup(9999, [], Holder.Layout.NONE)
-	inbox.accept_fn = func(t): return Defs.recipe_of(t) == Defs.MEGA_MODEL and delivered() < needed()
-	inbox.position = Vector3(0, 1.5, 3.0)
-	add_child(inbox)
-	inbox.landed.connect(_on_landed)
-	add_port(inbox, null, "in")
 	_label = UI3D.label("", 34, Color(0.6, 0.95, 1.0))
 	_label.position = Vector3(0, 9.0, 0)
 	add_child(_label)
+	if not data.has("base"):
+		data["base"] = float(Game.stats.get("frontier", 0.0))
 	_update()
 
 
@@ -27,14 +22,15 @@ func stage() -> int:
 	return int(data.get("stage", 0))
 
 
-func delivered() -> int:
-	return int(data.get("frontier", 0))
+## Frontier tokens (K) served since this stage was finished.
+func delivered() -> float:
+	return maxf(0.0, float(Game.stats.get("frontier", 0.0)) - float(data.get("base", 0.0)))
 
 
 ## Frontier tokens needed to unlock the next stage.
-func needed() -> int:
+func needed() -> float:
 	var s := stage() + 1
-	return int(Defs.MEGA_STAGES[s]["need"]) if s < Defs.MEGA_STAGES.size() else 0
+	return float(Defs.MEGA_STAGES[s]["need"]) if s < Defs.MEGA_STAGES.size() else 0.0
 
 
 func next_cost() -> float:
@@ -62,7 +58,7 @@ func advance_block() -> String:
 	if building_stage():
 		return "Builders are on it"
 	if delivered() < needed():
-		return "Deliver %d more %s tokens" % [needed() - delivered(), Defs.model_name(Defs.MEGA_MODEL)]
+		return "Serve %s more %s tokens" % [Fmt.tokens(needed() - delivered()), Defs.model_name(Defs.MEGA_MODEL)]
 	if not Game.can_afford(next_cost()):
 		return "Not enough money"
 	if Game.free_builders() <= 0:
@@ -78,7 +74,11 @@ func can_advance() -> bool:
 func advance() -> bool:
 	if not can_advance():
 		return false
-	return Game.start_stage(uid, next_cost(), next_time())
+	if not Game.start_stage(uid, next_cost(), next_time()):
+		return false
+	# the next stage counts what's served from now on
+	data["base"] = float(Game.stats.get("frontier", 0.0))
+	return true
 
 
 func refresh() -> void:
@@ -98,23 +98,13 @@ func refresh() -> void:
 	changed.emit()
 
 
-func _on_landed(t: String) -> void:
-	inbox.take(t)
-	data["frontier"] = delivered() + (1 if Defs.cat(t) == "token" else Bal.BATCH_SIZE)
-	_update()
-
-
-func need(t: String) -> float:
-	return 1.5 if inbox.can_accept(t) and not building_stage() else 0.0
-
-
 func _update() -> void:
 	if _label == null:
 		return
 	if complete():
 		_label.text = "Complete!"
 	else:
-		_label.text = "%s  ·  Frontier %d / %d" % [Defs.MEGA_STAGES[stage() + 1]["name"], delivered(), needed()]
+		_label.text = "%s  ·  Frontier %s / %s" % [Defs.MEGA_STAGES[stage() + 1]["name"], Fmt.tokens(minf(delivered(), needed())), Fmt.tokens(needed())]
 
 
 func solid_rects() -> Array[Rect2]:
@@ -123,6 +113,8 @@ func solid_rects() -> Array[Rect2]:
 
 func _process(dt: float) -> void:
 	super(dt)
+	if int(_t) != int(_t - dt):
+		_update()
 	_sparkle_t -= dt
 	if _sparkle_t <= 0.0 and stage() >= 3:
 		_sparkle_t = 0.8
@@ -136,13 +128,13 @@ func _visual(root: Node3D, t: int) -> void:
 func status() -> String:
 	if complete():
 		return "Your megacluster is online. Welcome to the future."
-	return "Next: %s. Deliver %d %s tokens here, then pay $%s." % [Defs.MEGA_STAGES[stage() + 1]["name"], needed(), Defs.model_name(Defs.MEGA_MODEL), Fmt.num(next_cost())]
+	return "Next: %s. Serve %s %s tokens, then pay $%s." % [Defs.MEGA_STAGES[stage() + 1]["name"], Fmt.tokens(needed()), Defs.model_name(Defs.MEGA_MODEL), Fmt.num(next_cost())]
 
 
 func info() -> Array:
 	var out := [["mega", "Stage %d of %d: %s" % [stage() + 1, Defs.MEGA_STAGES.size(), Defs.MEGA_STAGES[stage()]["name"]]]]
 	if not complete():
-		out.append(["tk_" + Defs.MEGA_MODEL, "%s tokens %d / %d" % [Defs.model_name(Defs.MEGA_MODEL), delivered(), needed()]])
+		out.append(["tk_" + Defs.MEGA_MODEL, "%s tokens served %s / %s" % [Defs.model_name(Defs.MEGA_MODEL), Fmt.tokens(minf(delivered(), needed())), Fmt.tokens(needed())]])
 		out.append(["coin", "Then $%s" % Fmt.num(next_cost())])
 	return out
 

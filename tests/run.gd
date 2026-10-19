@@ -73,10 +73,18 @@ func _test_tables() -> void:
 		seen[r["id"]] = true
 		ok(Icons.tex("tk_" + r["id"]) != null, "token icon for " + r["id"])
 		ok(Defs.MODEL_LOOK.has(r["id"]), "token look for " + r["id"])
-		for i in r["ings"]:
-			ok(Defs.ITEMS.has(i) and i != "power", "%s uses a real resource other than power: %s" % [r["id"], i])
-		ok((r["ings"] as Array).size() <= 7, "%s fits in a server (7 bays)" % r["id"])
-		ok(Defs.slots_level((r["ings"] as Array).size()) <= Bal.max_level("server"), "a server can grow enough bays for " + r["id"])
+		for i in r["train"]:
+			ok(Defs.ITEMS.has(i) and i != "power", "%s trains on a real resource: %s" % [r["id"], i])
+		ok(float(r["vram"]) > 0.0 and float(r["tps"]) > 0.0 and float(r["price"]) > 0.0 and float(r["demand"]) > 0.0, "%s: VRAM, speed, price and demand" % r["id"])
+		ok(int(r["open"]) >= 0 or ((r["train"] as Dictionary).size() > 0 and float(r["compute"]) > 0.0), "%s: downloaded or trained" % r["id"])
+		var top_vram := Bal.GARAGE_VRAM + Bal.gpu_slots(Bal.max_level("server")) * Bal.GPU_VRAM + Bal.hbm_slots(Bal.max_level("server")) * Bal.HBM_VRAM
+		ok(float(r["vram"]) <= top_vram, "a top server can load %s (%d of %d GB)" % [r["id"], int(r["vram"]), int(top_vram)])
+	for i in range(1, Defs.RECIPES.size()):
+		var a: Dictionary = Defs.RECIPES[i - 1]
+		var b: Dictionary = Defs.RECIPES[i]
+		ok(float(b["price"]) > float(a["price"]) and float(b["vram"]) >= float(a["vram"]), "%s is bigger and pricier than %s" % [b["id"], a["id"]])
+		ok(float(b["tps"]) * float(b["price"]) > float(a["tps"]) * float(a["price"]), "%s earns more per GPU than %s" % [b["id"], a["id"]])
+	ok(float(Defs.recipe("pico")["vram"]) <= Bal.GARAGE_VRAM, "the garage card runs Pico")
 	for role in Defs.ROLE_ORDER:
 		ok(Icons.tex(Defs.ROLES[role]["icon"]) != null, "icon for role " + role)
 	for k in Defs.OBSTACLES:
@@ -106,7 +114,11 @@ func _test_balance() -> void:
 			ok(Bal.upgrade_cost(k, l + 1) >= Bal.upgrade_cost(k, l), "%s: upgrades cost more each level" % k)
 	ok(Bal.finish_gems(10.0) == 0 and Bal.finish_gems(30.0) == 0, "short jobs finish free")
 	ok(Bal.finish_gems(60.0) >= 1 and Bal.finish_gems(3600.0) > Bal.finish_gems(600.0), "longer jobs cost more gems")
-	ok(Defs.server_slots(1) == 1 and Defs.server_slots(4) == 2 and Defs.server_slots(40) == 7, "server bays grow with level")
+	ok(Bal.gpu_slots(1) == 1 and Bal.gpu_slots(5) == 3 and Bal.gpu_slots(40) == 20, "GPU slots grow with server level")
+	ok(Bal.hbm_slots(1) == 0 and Bal.hbm_slots(4) == 1 and Bal.hbm_slots(40) == 12, "HBM slots too")
+	ok(Bal.adoption(2) > Bal.adoption(1), "the market grows with the Lab level")
+	ok(Bal.latency(100.0, 1.0, 0, 0.0) > Bal.latency(100.0, 0.2, 0, 0.0) and Bal.latency(100.0, 0.2, 1, 0.0) < Bal.latency(100.0, 0.2, 0, 0.0), "busy servers answer slower; Edge PoPs answer faster")
+	ok(Bal.latency_factor(50.0) > Bal.latency_factor(600.0), "slow answers lose customers")
 	ok(Defs.limit_of("src_power") == -1 and Defs.limit_of("planter") == -1, "sources and decor are unlimited")
 	# eras: the town turns into a datacenter as the Lab levels up
 	ok(Defs.era_for(1) == 0 and Defs.era_for(2) == 0, "it starts in the Garage era")
@@ -282,7 +294,7 @@ func _test_live() -> void:
 	Game.track("served", 150.0, "mini")
 	ok(Live.stars("mini") == 1 and Live.mastery_claimable("mini"), "serving a model earns mastery stars")
 	ok(is_equal_approx(Live.price_mult("mini"), 1.0 + LiveDefs.MASTERY_PRICE), "a mastered model sells for more")
-	ok(Bal.item_value("t:mini") > Bal.item_value("t:pico") * 0.0, "prices include mastery")
+	ok(Bal.token_price("mini") > float(Defs.recipe("mini")["price"]) * Bal.price_mult(), "prices include mastery")
 	# league
 	var r1 := Live.rivals(100, 2)
 	ok(r1.size() == LiveDefs.LEAGUE_SIZE - 1 and str(r1) == str(Live.rivals(100, 2)), "29 rival labs, the same all week")
@@ -403,7 +415,7 @@ func _test_live() -> void:
 func _test_game_state() -> void:
 	Game.reset_state()
 	ok(Game.level == 1, "a new lab is level 1")
-	for k in ["server", "src_power", "van", "depot", "dorm"]:
+	for k in ["server", "src_power", "gateway", "depot", "dorm"]:
 		ok(Game.count_ready(k) == 1, "a new empire has a ready " + k)
 	ok(Game.builders() == 2 and Game.free_builders() == 2, "two builders to start")
 	ok(Game.workers_with("courier") == 3, "three couriers to start")
@@ -449,15 +461,14 @@ func _test_game_state() -> void:
 	bk["lvl"] = 2
 	# Lab levels come from tokens served, with sparks
 	var gems0 := Game.gems
-	var sold: Array = []
-	for i in int(Defs.EMPIRE[2]["xp"]) + 10:
-		sold.append("t:pico")
-	Game.sell(sold)
+	Game.serve("pico", float(Defs.EMPIRE[2]["xp"]) + 10.0, 5.0)
 	ok(Game.level == 3 and Game.gems == gems0 + int(Defs.EMPIRE[1]["gems"]) + int(Defs.EMPIRE[2]["gems"]), "serving tokens raises the Lab level, with sparks")
 	Game.add_money(1e6)
 	ok(Game.level == 3, "money alone doesn't raise the level")
-	Game.sell(["b:pico", "a:pico"])
-	ok(int(Game.stats["tokens"]) == int(Defs.EMPIRE[2]["xp"]) + 10 + 12, "a batch and an agent run each count 6 tokens")
+	var m0 := Game.money
+	Game.serve("pico", 2.0, 6.0, "agent")
+	ok(is_equal_approx(float(Game.stats["tokens"]), float(Defs.EMPIRE[2]["xp"]) + 12.0) and is_equal_approx(Game.money, m0 + 6.0), "serving counts tokens and pays")
+	ok(not Game.download("chat13") and Game.download("mini") and Game.known_recipes.has("mini"), "open weights download; your own models must be trained")
 	ok(Game.level_progress() > 0.0 and Game.level_progress() < 1.0, "progress toward the next level")
 	Game.money = 1e6
 	ok(Game.build_block("src_coolant") == "", "a cooling tower right away")
@@ -503,14 +514,14 @@ func _test_game_state() -> void:
 	ok(Game.workers.size() == cap, "hire up to what you can house")
 	# orders
 	Game.place("desk", Vector2i(-6, 6), 0, {}, false)
-	Game.known_recipes["data"] = true
 	Game.refill_orders()
-	ok(Game.orders.size() == Game.order_slots(), "the board fills with orders")
+	ok(Game.orders.size() == Game.order_slots(), "the board fills with contracts")
 	var o: Dictionary = Game.orders[0]
+	ok(Game.known_recipes.has(o["model"]) and float(o["count"]) > 0.0 and float(o["reward"]) > 0.0, "a contract for a model you serve")
 	var g1 := Game.gems
-	for i in int(o["count"]):
-		Game.deliver(o["item"])
-	ok(Game.gems > g1, "a finished order pays gems")
+	o["got"] = o["count"]
+	Game.contract_done(o)
+	ok(Game.gems > g1 and Game.orders.size() == Game.order_slots(), "a finished contract pays sparks and a new one comes in")
 	Game.reset_state()
 
 
@@ -532,10 +543,21 @@ func _test_save_roundtrip() -> void:
 	# servers kept serving: tokens away count for the Lab level once collected
 	d["trate"] = 2.0
 	Game.from_dict(d)
-	var t0 := int(Game.stats["tokens"])
-	ok(Game.offline_tokens > 1000, "tokens served while away (%d)" % Game.offline_tokens)
+	var t0 := float(Game.stats["tokens"])
+	ok(Game.offline_tokens > 1000.0, "tokens served while away (%s)" % Fmt.tokens(Game.offline_tokens))
 	Game.add_tokens(Game.offline_tokens)
-	ok(int(Game.stats["tokens"]) > t0 and Game.level > 1, "collected tokens raise the Lab level")
+	ok(float(Game.stats["tokens"]) > t0 and Game.level > 1, "collected tokens raise the Lab level")
+	# the market's state saves too
+	Market.orbit_modules = 2
+	Market.set_price("pico", 1.3)
+	var d2: Dictionary = JSON.parse_string(JSON.stringify(Game.to_dict()))
+	Market.reset_state()
+	Game.from_dict(d2)
+	ok(Market.orbit_modules == 2 and is_equal_approx(Market.price_of("pico"), 1.3), "prices and the orbit save")
+	# version 1 saves move to the API economy
+	var v1 := {"v": 1, "buildings": [{"uid": 1, "kind": "van", "cell": [0, 0], "rot": 0, "lvl": 3, "data": {"cargo": ["t:pico"]}}, {"uid": 2, "kind": "cache", "cell": [4, 0], "rot": 0, "lvl": 2, "data": {}}], "money": 10.0, "stats": {"tokens": 50}}
+	var v2 := Game.migrate_v1(v1)
+	ok(v2["buildings"].size() == 1 and v2["buildings"][0]["kind"] == "gateway" and not v2["buildings"][0]["data"].has("cargo") and float(v2["money"]) > 10.0, "old saves: vans become gateways, token caches are refunded")
 	Game.reset_state()
 
 
@@ -640,20 +662,54 @@ func _test_world() -> void:
 		ok(w.grid.at(c) == 0 and w.grid.obstacle_at(c) == "", "road cell %s is free land" % c)
 	var server: ServerB = w.buildings_of("server")[0]
 	ok(server.recipe == "pico", "the first server serves Pico 1B")
-	# serve for real
+	# serve for real: customers call the API and the garage card answers
 	for i in 3:
 		server.cells.add("power", false)
-	var t := await _wait_until(func(): return server.bench.count() >= server.batch(), 40.0)
-	ok(server.bench.count() >= server.batch(), "the server put out a batch of tokens (%.1fs)" % t)
-	ok(server.bench.items[0] == "t:pico", "it served Pico 1B tokens")
-	# couriers bring power from the solar farm
+	var tok0 := float(Game.stats["tokens"])
+	var money0 := Game.money
+	var t := await _wait_until(func(): return float(Game.stats["tokens"]) > tok0 + 0.3, 40.0)
+	ok(float(Game.stats["tokens"]) > tok0 + 0.3 and Game.money > money0, "customers' API calls were answered and paid (%.1fs)" % t)
+	ok(float(Market.cap.get("pico", 0.0)) > 0.0 and float(Market.demand.get("pico", 0.0)) > 0.0, "the market sees capacity and demand for Pico")
+	ok(float(Market.served.get("pico", 0.0)) <= float(Market.cap.get("pico", 0.0)) + 0.0001, "never more served than the servers can answer")
+	ok(Market.bandwidth >= Bal.GARAGE_BW and Market.used_bw <= Market.bandwidth + 0.0001, "everything leaving fits through the gateways")
+	# no power: offline
 	server.cells.clear_all()
+	server._pw = 0.0
+	ok(server.capacity() == 0.0 and server.offline, "without power the server is offline")
+	# couriers bring power from the solar farm
 	var farm: SourceB = w.buildings_of("src_power")[0]
 	for i in 6:
 		farm.crate.add("power", false)
-	t = await _wait_until(func(): return server.cells.count() > 0 or not server.packets.is_empty(), 60.0)
-	ok(server.cells.count() > 0 or not server.packets.is_empty(), "couriers brought power along the road (%.1fs)" % t)
-	# a web crawler is built by a builder, then the server serves Mini 3B
+	t = await _wait_until(func(): return server.cells.count() > 0 or server._pw > 0.0, 60.0)
+	ok(server.cells.count() > 0 or server._pw > 0.0, "couriers brought power along the road (%.1fs)" % t)
+	# a GPU: much faster, and room for bigger models
+	var c0 := server.capacity_for("pico")
+	server.gpu_in.add("gpu", false)
+	server._install_gpu("gpu")
+	ok(server.gpus() == 1 and server.capacity_for("pico") > c0 * 2.0, "a GPU more than doubles the garage rig (%s -> %s tok/s)" % [Fmt.tokens(c0), Fmt.tokens(server.capacity_for("pico"))])
+	ok(is_equal_approx(server.vram(), Bal.GARAGE_VRAM + Bal.GPU_VRAM), "and adds 80 GB of VRAM")
+	ok(not server.choices().has("chat7"), "only models you own")
+	Game.known_recipes["chat7"] = true
+	ok(server.choices().has("chat7") and not server.choices().has("chat13"), "Chat 7B fits in 92 GB; a model you don't own can't be loaded")
+	server.choose("chat7")
+	ok(server.recipe == "chat7", "choosing a model loads it")
+	server.choose("")
+	# tapping tunes it
+	var c1 := server.capacity_for("pico")
+	server.tap(Bal.TUNE_PLAYER)
+	ok(server.tune > 0.0 and server.capacity_for("pico") > c1, "tapping a server tunes it (+%d%%)" % roundi((server.capacity_for("pico") / c1 - 1.0) * 100))
+	# pricing: customers are price-sensitive
+	var d1 := Market.api_demand("pico")
+	Market.set_price("pico", 2.0)
+	ok(Market.api_demand("pico") < d1 * 0.5, "doubling the price loses most customers")
+	Market.set_price("pico", 1.0)
+	# a dead GPU stops serving until it's replaced
+	server._gpu_fails()
+	ok(server.gpus() == 0 and server.dead() == 1, "GPUs wear out")
+	server.gpu_in.add("gpu", false)
+	server._install_gpu("gpu")
+	ok(server.gpus() == 1 and server.dead() == 0, "a courier's GPU replaces the dead board")
+	# a web crawler is built by a builder
 	var sb := Game.place("src_data", Vector2i(-7, 3), 2)
 	await get_tree().process_frame
 	var site := w.building(int(sb["uid"]))
@@ -663,20 +719,6 @@ func _test_world() -> void:
 	await get_tree().process_frame
 	var built := w.building(int(sb["uid"]))
 	ok(built is SourceB, "the site turned into the source")
-	t = await _wait_until(func(): return server.recipe == "data", 40.0, 4.0)
-	ok(server.recipe == "mini", "Auto switched the server to Mini 3B once data was crawled (%.1fs)" % t)
-	ok(server.bays.has("data"), "a data module bay")
-	# switch recipe with dough already rolling down the tube
-	for i in 4:
-		server.cells.add("power", false)
-		server.bays["data"].add("data", false)
-	await _wait_until(func(): return not server.packets.is_empty(), 10.0, 2.0)
-	server.choose("pico")
-	ok(server.recipe == "pico" and not server.bays.has("data"), "choosing a recipe changes the bays")
-	var baked0 := int(Game.stats["batches"])
-	t = await _wait_until(func(): return int(Game.stats["batches"]) > baked0, 20.0, 4.0)
-	ok(int(Game.stats["batches"]) > baked0, "requests already on the bus still get served after a switch (%.1fs)" % t)
-	server.choose("")
 	# datacenter gear next to the server speeds it up (the "compute" aura)
 	ok(is_equal_approx(server.compute_mult(), 1.0), "no compute aura without datacenter gear")
 	var gear_at := Vector2i(999, 999)
@@ -686,13 +728,14 @@ func _test_world() -> void:
 			for dx in range(-d, d + 1):
 				if gear_at.x == 999 and maxi(absi(dx), absi(dy)) == d and w.check_spot("rack_row", sc + Vector2i(dx, dy), 0)["ok"]:
 					gear_at = sc + Vector2i(dx, dy)
+	var cap_plain := server.capacity_for("pico")
 	if gear_at.x != 999:
 		var gb := Game.place("rack_row", gear_at, 0)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		server._compute_t = 0.0
 		ok(absf(server.compute_mult() - 1.1) < 0.001, "a Rack Row nearby: servers work 10%% faster (x%.2f)" % server.compute_mult())
-		ok(server.staff_mult() >= 1.099, "the boost goes into the server's speed")
+		ok(server.capacity_for("pico") >= cap_plain * 1.099, "the boost goes into the server's capacity")
 		ok((w.building(int(gb["uid"])) as DecorB).status().contains("10%"), "the Rack Row says what it does")
 		Game.remove(int(gb["uid"]), false)
 		await get_tree().process_frame
@@ -750,6 +793,40 @@ func _test_world() -> void:
 				b["lvl"] = lv
 				n.refresh()
 		ok(n.visual != null and is_instance_valid(n.visual), "top look for " + kind)
+	# the Training Cluster turns datasets into your own model
+	var tr: TrainerB = w.buildings_of("trainer")[0]
+	tr.data["auto"] = false
+	tr.start("chat13")
+	ok(tr.job() == "chat13" and tr.inputs.has("dataset") and not tr.ready_to_train(), "a training job waits for its data")
+	for i in int(Defs.recipe("chat13")["train"]["dataset"]):
+		tr.inputs["dataset"].add("dataset", false)
+	tr.cells.add("power", false)
+	ok(tr.ready_to_train() and tr.rate() > 0.0, "with data and power it trains")
+	tr.data["progress"] = tr.job_compute() - 0.01
+	await _wait_until(func(): return Game.known_recipes.has("chat13"), 5.0)
+	ok(Game.known_recipes.has("chat13") and tr.job() == "", "training done: you own Chat 13B")
+	Market.quality["chat13"] = 0.8
+	tr.start("chat13", true)
+	ok(tr.job_compute() < TrainerB.compute_for("chat13", false), "a refresh is cheaper than training")
+	tr._finish()
+	ok(Market.quality_of("chat13") > 0.8, "a refresh brings quality back")
+	# the Launch Complex sends a module into orbit
+	var lp: LaunchB = w.buildings_of("launchpad")[0]
+	var gs: Array = w.buildings_of("groundstation")
+	ok(gs.size() > 0, "a ground station")
+	var om := Market.orbit_modules
+	for k in LaunchB.PARTS:
+		for i in int(LaunchB.PARTS[k]):
+			lp.bays[k].add(k, false)
+	t = await _wait_until(func(): return Market.orbit_modules > om, 40.0, 8.0)
+	ok(Market.orbit_modules == om + 1 and Market.orbit_model != "", "the rocket reached orbit (%.1fs)" % t)
+	ok(Market.orbit_capacity() > 0.0 and Market.orbit_capacity() <= Market.downlink() + 0.001, "orbit serves, as much as the downlink carries")
+	ok(lp.state == LaunchB.S.TURNAROUND, "the pad needs a turnaround")
+	# the Megacluster counts Frontier served since its last stage
+	var mg: MegaB = w.buildings_of("mega")[0]
+	var dl := mg.delivered()
+	Game.serve("frontier", 5.0, 1.0)
+	ok(is_equal_approx(mg.delivered(), dl + 5.0), "Frontier tokens served count for the Megacluster")
 	await get_tree().process_frame
 	w.queue_free()
 	await get_tree().process_frame

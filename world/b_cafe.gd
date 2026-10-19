@@ -1,32 +1,25 @@
 class_name CafeB
 extends Building
-## The Chat Café. Stock the token counter (left pad); visitors stroll in
-## from the countryside, chat with your models, spend a few tokens each and
-## pay 30% more than a van would. Planters, lamps, benches and trees nearby
-## bring more visitors.
+## The Chat Café: people stroll in from the countryside, sit at a table and
+## chat live with one of your models (the snappiest earner you serve). Each
+## chatting visitor is demand the Market serves at 1.3x the API price (more
+## for a fast model); if your servers can't keep up, they get bored and
+## leave. Planters, lamps, benches and trees nearby bring more visitors.
 
-var display: Holder
 var _spawn_t := 3.0
 var _customers: Array[Customer] = []
 var _label: Label3D
+var _seats_node: MeshInstance3D
+var _taken := {}               # seat index -> Customer
 
 
 func _build() -> void:
-	display = Holder.new().setup(20, [], Holder.Layout.GRID)
-	display.accept_cat = ["token", "batch", "agent"]
-	display.grid = Vector2i(4, 2)
-	display.cell = Vector2(0.42, 0.34)
-	display.max_visible = 40
-	display.position = Vector3(-1.3, 0.86, -0.05)
-	add_child(display)
-	add_port(display, null, "in")
-	_label = UI3D.label("0/20", 28)
+	_label = UI3D.label("", 28)
 	_label.position = Vector3(-1.3, 1.75, 0.2)
 	add_child(_label)
 	var b := UI3D.badge("cafe", Pal.STEEL_DARK, 0.6)
 	b.position = Vector3(0, 3.9, -1.0)
 	add_child(b)
-	display.changed.connect(_update)
 
 
 func solid_rects() -> Array[Rect2]:
@@ -35,19 +28,40 @@ func solid_rects() -> Array[Rect2]:
 
 func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("cafe_%d" % t, func(): return CafeB.mesh(t)), root)
+	_seats_node = Mats.inst(null, root)
 
 
 func _on_level() -> void:
-	display.capacity = Bal.cafe_cap(level)
-	_update()
+	var n := seats()
+	if _seats_node:
+		_seats_node.mesh = MeshKit.cached("cafe_seats_%d_%d" % [n, tier], func(): return CafeB.seats_mesh(n, tier))
 
 
-func _update() -> void:
-	_label.text = "%d/%d" % [display.count(), display.capacity]
+func seats() -> int:
+	return Bal.cafe_seats(level)
 
 
-func counter_point() -> Vector3:
-	return to_world(1.35 + randf_range(-0.4, 0.4), 1.0 + randf_range(-0.2, 0.3))
+## Where seat i is (local): two rows of tables on the terrace.
+static func seat_local(i: int) -> Vector3:
+	return Vector3(-1.8 + (i % 4) * 0.8 + (0.4 if i / 4 == 1 else 0.0), 0, 1.0 + (i / 4 % 2) * 0.65 + (i / 8) * 0.0)
+
+
+func seat_point(i: int) -> Vector3:
+	var p := seat_local(i)
+	return to_world(p.x, p.z)
+
+
+## A free seat for a visitor (-1 if full).
+func take_seat(c: Customer) -> int:
+	for i in seats():
+		if not _taken.has(i) or not is_instance_valid(_taken[i]):
+			_taken[i] = c
+			return i
+	return -1
+
+
+func leave_seat(i: int) -> void:
+	_taken.erase(i)
 
 
 func charm() -> float:
@@ -58,10 +72,42 @@ func rate() -> float:
 	return Bal.cafe_rate(level) * (1.0 + charm())
 
 
-func need(t: String) -> float:
-	if not display.can_accept(t):
-		return 0.0
-	return 0.8 * (1.0 - float(display.count()) / maxf(1.0, display.capacity)) + 0.2
+## The model the café chats with: the best earner (with the snappy bonus)
+## that some server is serving.
+func model() -> String:
+	var best := ""
+	var bv := 0.0
+	for rid in Market.cap:
+		if float(Market.cap[rid]) <= 0.0:
+			continue
+		var v := Market.token_price(rid) * (1.0 + Bal.latency_bonus(rid))
+		if v > bv:
+			bv = v
+			best = rid
+	return best
+
+
+func chatting() -> int:
+	var n := 0
+	for c in _customers:
+		if is_instance_valid(c) and c.state == Customer.S.CHAT:
+			n += 1
+	return n
+
+
+## K tokens/s its chatting visitors read.
+func chat_demand() -> float:
+	return chatting() * Bal.cafe_chat(Game.level)
+
+
+## Whether chats are being answered (most of the café's demand served).
+func answered() -> bool:
+	var rid := model()
+	if rid == "":
+		return false
+	var want := float(Market.want.get("cafe", {}).get(rid, 0.0))
+	var got := float(Market.by_channel.get("cafe", {}).get(rid, 0.0))
+	return want <= 0.0 or got >= want * 0.6
 
 
 func _process(dt: float) -> void:
@@ -70,8 +116,11 @@ func _process(dt: float) -> void:
 	_customers = _customers.filter(func(c): return is_instance_valid(c))
 	if _spawn_t <= 0.0:
 		_spawn_t = 60.0 / rate() * randf_range(0.7, 1.3)
-		if _customers.size() < 5 and display.count() > 0:
+		if _customers.size() < seats() + 2 and model() != "":
 			_spawn_customer()
+	if int(_t) != int(_t - dt):
+		var rid := model()
+		_label.text = ("%d chatting  ·  %s" % [chatting(), Defs.model_name(rid)]) if rid != "" else "No model served"
 
 
 func _spawn_customer() -> void:
@@ -85,54 +134,47 @@ func _spawn_customer() -> void:
 	_customers.append(c)
 
 
-## A customer at the counter wants to buy. Returns true when served.
-func serve(c: Customer) -> bool:
-	if display.count() == 0:
-		return false
-	var n := mini(Bal.cafe_buy(level), display.count())
-	var bought: Array[String] = []
-	for i in n:
-		var t := display.items[display.items.size() - 1]
-		if Holder.fly(display, c.carry, t, 0.35):
-			bought.append(t)
-	# snappy models earn a little more here: people are chatting live
-	var amount := 0.0
-	for t in bought:
-		amount += Game.sell([t], Bal.CAFE_MULT * (1.0 + Bal.latency_bonus(Defs.recipe_of(t))))
+## A visitor finished a chat (paid as they went, through the Market).
+func chat_done(c: Customer) -> void:
 	Game.stats["customers"] = int(Game.stats["customers"]) + 1
 	Game.track("customers")
-	var where := c.global_position + Vector3(0, 2.2, 0)
-	UI3D.pop_text(get_tree().current_scene, where, "+$%s" % Fmt.num(amount), Color(1.0, 0.88, 0.3), 64)
-	world.sold.emit(amount, bought.size(), where)
-	Sfx.play("cash", -6.0, 1.1)
-	return true
-
-
-func save_contents() -> Dictionary:
-	return {"display": display.items.duplicate()}
-
-
-func load_contents(d: Dictionary) -> void:
-	Building.fill(display, d.get("display", []))
+	UI3D.pop_text(get_tree().current_scene, c.global_position + Vector3(0, 2.2, 0), ":)", Color(1.0, 0.9, 0.5), 56)
+	Sfx.play("cash", -10.0, 1.2)
 
 
 func status() -> String:
-	return "Pays 30%% more than vans, more for snappy models. %d%% more visitors from decor nearby." % roundi(charm() * 100)
+	return "Visitors chat with %s at 1.3x the API price. %d%% more visitors from decor nearby." % [Defs.model_name(model()) if model() != "" else "your models", roundi(charm() * 100)]
 
 
 func info() -> Array:
 	return [
-		["hire", "About %.0f visitors / min" % rate()],
-		["token", "Each buys up to %d" % Bal.cafe_buy(level)],
+		["hire", "About %.0f visitors / min, %d seats" % [rate(), seats()]],
+		["token", "Each reads about %s tokens/s while chatting" % Fmt.tokens(Bal.cafe_chat(Game.level))],
 		["clock", "Models under %d ms earn up to +%d%%" % [int(Bal.SNAPPY_MS), roundi(Bal.SNAPPY_BONUS * 100)]],
-		["storage", "Counter %d / %d" % [display.count(), display.capacity]],
 	]
 
 
 func upgrade_info() -> Array:
 	var n := level + 1
-	return [["Visitors / min", "%.1f" % Bal.cafe_rate(level), "%.1f" % Bal.cafe_rate(n)],
-		["Counter", str(Bal.cafe_cap(level)), str(Bal.cafe_cap(n))]]
+	var out := [["Visitors / min", "%.1f" % Bal.cafe_rate(level), "%.1f" % Bal.cafe_rate(n)]]
+	if Bal.cafe_seats(n) > seats():
+		out.append(["Seats", str(seats()), str(Bal.cafe_seats(n))])
+	return out
+
+
+## Little round tables with stools on the terrace, one per seat.
+static func seats_mesh(n: int, t: int) -> Mesh:
+	var k := MeshKit.new()
+	var top: Color = [Color(0.96, 0.96, 0.95), Color(0.96, 0.96, 0.95), Color(0.96, 0.96, 0.95), Color(0.62, 0.66, 0.72), Pal.BRASS][t]
+	for i in n:
+		var p := seat_local(i)
+		var tp := p + Vector3(0.0, 0, -0.28)
+		k.cyl(0.035, 0.66, Pal.STEEL_DARK, MeshKit.at(tp.x, 0, tp.z), 6)
+		k.cyl(0.2, 0.04, top, MeshKit.at(tp.x, 0.66, tp.z), 12)
+		k.rbox(Vector3(0.1, 0.06, 0.07), 0.02, Color(0.14, 0.15, 0.18), MeshKit.at(tp.x + 0.06, 0.72, tp.z))
+		k.cyl(0.13, 0.04, Color(0.3, 0.66, 0.68), MeshKit.at(p.x, 0.42, p.z + 0.02), 10)
+		k.cyl(0.03, 0.42, Pal.STEEL_DARK, MeshKit.at(p.x, 0, p.z + 0.02), 6)
+	return k.commit()
 
 
 static func mesh(t: int) -> Mesh:

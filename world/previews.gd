@@ -38,7 +38,7 @@ static func _build(kind: String, ing: String, t := 0, lvl := 1) -> Mesh:
 			k.add_mesh(ServerArt.core(t), MeshKit.at(ServerB.CORE_X, 0, bz))
 			k.add_mesh(ServerArt.bench(t), MeshKit.at(ServerB.BENCH_POS.x, 0, ServerB.BENCH_POS.z))
 			k.add_mesh(ServerArt.power_dock(t), MeshKit.at(ServerB.DOCK_POS.x, 0, ServerB.DOCK_POS.z))
-			k.add_mesh(ServerArt.module(ing if ing != "" else "data", t), MeshKit.xf(Vector3(-0.7, ServerArt.Y + 0.47, ServerB.BUS_Z), Vector3.ZERO, Vector3(0.62, 0.62, 0.62)))
+			k.add_mesh(ServerArt.gpu_tray(1 + t, 0, t), MeshKit.at(-0.7, ServerArt.Y + 0.47, ServerB.BUS_Z))
 		"staff":
 			if kind == "hut":
 				k.add_mesh(TownArt.hut())
@@ -52,25 +52,26 @@ static func _build(kind: String, ing: String, t := 0, lvl := 1) -> Mesh:
 			k.add_mesh(LabArt.bench(t), MeshKit.at(MachineB.IN_POS.x, 0, MachineB.IN_POS.z))
 			k.add_mesh(LabArt.bench(t), MeshKit.at(MachineB.OUT_POS.x, 0, MachineB.OUT_POS.z))
 		"pack":
-			if kind == "depot" or kind == "cache":
-				k.add_mesh(StorageB.mesh(kind, t))
+			k.add_mesh(StorageB.mesh(kind, t))
+		"train":
+			k.add_mesh(InfraArt.trainer(t))
+		"space":
+			if kind == "launchpad":
+				k.add_mesh(InfraArt.launchpad(t))
+				k.add_mesh(InfraArt.rocket(), MeshKit.at(LaunchB.PAD.x, LaunchB.PAD.y, LaunchB.PAD.z))
 			else:
-				k.add_mesh(LabArt.machine(kind, t))
-				k.add_mesh(LabArt.bench(t), MeshKit.at(MachineB.IN_POS.x, 0, MachineB.IN_POS.z))
-				k.add_mesh(LabArt.bench(t), MeshKit.at(MachineB.OUT_POS.x, 0, MachineB.OUT_POS.z))
+				k.add_mesh(InfraArt.groundstation(t))
 		"sell":
 			match kind:
-				"van":
-					k.add_mesh(SalesArt.site("van", t))
-					k.add_mesh(SalesArt.turntable(t), MeshKit.at(0, 0.02, SalesArt.BAY_Z))
-					k.add_mesh(SalesArt.van(t), MeshKit.xf(Vector3(0, 0.1, SalesArt.BAY_Z), Vector3(0, -90, 0)))
-				"hyperloop":
-					k.add_mesh(SalesArt.site("hyperloop", t))
-					k.add_mesh(SalesArt.train(t), MeshKit.at(0.4, 0.12, -1.4))
-				"droneport":
-					k.add_mesh(SalesArt.site("droneport", t))
-					k.add_mesh(SalesArt.airship(t), MeshKit.at(0, 5.2, -0.6))
-				"cafe": k.add_mesh(CafeB.mesh(t))
+				"gateway": k.add_mesh(InfraArt.gateway(t))
+				"edge": k.add_mesh(InfraArt.edge(t))
+				"agent_hub":
+					k.add_mesh(InfraArt.agent_hub(t))
+					for i in 3:
+						k.add_mesh(InfraArt.agent_bot([Color(0.5, 0.86, 1.0), Color(0.6, 1.0, 0.7), Color(1.0, 0.8, 0.5)][i]), MeshKit.at(-1.2 + i * 1.2, 0.17, 2.0))
+				"cafe":
+					k.add_mesh(CafeB.mesh(t))
+					k.add_mesh(CafeB.seats_mesh(4, t))
 				"desk": k.add_mesh(DeskB.mesh())
 		"decor":
 			k.add_mesh(DecorB.mesh(kind))

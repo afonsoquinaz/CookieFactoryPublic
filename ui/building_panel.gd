@@ -163,7 +163,7 @@ func _scroll_to(c: Control) -> void:
 
 ## The last server, solar farm, API depot or builder's hut can't be sold.
 func _protected() -> bool:
-	return node.kind in ["server", "src_power", "van", "hut"] and Game.count_of(node.kind) <= 1
+	return node.kind in ["server", "src_power", "gateway", "hut"] and Game.count_of(node.kind) <= 1
 
 
 func _on_money(_v: float, _d: float) -> void:

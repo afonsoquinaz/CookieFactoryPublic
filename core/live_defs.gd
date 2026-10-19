@@ -73,19 +73,22 @@ const QUESTS := {
 	"serve": {"tier": 0, "text": "Serve %s tokens", "metric": "tokens", "icon": "token"},
 	"upgrade2": {"tier": 0, "text": "Upgrade %s buildings", "metric": "upgrades", "icon": "hammer"},
 	"earn": {"tier": 0, "text": "Earn $%s", "metric": "money", "icon": "coin"},
-	"batches": {"tier": 0, "text": "Serve %s batches", "metric": "batches", "icon": "batch"},
+	"installs": {"tier": 0, "text": "Install %s GPUs or HBM stacks", "metric": "installs", "icon": "gpu"},
+	"tunes": {"tier": 0, "text": "Tune servers %s times", "metric": "tunes", "icon": "engineer"},
 	"cafe": {"tier": 1, "text": "Welcome %s visitors at the Chat Café", "metric": "customers", "icon": "cafe"},
 	"contracts": {"tier": 1, "text": "Complete %s contracts", "metric": "orders", "icon": "desk"},
 	"trend": {"tier": 1, "text": "Sell %s tokens of the trending model", "metric": "trend_tokens", "icon": "speed"},
 	"clear": {"tier": 1, "text": "Clear %s obstacles", "metric": "clears", "icon": "gem"},
 	"build": {"tier": 1, "text": "Build %s new buildings", "metric": "builds", "icon": "hammer"},
-	"van": {"tier": 1, "text": "Ship %s van loads", "metric": "trips", "icon": "van"},
+	"gateway": {"tier": 1, "text": "Serve %s tokens through the API", "metric": "api_tokens", "icon": "gateway"},
+	"train": {"tier": 2, "text": "Finish %s training runs", "metric": "trainings", "icon": "trainer"},
+	"launch": {"tier": 2, "text": "Launch %s orbital modules", "metric": "launches", "icon": "launchpad"},
 	"serve_big": {"tier": 2, "text": "Serve %s tokens", "metric": "tokens", "icon": "token"},
 	"upgrade5": {"tier": 2, "text": "Upgrade %s buildings", "metric": "upgrades", "icon": "hammer"},
 	"research": {"tier": 2, "text": "Research %s upgrades", "metric": "research", "icon": "research"},
 	"hire": {"tier": 2, "text": "Hire %s new staff", "metric": "hires", "icon": "hire"},
 	"overclock": {"tier": 2, "text": "Overclock %s times", "metric": "overclock", "icon": "boost"},
-	"agents": {"tier": 2, "text": "Sell %s agent runs", "metric": "agents", "icon": "agent"},
+	"agents": {"tier": 2, "text": "Serve %s tokens to agents", "metric": "agents", "icon": "agent_hub"},
 	# Community Day quests
 	"ev_serve": {"tier": 3, "text": "Community Day: serve %s tokens", "metric": "tokens", "icon": "token"},
 	"ev_upgrade": {"tier": 3, "text": "Community Day: upgrade %s buildings", "metric": "upgrades", "icon": "hammer"},
@@ -109,17 +112,20 @@ static func quest_amount(id: String, goal: int, income: float) -> int:
 		"upgrade2": return 2
 		"upgrade5": return 5
 		"earn": return int(snap(maxf(100.0, income * 360.0)))
-		"batches": return 15
+		"installs": return 3
+		"tunes": return 25
 		"cafe": return 20
 		"contracts": return 2
 		"trend": return int(snap(maxf(10.0, goal * 0.4)))
 		"clear": return 1
 		"build": return 1
-		"van": return 3
+		"gateway": return int(snap(goal * 0.5))
+		"train": return 1
+		"launch": return 1
 		"research": return 1
 		"hire": return 1
 		"overclock": return 1
-		"agents": return 6
+		"agents": return int(snap(maxf(20.0, goal * 0.3)))
 		"ev_serve": return int(snap(goal * 1.5))
 		"ev_upgrade": return 3
 		"ev_cafe": return int(snap(goal * 0.8))

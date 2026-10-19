@@ -1047,7 +1047,7 @@ func _on_job_done(j: Dictionary) -> void:
 
 func _on_discovered(rid: String) -> void:
 	var r := Defs.recipe(rid)
-	_popup("New model online!", r["name"], "%s  ·  %d ms  ·  $%s a token" % [r["params"], int(r["lat"]), Fmt.num(Bal.item_value("t:" + rid))], "tk_" + rid, "Ship it!")
+	_popup("New model online!", r["name"], "%s  ·  %d GB VRAM  ·  $%s per 1K tokens" % [r["params"], int(r["vram"]), Fmt.num(Bal.token_price(rid))], "tk_" + rid, "Serve it!")
 
 
 func _on_level_up(level: int, gems: int) -> void:
@@ -1067,12 +1067,12 @@ func _on_era(era: int) -> void:
 
 func _offline_popup(amount: float) -> void:
 	var away := Fmt.time(Game.offline_seconds)
-	var toks := ("  ·  %s tokens" % Fmt.num(Game.offline_tokens)) if Game.offline_tokens > 0 else ""
+	var toks := ("  ·  %s tokens" % Fmt.tokens(Game.offline_tokens)) if Game.offline_tokens > 0.0 else ""
 	_popup("Welcome back!", "You were away %s. Your servers kept serving and your builders kept building." % away, "+$%s%s" % [Fmt.num(amount), toks], "cash", "Collect", func():
 		Game.add_money(amount)
 		Game.add_tokens(Game.offline_tokens)
 		Game.offline_reward = 0
-		Game.offline_tokens = 0
+		Game.offline_tokens = 0.0
 		Sfx.play("cash"))
 
 

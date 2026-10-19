@@ -1,10 +1,12 @@
 extends Node
 ## Autopilot that plays the real game for balance runs, like a sensible
-## player who checks in now and then: finishes free jobs, saves up for and
-## builds the sources and labs its best model needs, more servers and
-## sales, upgrades what's slowest, hires couriers, clears obstacles, buys land
-## when it runs out of room, researches, and finally builds the Megacluster.
-## No sparks are spent on timers except free finishes.
+## player who checks in now and then: finishes free jobs, downloads open
+## models, builds a Chip Fab for GPUs and a Training Cluster with the labs
+## its next model's data needs, adds servers when demand outruns capacity
+## and customers (gateways, café, edge, agents) when capacity is idle,
+## taps servers now and then, nudges prices, upgrades, hires, clears
+## obstacles, buys land, researches, launches to orbit and finally builds
+## the Megacluster. No sparks are spent on timers except free finishes.
 ##   tools/bot.sh [minutes]
 
 var world: World
@@ -53,6 +55,9 @@ func _manage() -> void:
 		if Game.job_left(j) <= Bal.FREE_FINISH:
 			Game.finish_now(j)
 	_staff()
+	_download()
+	_prices()
+	_tap()
 	if Game.free_builders() > 0:
 		if _mega():
 			return
@@ -82,27 +87,96 @@ func _spare() -> float:
 	return Game.money - _goal_cost()
 
 
-## Builds what's missing: sources for the best model, more servers, sales,
-## housing, storage.
+## Open weights as soon as they're affordable.
+func _download() -> void:
+	for r in Defs.RECIPES:
+		if int(r["open"]) >= 0 and not Game.known_recipes.has(r["id"]) and float(r["open"]) <= _spare() * 0.5:
+			_kind = "download"
+			if Game.download(r["id"]):
+				print("[%6.0fs] downloaded %s" % [_t, r["id"]])
+
+
+## Busy servers: a little dearer; idle ones: a little cheaper.
+func _prices() -> void:
+	for rid in Market.cap:
+		var c := float(Market.cap[rid])
+		var u := float(Market.served.get(rid, 0.0)) / c if c > 0.0 else 0.0
+		if u > 0.97:
+			Market.set_price(rid, Market.price_of(rid) + 0.05)
+		elif u < 0.6 and Market.price_of(rid) > 0.8:
+			Market.set_price(rid, Market.price_of(rid) - 0.05)
+
+
+## A player checking in taps a server or two.
+var _tap_cd := 0.0
+func _tap() -> void:
+	_tap_cd -= 1.0
+	if _tap_cd > 0.0:
+		return
+	_tap_cd = 6.0
+	var low: ServerB = null
+	for n in world.buildings_of("server"):
+		if low == null or (n as ServerB).tune < low.tune:
+			low = n
+	if low:
+		low.tap(Bal.TUNE_PLAYER)
+
+
+## The next model to train: the first one you don't own.
+func _next_model() -> Dictionary:
+	for r in Defs.RECIPES:
+		if not Game.known_recipes.has(r["id"]) and int(r["open"]) < 0:
+			return r
+	return {}
+
+
+func _want_producer(want: Array[String], item: String) -> void:
+	var p := Defs.producer_of(item)
+	if p == "" or Game.count_of(p) > 0:
+		return
+	want.append(p)
+	for j in Defs.BUILDINGS[p].get("in", {}):
+		_want_producer(want, j)
+
+
+## Builds what's missing: hardware supply, the next model's data, more
+## servers when demand outruns them, more customers when they idle.
 func _wants() -> Array[String]:
 	var want: Array[String] = []
-	var best := _target_recipe()
-	for i in Defs.recipe(best)["ings"]:
-		var p := Defs.producer_of(i)
-		if Game.count_of(p) == 0:
-			want.append(p)
-		for j in Defs.BUILDINGS[p].get("in", {}):
-			var p2 := Defs.producer_of(j)
-			if p2 != "" and Game.count_of(p2) == 0:
-				want.append(p2)
-	for k in ["cafe", "desk", "depot", "cache", "batcher", "hyperloop", "agent_studio", "droneport"]:
+	var servers := Game.count_of("server")
+	var cap := Market.total(Market.cap)
+	var dem := Market.total(Market.demand)
+	if Game.money > 400.0 or servers > 1:
+		_want_producer(want, "gpu")
+	if Game.count_of("fab") > 0 and Game.count_of("src_coolant") == 0:
+		want.append("src_coolant")
+	var nm := _next_model()
+	if not nm.is_empty() and Game.level >= 2:
+		if Game.count_of("trainer") == 0:
+			want.append("trainer")
+		for i in nm["train"]:
+			_want_producer(want, i)
+	if Game.level >= 5:
+		_want_producer(want, "hbm")
+	for k in ["cafe", "desk", "depot"]:
 		if Game.count_of(k) == 0:
 			want.append(k)
+	if Game.level >= 6 and Game.count_of("edge") == 0:
+		want.append("edge")
+	if Game.level >= 9 and Game.count_of("agent_hub") == 0:
+		want.append("agent_hub")
+	if Game.level >= 11:
+		for k in ["groundstation", "launchpad"]:
+			if Game.count_of(k) == 0:
+				want.append(k)
 	# more of what's already there, in proportion
-	var servers := Game.count_of("server")
-	var cap := {"server": 1 + Game.level / 3, "src_power": servers * 2, "src_data": servers, "van": servers, "cafe": 1 + servers / 2}
-	for k in cap:
-		if Game.count_of(k) < int(cap[k]):
+	if dem > cap * 1.15 and servers < 2 + Game.level:
+		want.append("server")
+	if Market.used_bw >= Market.bandwidth * 0.9 or cap > dem * 1.4:
+		want.append("gateway")
+	var more := {"src_power": servers * 2, "cafe": 1 + servers / 3}
+	for k in more:
+		if Game.count_of(k) < int(more[k]):
 			want.append(k)
 	if not Game.can_hire() and Game.workers.size() < 2 + world.bnodes.size() / 3:
 		want.append("dorm")
@@ -121,19 +195,6 @@ func _build_needed() -> bool:
 	return false
 
 
-func _target_recipe() -> String:
-	var best := "pico"
-	var bp := 0.0
-	var slots := 1
-	for n in world.buildings_of("server"):
-		slots = maxi(slots, (n as ServerB).slots())
-	for r in Defs.RECIPES:
-		if (r["ings"] as Array).size() <= slots + 1 and float(r["price"]) > bp:
-			bp = float(r["price"])
-			best = r["id"]
-	return best
-
-
 func _upgrade() -> bool:
 	var best: Building = null
 	var bc := INF
@@ -143,9 +204,9 @@ func _upgrade() -> bool:
 		if Game.upgrade_block(n.uid) != "":
 			continue
 		var c := Bal.upgrade_cost(n.kind, n.level)
-		# servers and vans first: they're the bottleneck
+		# servers and gateways first: they're the bottleneck
 		var w := c
-		if n is ServerB or n is VehicleB:
+		if n is ServerB or n.kind == "gateway" or n is TrainerB:
 			w *= 0.5
 		if w < bc and (c <= _spare() or c <= Game.money * 0.25):
 			bc = w
@@ -174,7 +235,7 @@ func _staff() -> void:
 
 
 func _research() -> void:
-	for id in ["recipe", "wspeed", "wcarry", "tools", "vehicles", "offline", "hiring", "market"]:
+	for id in ["recipe", "kv", "devrel", "wspeed", "wcarry", "tools", "spec", "tuning", "offline", "hiring", "market"]:
 		if not Game.research_maxed(id) and Game.research_cost(id) < _spare() * 0.25:
 			_kind = "research"
 			Game.buy_research(id)
@@ -277,7 +338,7 @@ func _buy_land() -> bool:
 
 func _milestones() -> void:
 	var checks := {
-		"first_sale": int(Game.stats["tokens"]) > 0,
+		"first_sale": float(Game.stats["tokens"]) > 0.0, "gpu": _any_gpu(), "trained": Game.known_recipes.has("chat13"), "orbit": Market.orbit_modules > 0,
 		"lvl2": Game.level >= 2, "lvl3": Game.level >= 3, "lvl4": Game.level >= 4, "lvl5": Game.level >= 5,
 		"lvl6": Game.level >= 6, "lvl8": Game.level >= 8, "lvl10": Game.level >= 10, "lvl12": Game.level >= 12,
 		"lvl15": Game.level >= 15, "mini": Game.known_recipes.has("mini"), "code13": Game.known_recipes.has("code13"),
@@ -289,10 +350,17 @@ func _milestones() -> void:
 			print("[%6.0fs] milestone %s  money=%s level=%d" % [_t, k, Fmt.num(Game.money), Game.level])
 
 
+func _any_gpu() -> bool:
+	for n in world.buildings_of("server"):
+		if (n as ServerB).gpus() > 0:
+			return true
+	return false
+
+
 func _print_status() -> void:
 	var recipes := []
 	for n in world.buildings_of("server"):
-		recipes.append((n as ServerB).recipe)
+		recipes.append("%s/%dg" % [(n as ServerB).recipe, (n as ServerB).gpus()])
 	var off := []
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
@@ -311,10 +379,8 @@ func _print_status() -> void:
 			for p in n.ports:
 				var h: Holder = p["holder"]
 				parts.append("%s %d/%d" % [p["dir"], h.count(), h.capacity])
-			var extra := ""
-			if n is VehicleB:
-				extra = " state=%s" % VehicleB.S.keys()[(n as VehicleB).state]
-			print("        %s %s%s" % [n.name, parts, extra])
-	print("[%6.0fs] $%s  +%s/min  lvl %d  sparks %d  tokens %d  servers %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
-		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, int(Game.stats["tokens"]),
+			print("        %s %s" % [n.name, parts])
+	print("[%6.0fs] $%s  +%s/min  lvl %d  sparks %d  tokens %s  cap %s dem %s bw %s/%s rep %.2f  servers %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
+		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, Fmt.tokens(float(Game.stats["tokens"])),
+		Fmt.tokens(Market.total(Market.cap)), Fmt.tokens(Market.total(Market.demand)), Fmt.tokens(Market.used_bw), Fmt.tokens(Market.bandwidth), Market.rep,
 		recipes, world.bnodes.size(), Game.land.size(), Game.workers.size(), Game.jobs.size(), Game.builders(), JSON.stringify(_spent)])

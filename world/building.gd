@@ -41,12 +41,16 @@ static func create(w: World, b: Dictionary) -> Building:
 		node = ServerB.new()
 	elif k == "hut":
 		node = HutB.new()
-	elif cat == "lab" or k == "batcher" or k == "agent_studio":
+	elif cat == "lab":
 		node = MachineB.new()
-	elif k == "depot" or k == "cache":
+	elif k == "depot":
 		node = StorageB.new()
-	elif k in ["van", "hyperloop", "droneport"]:
-		node = VehicleB.new()
+	elif k in ["gateway", "edge", "agent_hub", "groundstation"]:
+		node = ChannelB.new()
+	elif k == "trainer":
+		node = TrainerB.new()
+	elif k == "launchpad":
+		node = LaunchB.new()
 	elif k == "cafe":
 		node = CafeB.new()
 	elif k == "desk":

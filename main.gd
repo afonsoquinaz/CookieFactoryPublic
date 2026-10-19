@@ -114,9 +114,15 @@ func _demo_state() -> void:
 	Game.land_bought_n = 8
 	for b in Game.buildings:
 		match b["kind"]:
-			"server": b["lvl"] = 8
+			"server":
+				b["lvl"] = 8
+				b["gpus"] = 4
+				b["hbm"] = 1
+				b["recipe"] = "chat13"
 			"src_power": b["lvl"] = 12
-			"van": b["lvl"] = 9
+			"gateway":
+				b["lvl"] = 9
+				b["fiber"] = 2
 	# north of the High Street, facing it
 	Game.place("src_data", Vector2i(-10, -5), 0, {"lvl": 10}, false)
 	Game.place("src_silicon", Vector2i(-14, -5), 0, {"lvl": 6}, false)
@@ -124,11 +130,11 @@ func _demo_state() -> void:
 	Game.place("src_coolant", Vector2i(-6, -9), 0, {"lvl": 4}, false)
 	Game.place("fab", Vector2i(7, -4), 0, {"lvl": 2}, false)
 	Game.place("refinery", Vector2i(10, -4), 0, {"lvl": 3}, false)
-	Game.place("cache", Vector2i(13, -4), 0, {"lvl": 2}, false)
+	Game.place("depot", Vector2i(13, -4), 0, {"lvl": 2}, false)
 	# south of it, facing north
 	Game.place("hut", Vector2i(7, 2), 2, {}, false)
 	Game.place("cafe", Vector2i(9, 2), 2, {"lvl": 6}, false)
-	Game.place("van", Vector2i(13, 2), 2, {"lvl": 4}, false)
+	Game.place("gateway", Vector2i(13, 2), 2, {"lvl": 4}, false)
 	Game.place("desk", Vector2i(-7, 2), 2, {}, false)
 	Game.place("substation", Vector2i(-15, 3), 0, {}, false)
 	Game.place("rack_row", Vector2i(-1, -7), 0, {}, false)
