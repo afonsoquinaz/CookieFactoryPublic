@@ -209,6 +209,16 @@ const BUILDINGS := {
 		"aura": {"what": "walk", "r": 5, "v": 0.2}, "desc": "Staff within 5 tiles move 20% faster. Visitors love it too."},
 	"turbine": {"name": "Wind Turbine", "cat": "decor", "tab": "decor", "icon": "turbine", "size": Vector2i(2, 2), "cost": 15000, "growth": 1.9, "up": 0, "max": 1, "time": 0,
 		"aura": {"what": "source", "r": 5, "v": 0.25}, "desc": "Sources within 5 tiles work 25% faster."},
+	"net_cab": {"name": "Network Cabinet", "cat": "decor", "tab": "decor", "icon": "net_cab", "size": Vector2i(1, 1), "cost": 400, "growth": 1.35, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 2, "v": 0.05}, "desc": "Switches and patch cables. Servers and labs within 2 tiles work 5% faster."},
+	"rack_row": {"name": "Rack Row", "cat": "decor", "tab": "decor", "icon": "rack_row", "size": Vector2i(2, 2), "cost": 6000, "growth": 1.6, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 3, "v": 0.1}, "desc": "Open racks with blinking lights. Servers and labs within 3 tiles work 10% faster."},
+	"chiller": {"name": "Chiller Unit", "cat": "decor", "tab": "decor", "icon": "chiller", "size": Vector2i(2, 2), "cost": 45000, "growth": 1.7, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 4, "v": 0.15}, "desc": "Big fans keep the chips cool. Servers and labs within 4 tiles work 15% faster."},
+	"generator": {"name": "Backup Generator", "cat": "decor", "tab": "decor", "icon": "generator", "size": Vector2i(2, 2), "cost": 3.0e5, "growth": 1.8, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 5, "v": 0.2}, "desc": "Never a brown-out. Servers and labs within 5 tiles work 20% faster."},
+	"transformer": {"name": "Transformer Yard", "cat": "decor", "tab": "decor", "icon": "transformer", "size": Vector2i(3, 3), "cost": 2.5e6, "growth": 2.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 6, "v": 0.25}, "desc": "High voltage straight from the grid. Servers and labs within 6 tiles work 25% faster."},
 	"gpu_statue": {"name": "Golden GPU", "cat": "decor", "tab": "decor", "icon": "gpu_statue", "size": Vector2i(2, 2), "cost": 1.3e6, "growth": 4.0, "up": 0, "max": 1, "time": 0,
 		"aura": {"what": "global_price", "r": 0, "v": 0.05}, "desc": "Every token in the empire sells for 5% more."},
 
@@ -224,7 +234,7 @@ const BUILD_ORDER: Array[String] = [
 	"depot", "cache", "batcher", "agent_studio",
 	"van", "cafe", "desk", "hyperloop", "droneport",
 	"hut", "dorm", "mega",
-	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "gpu_statue",
+	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "net_cab", "rack_row", "chiller", "generator", "transformer", "gpu_statue",
 ]
 
 ## Lab levels: lifetime tokens served needed, and the sparks each level brings.
@@ -298,6 +308,27 @@ const BIOMES := {
 	"highland": {"name": "Mining Hills", "bonus": ["copper", "rare", "experts"], "grass": Color(0.56, 0.56, 0.42)},
 }
 const BIOME_ORDER: Array[String] = ["valley", "desert", "tundra", "highland"]
+
+## The village turns into a datacenter as your lab grows: each era starts at
+## a Lab level and changes the ground, the roads, the street furniture and
+## the skyline (see render/ground.gdshader and Terrain).
+const ERAS := [
+	{"level": 1, "name": "Garage", "icon": "server", "desc": "Grass, cobbles and a gaming PC."},
+	{"level": 3, "name": "Startup Campus", "icon": "desk", "desc": "Concrete aprons, paver paths, an asphalt High Street and smart lamps."},
+	{"level": 6, "name": "Data Park", "icon": "substation", "desc": "Your land is paved, power pylons march along the street."},
+	{"level": 9, "name": "Hyperscale", "icon": "cache", "desc": "Raised-floor tiles, LED lane lines, datacenter halls on the horizon."},
+	{"level": 12, "name": "Megacluster", "icon": "mega", "desc": "A circuit-board floor with light pulsing along its traces."},
+]
+
+
+## The era for a Lab level (0..4).
+static func era_for(lvl: int) -> int:
+	var e := 0
+	for i in ERAS.size():
+		if lvl >= int(ERAS[i]["level"]):
+			e = i
+	return e
+
 
 ## Titles for each Lab level.
 const LEVEL_TITLES := [

@@ -103,6 +103,21 @@ func _test_balance() -> void:
 	ok(Bal.finish_gems(60.0) >= 1 and Bal.finish_gems(3600.0) > Bal.finish_gems(600.0), "longer jobs cost more gems")
 	ok(Defs.server_slots(1) == 1 and Defs.server_slots(4) == 2 and Defs.server_slots(40) == 7, "server bays grow with level")
 	ok(Defs.limit_of("src_power") == -1 and Defs.limit_of("planter") == -1, "sources and decor are unlimited")
+	# eras: the town turns into a datacenter as the Lab levels up
+	ok(Defs.era_for(1) == 0 and Defs.era_for(2) == 0, "it starts in the Garage era")
+	for i in Defs.ERAS.size():
+		var e: Dictionary = Defs.ERAS[i]
+		ok(Defs.era_for(int(e["level"])) == i, "era %d (%s) starts at Lab level %d" % [i, e["name"], int(e["level"])])
+		ok(i == 0 or int(e["level"]) > int(Defs.ERAS[i - 1]["level"]), "eras come in order")
+		ok(Defs.BUILDINGS.has(e["icon"]) or FileAccess.file_exists("res://assets/icons/%s.png" % e["icon"]), "era %d has an icon" % i)
+	ok(Defs.era_for(99) == Defs.ERAS.size() - 1, "the last era lasts forever")
+	var compute := 0
+	for k in Defs.BUILDINGS:
+		var a: Dictionary = Defs.BUILDINGS[k].get("aura", {})
+		if a.get("what", "") == "compute":
+			compute += 1
+			ok(float(a["v"]) > 0.0 and float(a["v"]) <= 0.25 and int(a["r"]) >= 2, "%s: a sensible compute aura" % k)
+	ok(compute >= 5, "datacenter gear for every stage of the game (%d)" % compute)
 	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
 
 
@@ -382,6 +397,29 @@ func _test_world() -> void:
 	t = await _wait_until(func(): return int(Game.stats["batches"]) > baked0, 20.0, 4.0)
 	ok(int(Game.stats["batches"]) > baked0, "requests already on the bus still get served after a switch (%.1fs)" % t)
 	server.choose("")
+	# datacenter gear next to the server speeds it up (the "compute" aura)
+	ok(is_equal_approx(server.compute_mult(), 1.0), "no compute aura without datacenter gear")
+	var gear_at := Vector2i(999, 999)
+	var sc := server.cell()
+	for d in range(1, 9):  # the nearest free spot, ring by ring
+		for dy in range(-d, d + 1):
+			for dx in range(-d, d + 1):
+				if gear_at.x == 999 and maxi(absi(dx), absi(dy)) == d and w.check_spot("rack_row", sc + Vector2i(dx, dy), 0)["ok"]:
+					gear_at = sc + Vector2i(dx, dy)
+	if gear_at.x != 999:
+		var gb := Game.place("rack_row", gear_at, 0)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		server._compute_t = 0.0
+		ok(absf(server.compute_mult() - 1.1) < 0.001, "a Rack Row nearby: servers work 10%% faster (x%.2f)" % server.compute_mult())
+		ok(server.staff_mult() >= 1.099, "the boost goes into the server's speed")
+		ok((w.building(int(gb["uid"])) as DecorB).status().contains("10%"), "the Rack Row says what it does")
+		Game.remove(int(gb["uid"]), false)
+		await get_tree().process_frame
+		server._compute_t = 0.0
+		ok(is_equal_approx(server.compute_mult(), 1.0), "the boost goes away with it")
+	else:
+		ok(false, "found a spot for a Rack Row near the server")
 	# a building on top of a road: the road goes around
 	var before := w.roads.connected.size()
 	var road_cell: Vector2i = w.roads.cells.keys()[w.roads.cells.size() / 2]

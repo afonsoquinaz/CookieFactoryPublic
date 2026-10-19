@@ -25,6 +25,8 @@ var _props: MeshInstance3D       # things it gains as it levels up (LevelArt)
 var _props_n := -1
 var _t := 0.0
 var _flash := 0.0
+var _compute := 0.0              # datacenter decor nearby (cached, see compute_mult)
+var _compute_t := 0.0
 
 
 static func create(w: World, b: Dictionary) -> Building:
@@ -74,6 +76,15 @@ func _ready() -> void:
 
 
 # ---------------------------------------------------------------- placement
+
+## Speed from datacenter decor nearby (the "compute" aura), capped at x2.
+## Re-read about once a second; servers and labs ask every frame.
+func compute_mult() -> float:
+	if world and _t >= _compute_t:
+		_compute_t = _t + 1.0
+		_compute = minf(1.0, world.aura(global_position, "compute"))
+	return 1.0 + _compute
+
 
 func cell() -> Vector2i:
 	return Game.cell_of(data)

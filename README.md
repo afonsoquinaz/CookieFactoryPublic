@@ -93,8 +93,22 @@ The **High Street** runs straight through your land. Every building has an entra
 - **Decor** is instant and has area effects:
   - substations, battery banks and wind turbines: sources work faster;
   - the coffee cart: staff move faster;
+  - datacenter gear (Network Cabinet, Rack Row, Chiller Unit, Backup Generator, Transformer Yard): servers and labs nearby work 5–25% faster (up to x2 in total);
   - planters, smart lamps, trees, benches, bike racks, flags, robot statues and the food truck: the Chat Café gets more visitors (and planters help Rare Earth Mines);
   - the Golden GPU: +5% on every sale.
+
+### Eras: from garage to datacenter
+The town changes as the Lab levels up. A card announces each new era, and the new look eases in.
+
+| Lab level | Era | What changes |
+|---|---|---|
+| 1 | Garage | Grass, cobbled side roads, a gaming PC. |
+| 3 | Startup Campus | Concrete aprons under your buildings, paver paths, an asphalt High Street with smart lamps. |
+| 6 | Data Park | Your land is paved in slabs, side roads turn to asphalt, power poles and cables run along the street. |
+| 9 | Hyperscale | Raised-floor tiles, LED lane lines and kerbs, glowing lot edges; datacenter halls, cooling towers, chillers and pylons spread over the wild land on the horizon. |
+| 12 | Megacluster | A circuit-board floor with light pulsing along its traces, data streaks down the High Street, an even denser datacenter city around you. |
+
+The ground shader blends the looks with an `era` uniform. Building lots are written into the road texture, so paving follows your buildings. Street props and the far-off sprawl are streamed MultiMeshes, like the trees.
 
 ### Progression
 - **Research** (money): Scaling Laws (every token sells for more), E-Scooters and Cargo Carts for couriers, Prefab Modules (faster builds), Employer Brand (hiring), Low-Latency Routing (vehicles return sooner), Hype Machine (trending models), Autoscaling (offline hours), Overclocking, Zoning Permits.
@@ -159,6 +173,7 @@ tools/shot.sh res://dev/bench.tscn out.png -- --kinds=van --levels=1,3,5,14,40  
 Dev flags (after `--`):
 - `--fresh` starts a new game.
 - `--demo` loads a mid-game empire.
+- `--era=0..4` jumps to an era (sets the Lab level it starts at), e.g. `--demo --era=4 --zoom=2.2`.
 - `--showcase` places every building, `--showcase --tier=4` at its top look.
 - `--place=src_coolant` opens the placement mode.
 - `--select=server` selects a building (`--info` also opens its card); `--recipes` opens the model picker.
