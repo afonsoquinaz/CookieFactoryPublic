@@ -10,10 +10,14 @@ extends RefCounted
 ## The work comes as a list of small steps; the loading screen runs a few per
 ## frame so its progress bar keeps moving smoothly. Things are drawn on a
 ## stage at the camera's focus, under the cover, and freed a few frames later.
+## Building looks the empire won't need soon (eras beyond the next one of
+## what you own) are built later, a little each frame during play, on a
+## hidden stage (their material is already compiled by then).
 
 var world: World
 var hud: Node
 var steps: Array[Callable] = []
+var later: Array[Callable] = []    # built in the background once the game is showing
 var _stage: Node3D
 var _trash: Array = []           # [node, frames left]
 var _uid := -100000
@@ -32,10 +36,15 @@ func _init(p_world: World, p_hud: Node) -> void:
 
 func _plan() -> void:
 	# every building at every look, and as a construction site
+	var owned := {}                  # kind -> highest look index owned
+	for b in Game.buildings:
+		var k: String = b["kind"]
+		owned[k] = maxi(int(owned.get(k, -1)), Bal.tier(k, maxi(1, int(b.get("lvl", 1)))))
 	for kind in Defs.BUILD_ORDER:
 		var lv := _tier_levels(kind)
-		for l in lv:
-			steps.append(_building.bind(kind, l))
+		for i in lv.size():
+			var soon := i == 0 or i <= int(owned.get(kind, -1)) + 1
+			(steps if soon else later).append(_building.bind(kind, lv[i]))
 		steps.append(_building.bind(kind, 0))
 		steps.append(_ghost.bind(kind))
 	# materials that only show up now and then
@@ -95,6 +104,20 @@ func run(budget_ms: float) -> bool:
 
 
 func finish() -> void:
+	if not later.is_empty() and is_instance_valid(_stage):
+		# the rest goes on quietly during play
+		for e in _trash:
+			if is_instance_valid(e[0]):
+				e[0].queue_free()
+		_trash.clear()
+		Sfx.hush = false
+		_stage.visible = false
+		steps = later
+		later = []
+		var bg := Background.new()
+		bg.warm = self
+		_stage.add_child(bg)
+		return
 	for e in _trash:
 		if is_instance_valid(e[0]):
 			e[0].queue_free()
@@ -102,6 +125,15 @@ func finish() -> void:
 	if is_instance_valid(_stage):
 		_stage.queue_free()
 	Sfx.hush = false
+
+
+## Runs the background steps a couple of milliseconds a frame, then cleans up.
+class Background extends Node:
+	var warm: Warmup
+
+	func _process(_dt: float) -> void:
+		if warm.run(2.0):
+			warm.finish()
 
 
 ## Keeps a node on stage for a few frames (so it gets drawn), then frees it.
