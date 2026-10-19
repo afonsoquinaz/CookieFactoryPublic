@@ -219,7 +219,7 @@ func _today() -> void:
 
 
 func _streak_card() -> void:
-	var sub := "Serve %s tokens today to keep it going." % Fmt.num(Live.goal)
+	var sub := "Serve %s tokens today to keep it going." % Fmt.tokens(Live.goal)
 	if Live.goal_is_done:
 		sub = "Today's goal done. See you tomorrow!"
 	var v := _card("%d-day streak" % Live.streak, "flame", sub)
@@ -228,7 +228,7 @@ func _streak_card() -> void:
 	var gh := Kit.hbox(10)
 	v.add_child(gh)
 	gh.add_child(_bar(float(Live.goal_got) / maxf(1.0, Live.goal), 0.0, Live.goal_is_done))
-	gh.add_child(Kit.label("%s / %s" % [Fmt.num(mini(Live.goal_got, Live.goal)), Fmt.num(Live.goal)], 16, Kit.INK, 0))
+	gh.add_child(Kit.label("%s / %s" % [Fmt.tokens(minf(Live.goal_got, Live.goal)), Fmt.tokens(Live.goal)], 16, Kit.INK, 0))
 	# the last seven days
 	var week := Kit.hbox(6)
 	week.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -327,7 +327,7 @@ func _quests_card() -> void:
 		var ph := Kit.hbox(8)
 		qv.add_child(ph)
 		ph.add_child(_bar(float(Live.quest_progress(q)) / maxf(1.0, int(q["n"])), 0.0, q["claimed"]))
-		ph.add_child(Kit.label("%s / %s" % [Fmt.num(Live.quest_progress(q)), Fmt.num(int(q["n"]))], 14, Kit.MUTED, 0))
+		ph.add_child(Kit.label("%s / %s" % [Live.quest_num(q, Live.quest_progress(q)), Live.quest_num(q, float(q["n"]))], 14, Kit.MUTED, 0))
 	# Breakthrough
 	var bh := Kit.hbox(6)
 	v.add_child(bh)
@@ -566,7 +566,7 @@ func _events() -> void:
 			for i in l.size():
 				var q: Dictionary = l[i]
 				var qd: Dictionary = LiveDefs.QUESTS[q["id"]]
-				var r := _row(qd["icon"], Live.quest_text(q), "%s / %s  ·  %s" % [Fmt.num(Live.quest_progress(q)), Fmt.num(int(q["n"])), Live.describe(Live.quest_reward(q))])
+				var r := _row(qd["icon"], Live.quest_text(q), "%s / %s  ·  %s" % [Live.quest_num(q, Live.quest_progress(q)), Live.quest_num(q, float(q["n"])), Live.describe(Live.quest_reward(q))])
 				var idx := i
 				if q["claimed"]:
 					r.add_child(Kit.glyph("check", 36, Kit.SAGE))
@@ -621,9 +621,9 @@ func _album() -> void:
 		var rid: String = r["id"]
 		var known := Game.known_recipes.has(rid)
 		var s := Live.stars(rid)
-		var served := int(Live.mastery.get(rid, 0))
+		var served := float(Live.mastery.get(rid, 0.0))
 		var next_t: int = LiveDefs.MASTERY[mini(s, LiveDefs.MASTERY.size() - 1)]
-		var row := _row("tk_" + rid, r["name"] if known else "???", ("%s tokens served  ·  next star at %s" % [Fmt.num(served), Fmt.num(next_t)]) if known else "Not served yet", Color.WHITE if known else Color(0, 0, 0, 0.45))
+		var row := _row("tk_" + rid, r["name"] if known else "???", ("%s tokens served  ·  next star at %s" % [Fmt.tokens(served), Fmt.tokens(next_t)]) if known else "Not served yet", Color.WHITE if known else Color(0, 0, 0, 0.45))
 		var st := Kit.hbox(0)
 		for i in 4:
 			st.add_child(Kit.glyph("star", 18, Kit.BRASS if i < s else Kit.LINE))

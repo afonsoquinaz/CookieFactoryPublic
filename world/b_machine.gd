@@ -1,14 +1,13 @@
 class_name MachineB
 extends Building
 ## Labs turn resources into better ones (Chip Fab, Data Refinery, Fine-Tune
-## Lab, HBM Works, RLHF Gym, Synth Lab); the Batcher batches 6 tokens of a
-## model into a batch; the Agent Studio wraps a batch into an agent run.
-## Inputs go on the left pad, results come off the right.
+## Lab, HBM Works, RLHF Gym, Synth Lab). Inputs go on the left pad, results
+## come off the right.
 
 const IN_POS := Vector3(-1.05, 0, 0.15)
 const OUT_POS := Vector3(1.05, 0, 0.15)
 
-var inputs := {}               # item (or "*") -> Holder
+var inputs := {}               # item -> Holder
 var output: Holder
 var crafting := false
 var _craft_t := 0.0
@@ -30,34 +29,23 @@ func _build() -> void:
 	ob.position = OUT_POS
 	add_child(ob)
 	var hs: Array[Holder] = []
-	if kind == "batcher" or kind == "agent_studio":
-		var h := Holder.new().setup(24, [], Holder.Layout.GRID)
-		h.accept_cat = ["token"] if kind == "batcher" else ["batch"]
-		h.grid = Vector2i(2, 2)
-		h.cell = Vector2(0.4, 0.36)
-		h.max_visible = 24
-		h.position = Vector3(0, 0.78, 0)
-		tb.add_child(h)
-		inputs["*"] = h
-		hs.append(h)
-	else:
-		var i := 0
-		var n := (def["in"] as Dictionary).size()
-		for t in def["in"]:
-			var h2 := Holder.new().setup(10, [t], Holder.Layout.GRID)
-			h2.grid = Vector2i(1, 2)
-			h2.cell = Vector2(0.42, 0.36)
-			h2.max_visible = 12
-			h2.position = Vector3((i - (n - 1) * 0.5) * 0.5, 0.78, 0)
-			tb.add_child(h2)
-			inputs[t] = h2
-			hs.append(h2)
-			var l := UI3D.label("0", 24)
-			l.position = IN_POS + Vector3((i - (n - 1) * 0.5) * 0.5, 1.45, 0.1)
-			add_child(l)
-			_labels[t] = l
-			h2.changed.connect(_update)
-			i += 1
+	var i := 0
+	var n := (def["in"] as Dictionary).size()
+	for t in def["in"]:
+		var h2 := Holder.new().setup(10, [t], Holder.Layout.GRID)
+		h2.grid = Vector2i(1, 2)
+		h2.cell = Vector2(0.42, 0.36)
+		h2.max_visible = 12
+		h2.position = Vector3((i - (n - 1) * 0.5) * 0.5, 0.78, 0)
+		tb.add_child(h2)
+		inputs[t] = h2
+		hs.append(h2)
+		var l := UI3D.label("0", 24)
+		l.position = IN_POS + Vector3((i - (n - 1) * 0.5) * 0.5, 1.45, 0.1)
+		add_child(l)
+		_labels[t] = l
+		h2.changed.connect(_update)
+		i += 1
 	output = Holder.new().setup(10, [], Holder.Layout.GRID)
 	output.grid = Vector2i(2, 2)
 	output.cell = Vector2(0.42, 0.36)
@@ -95,8 +83,8 @@ func _visual(root: Node3D, t: int) -> void:
 
 func _on_level() -> void:
 	for t in inputs:
-		inputs[t].capacity = Bal.batcher_in_cap(level) if t == "*" else Bal.machine_in_cap(level)
-	output.capacity = Bal.batcher_out_cap(level) if kind in ["batcher", "agent_studio"] else Bal.machine_out_cap(level)
+		inputs[t].capacity = Bal.machine_in_cap(level)
+	output.capacity = Bal.machine_out_cap(level)
 	_update()
 
 
@@ -110,12 +98,7 @@ func _update() -> void:
 
 
 func craft_time() -> float:
-	var base := 0.0
-	match kind:
-		"batcher": base = Bal.batch_time(level)
-		"agent_studio": base = Bal.agent_time(level)
-		_: base = Bal.craft_time(kind, level)
-	return base / staff_mult()
+	return Bal.craft_time(kind, level) / staff_mult()
 
 
 func staff_mult() -> float:
@@ -124,21 +107,6 @@ func staff_mult() -> float:
 
 ## What to make next: [consume {item: n}, produce [items]] or [].
 func _recipe_ready() -> Array:
-	if kind == "batcher":
-		var h: Holder = inputs["*"]
-		var counts := {}
-		for t in h.items:
-			counts[t] = int(counts.get(t, 0)) + 1
-		for t in counts:
-			if counts[t] >= Bal.BATCH_SIZE:
-				return [{t: Bal.BATCH_SIZE}, ["b:" + Defs.recipe_of(t)]]
-		return []
-	if kind == "agent_studio":
-		var h2: Holder = inputs["*"]
-		if h2.count() > 0:
-			var t2 := h2.items[0]
-			return [{t2: 1}, ["a:" + Defs.recipe_of(t2)]]
-		return []
 	for t in def["in"]:
 		if inputs[t].count() < int(def["in"][t]):
 			return []
@@ -156,7 +124,7 @@ func _process(dt: float) -> void:
 		var r := _recipe_ready()
 		if not r.is_empty() and output.space() >= (r[1] as Array).size():
 			for t in r[0]:
-				var src: Holder = inputs.get(t, inputs.get("*"))
+				var src: Holder = inputs[t]
 				for i in int(r[0][t]):
 					src.take(t)
 			_pending.assign(r[1])
@@ -188,8 +156,6 @@ func _process(dt: float) -> void:
 func _missing() -> String:
 	if output.space() <= 0:
 		return ""
-	if kind == "batcher" or kind == "agent_studio":
-		return ""
 	for t in def["in"]:
 		if inputs[t].count() < int(def["in"][t]):
 			return t
@@ -218,7 +184,7 @@ func need(t: String) -> float:
 		var h: Holder = inputs[k]
 		if h.can_accept(t):
 			var f := float(h.count()) / maxf(1.0, h.capacity)
-			return (1.0 - f) * 0.8 if k != "*" else (1.0 - f) * 0.9
+			return (1.0 - f) * 0.8
 	return 0.0
 
 
@@ -239,9 +205,6 @@ func load_contents(d: Dictionary) -> void:
 
 
 func status() -> String:
-	match kind:
-		"batcher": return "6 tokens of a model -> 1 batch (+25% value)"
-		"agent_studio": return "1 batch -> 1 agent run (+60% value)"
 	var a := []
 	for t in def["in"]:
 		a.append("%d %s" % [int(def["in"][t]), Defs.item_name(t).to_lower()])
@@ -255,7 +218,7 @@ func info() -> Array:
 	var out := [["clock", "One batch every %.1fs" % craft_time()]]
 	for t in inputs:
 		var h: Holder = inputs[t]
-		out.append([Defs.item_icon(t) if t != "*" else ("token" if kind == "batcher" else "batch"), "In: %d / %d" % [h.count(), h.capacity]])
+		out.append([Defs.item_icon(t), "In: %d / %d" % [h.count(), h.capacity]])
 	out.append(["storage", "Out: %d / %d" % [output.count(), output.capacity]])
 	var engs := Game.workers_with("engineer", uid)
 	if engs > 0:
@@ -267,17 +230,7 @@ func info() -> Array:
 
 func upgrade_info() -> Array:
 	var n := level + 1
-	var now := 0.0
-	var nxt := 0.0
-	match kind:
-		"batcher":
-			now = Bal.batch_time(level)
-			nxt = Bal.batch_time(n)
-		"agent_studio":
-			now = Bal.agent_time(level)
-			nxt = Bal.agent_time(n)
-		_:
-			now = Bal.craft_time(kind, level)
-			nxt = Bal.craft_time(kind, n)
+	var now := Bal.craft_time(kind, level)
+	var nxt := Bal.craft_time(kind, n)
 	return [["Time", "%.2fs" % now, "%.2fs" % nxt],
 		["Holds", str(Bal.machine_in_cap(level)), str(Bal.machine_in_cap(n))]]

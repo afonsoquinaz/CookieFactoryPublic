@@ -1,9 +1,11 @@
 class_name Goals
 extends Control
-## Guides the player, lightly. Three first hints (upgrade the server, finish
-## a short job free, open Build); after that it stays out of the way and only
-## speaks up when something is wrong (a building without a road, a server
-## missing an ingredient). What to build and upgrade is the player's call.
+## Guides the player, lightly. A few first hints (tap the server to tune it,
+## upgrade it, finish a short job free, look at the Market, open Build);
+## after that it stays out of the way and only speaks up when something
+## holds the empire back (a building without a road, a server without power,
+## demand far beyond capacity, full gateways). What to build and upgrade is
+## the player's call.
 ## A goal card sits under the top bar, a brass pin bobs over the place to
 ## look at in the world (an edge arrow when it's off screen) and a pulsing
 ## pointer marks the button to press.
@@ -121,44 +123,67 @@ func _evaluate() -> void:
 	var server := _first("server") as ServerB
 	match Game.tutorial_step:
 		0:
-			if server == null or server.level >= 2 or not Game.job_of(server.uid).is_empty():
+			if server == null or server.tune >= 0.25 or server.level >= 2:
 				_advance()
 				return
 			_look(server)
-			if not hud.selected is ServerB:
-				_goal("Couriers bring power to your garage server and tokens to the API van. Tap the server!", "server", _top(server))
-			elif Game.money < Bal.upgrade_cost("server", 1):
-				_goal("The API van is selling your first tokens...", "van")
-			else:
-				_goal("Upgrade it: a builder makes it faster.", "hammer", null, hud.actions.find("upgrade"))
+			_goal("Customers call your API and your garage server answers with Pico 1B. Tap it to tune it!", "server", _top(server))
 		1:
+			if server == null or server.level >= 2 or not Game.job_of(server.uid).is_empty():
+				_advance()
+				return
+			if not hud.selected is ServerB:
+				_goal("Every token answered is paid. Tap the server again...", "server", _top(server))
+			elif Game.money < Bal.upgrade_cost("server", 1):
+				_goal("Saving up: upgrades add GPU slots and faster kernels.", "coin")
+			else:
+				_goal("Upgrade it: room for a GPU, and it serves faster.", "hammer", null, hud.actions.find("upgrade"))
+		2:
 			if server == null or server.level >= 2 or Game.job_of(server.uid).is_empty():
 				_advance()
 				return
 			_goal("Jobs with 30 s or less left finish free. Tap the timer!", "builder", _top(server))
-		2:
-			if hud.get("_sheet") is BuildPanel or Game.buildings.size() > 7:
+		3:
+			if hud.get("_sheet") is MarketPanel or Game.buildings.size() > 9:
 				_advance()
 				return
-			_goal("Build whatever you like: sources, labs, a café... You decide where to invest!", "hammer", null, hud.btn_build)
+			_goal("Tap your tokens up top: the Market shows what customers want and what you can serve.", "gateway", null, hud.get("_token_chip"))
+		4:
+			if hud.get("_sheet") is BuildPanel or Game.buildings.size() > 9:
+				_advance()
+				return
+			_goal("Grow it your way: a Chip Fab for GPUs, more servers, gateways for customers... Open Build!", "hammer", null, hud.btn_build)
 		_:
 			_free_goal()
 
 
-## Only problems: a building without a road, a server missing a resource,
-## and the Megacluster while it's being built.
+## Only problems: a building without a road, a server missing power or
+## coolant, the market's biggest bottleneck, and the Megacluster while it's
+## being built.
 func _free_goal() -> void:
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
 			_goal("%s has no road: clear the space in front of its entrance." % n.def["name"], "lock", _top(n))
 			return
 	for n2 in world.bnodes.values():
-		if n2 is ServerB and (n2 as ServerB).chosen() != "":
+		if n2 is ServerB and not n2 is SiteB:
 			var m := (n2 as ServerB).missing()
-			if not m.is_empty():
+			if not m.is_empty() and Game.count_of(Defs.producer_of(m[0])) == 0:
 				var p := Defs.producer_of(m[0])
-				_goal("A server needs %s: build a %s, or set it to Auto." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2))
+				_goal("A server needs %s: build a %s." % [Defs.item_name(m[0]).to_lower(), Defs.BUILDINGS[p]["name"]], m[0], _top(n2))
 				return
+	for n3 in world.bnodes.values():
+		if n3 is ServerB and not n3 is SiteB and (n3 as ServerB).offline and (n3 as ServerB).level >= 2:
+			_goal("A server is out of power: more Solar Farms, or more couriers to carry the cells.", "power", _top(n3))
+			return
+	var cap := Market.total(Market.cap)
+	var dem := Market.total(Market.demand)
+	if cap > 0.0 and dem > cap * 2.0 and Game.count_of("fab") == 0 and Game.level >= 2:
+		_goal("Customers want twice what you can answer. A Chip Fab makes GPUs: couriers slot them into servers.", "gpu")
+		return
+	if Market.bandwidth > 0.0 and Market.used_bw >= Market.bandwidth * 0.98 and Game.level >= 3 and Game.count_of("gateway") < 2:
+		_goal("Your API Gateway is full: build another, or rack fiber spools on it.", "gateway", _top(_first("gateway")))
+		return
 	if Game.count_of("mega") > 0 and not Game.won:
 		var pal := _first("mega") as MegaB
 		if pal:

@@ -17,6 +17,13 @@ static func num(v: float) -> String:
 	return s + txt + units[u]
 
 
+## Thousands of tokens (the game's unit) as real tokens: 1.5 -> "1.5K".
+static func tokens(k: float) -> String:
+	if k * 1000.0 < 1.0:
+		return "0"
+	return num(k * 1000.0)
+
+
 static func time(sec: float) -> String:
 	var s := int(ceil(sec))
 	if s < 60:

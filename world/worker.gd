@@ -4,7 +4,9 @@ extends Node3D
 ##   courier  asks the World's broker for the most useful delivery ("6 power
 ##           cells from the Solar Farm to the server"), walks there along the
 ##           roads, loads up at the entrance, delivers, repeats.
-##   engineer stands at their server or lab and works it.
+##   engineer works their lab; at a server they walk its GPU trays tapping
+##           each one (tuning it, see ServerB.tap). Engineers with no post
+##           patrol whichever server needs tuning most.
 ## Staff with nothing to do rest on the Staff Cabins' benches.
 
 enum S { DECIDE, GO_TAKE, TAKING, GO_GIVE, GIVING, WAIT, REST, STATION }
@@ -346,17 +348,63 @@ func _rest(dt: float) -> void:
 ## Engineers stand in front of their machine and work it.
 func _station(dt: float) -> void:
 	var b: Building = world.building(int(data.get("target", 0)))
+	if b == null or not (b is ServerB or b is MachineB):
+		b = _patrol_target()
 	if b == null:
 		state = S.REST
+		_timer = 3.0
+		return
+	if b is ServerB:
+		_tune(b as ServerB, dt)
 		return
 	var spot := b.to_world(-0.3 + fmod(float(data["id"]) * 0.7, 1.2), 0.45)
-	if b is ServerB:
-		spot = b.to_world(ServerB.CORE_X - 1.2 + fmod(float(data["id"]) * 0.7, 1.4), 0.4)
 	var to := spot - global_position
 	to.y = 0
 	if to.length() > 0.15:
 		_walk_point(spot, dt)
 	else:
 		ch.move_speed = 0.0
-		ch.work = "scoop"
+		ch.work = "type"
 		ch.face(b.inward(), dt, 5.0)
+
+
+var _spot_i := 0
+var _tap_t := 0.0
+var _patrol_uid := 0
+
+
+## The server (built, not under construction) that needs tuning most.
+func _patrol_target() -> Building:
+	var cur: Building = world.building(_patrol_uid) if _patrol_uid > 0 else null
+	if cur is ServerB and (cur as ServerB).tune < 0.9:
+		return cur
+	var best: Building = null
+	var bt := 2.0
+	for n in world.bnodes.values():
+		if n is ServerB and not n is SiteB:
+			var t: float = (n as ServerB).tune + n.global_position.distance_to(global_position) * 0.004
+			if t < bt:
+				bt = t
+				best = n
+	_patrol_uid = best.uid if best else 0
+	return best
+
+
+## Walk to a tray, tap away at it for a moment, move on to the next.
+func _tune(s: ServerB, dt: float) -> void:
+	var spot := s.tune_spot(_spot_i)
+	var to := spot - global_position
+	to.y = 0
+	if to.length() > 0.2:
+		_walk_point(spot, dt)
+		_tap_t = 0.0
+		return
+	ch.move_speed = 0.0
+	ch.work = "type"
+	ch.face(s.to_world(0, ServerB.BUS_Z) - global_position, dt, 6.0)
+	_tap_t += dt * Game.speed_mult()
+	if _tap_t >= 1.6:
+		_tap_t = 0.0
+		s.tap(Bal.TUNE_ENGINEER, spot + Vector3(0, 1.3, 0))
+		_spot_i = (_spot_i + 1 + randi() % 2) % maxi(1, s.trays())
+		ch.work = ""

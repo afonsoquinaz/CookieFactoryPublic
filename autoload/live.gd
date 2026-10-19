@@ -37,7 +37,7 @@ var loaded := false
 var profile := {}
 var day := -1                               # the local day the state is for
 var goal := 0
-var goal_got := 0
+var goal_got := 0.0                         # K tokens served today
 var goal_is_done := false
 var streak := 0
 var streak_best := 0
@@ -98,7 +98,7 @@ func reset_state() -> void:
 	profile = {"name": "Garage Lab", "logo": 0, "id": _new_id(), "joined": now(), "referral": ""}
 	day = -1
 	goal = 0
-	goal_got = 0
+	goal_got = 0.0
 	goal_is_done = false
 	streak = 0
 	streak_best = 0
@@ -245,7 +245,7 @@ func _new_day(d: int) -> void:
 	day = d
 	ref_income = maxf(1.0, income_hint)
 	goal = LiveDefs.daily_goal(Game.token_rate(), Game.level)
-	goal_got = 0
+	goal_got = 0.0
 	goal_is_done = false
 	day_counts = {}
 	rerolled = false
@@ -269,20 +269,20 @@ func track(metric: String, n: float, arg := "") -> void:
 	counters[metric] = float(counters.get(metric, 0.0)) + n
 	match metric:
 		"tokens":
-			_tokens(int(n))
+			_tokens(n)
 		"served":
-			mastery[arg] = int(mastery.get(arg, 0)) + int(n)
+			mastery[arg] = float(mastery.get(arg, 0.0)) + n
 		"upgrades", "orders", "builds":
 			add_bp(2 if metric == "upgrades" else 5)
 	changed.emit()
 
 
-func _tokens(n: int) -> void:
+func _tokens(n: float) -> void:
 	goal_got += n
 	if not goal_is_done and goal_got >= goal:
 		_reach_goal()
 	# benchmark points: about 20 for a day's goal worth of tokens
-	_bp_acc += float(n) / maxf(1.0, goal / 20.0)
+	_bp_acc += n / maxf(1.0, goal / 20.0)
 	if _bp_acc >= 1.0:
 		var p := int(_bp_acc)
 		_bp_acc -= p
@@ -386,16 +386,19 @@ func _quest(id: String) -> Dictionary:
 ## Whether a quest makes sense for the empire as it is.
 func quest_ok(id: String) -> bool:
 	match id:
-		"batches": return Game.count_ready("server") > 0
+		"installs": return Game.count_ready("server") > 0
+		"tunes": return Game.count_ready("server") > 0
+		"train": return Game.count_ready("trainer") > 0
+		"launch": return Game.count_ready("launchpad") > 0
 		"cafe": return Game.count_ready("cafe") > 0
 		"contracts": return Game.count_ready("desk") > 0
 		"trend": return Game.trending != "" and Game.known_recipes.has(Game.trending)
 		"clear": return _owned_obstacle()
-		"van": return Game.count_ready("van") > 0
+		"gateway": return Game.count_ready("gateway") > 0
 		"research": return Game.level >= 2
 		"hire": return Game.can_hire()
 		"overclock": return Game.level >= 3
-		"agents": return Game.count_ready("agent_studio") > 0
+		"agents": return Game.count_ready("agent_hub") > 0
 		"upgrade5": return Game.buildings.size() >= 6
 	return true
 
@@ -409,7 +412,14 @@ func _owned_obstacle() -> bool:
 
 
 func quest_text(q: Dictionary) -> String:
-	return LiveDefs.QUESTS[q["id"]]["text"] % Fmt.num(int(q["n"]))
+	return LiveDefs.QUESTS[q["id"]]["text"] % quest_num(q, float(q["n"]))
+
+
+## A quest's amount as text (tokens shown as real tokens).
+func quest_num(q: Dictionary, v: float) -> String:
+	if LiveDefs.QUESTS[q["id"]]["metric"] in ["tokens", "trend_tokens", "sales", "agents"]:
+		return Fmt.tokens(v)
+	return Fmt.num(v)
 
 
 func quest_progress(q: Dictionary) -> int:
@@ -1154,7 +1164,7 @@ func redeem(code: String) -> String:
 
 func invite_text() -> String:
 	return "I'm running %s in Token Empire: %s tokens served, Lab level %d, a %d-day streak. Join me and enter my code %s for a gift!" % [
-		profile["name"], Fmt.num(int(Game.stats["tokens"])), Game.level, streak, friend_code()]
+		profile["name"], Fmt.tokens(float(Game.stats["tokens"])), Game.level, streak, friend_code()]
 
 
 # ---------------------------------------------------------------- badges for the HUD
@@ -1217,7 +1227,7 @@ func from_dict(d: Dictionary) -> void:
 		profile[k] = d["profile"][k]
 	day = int(d.get("day", -1))
 	goal = int(d.get("goal", 0))
-	goal_got = int(d.get("goal_got", 0))
+	goal_got = float(d.get("goal_got", 0.0))
 	goal_is_done = bool(d.get("goal_done", false))
 	streak = int(d.get("streak", 0))
 	streak_best = int(d.get("best", 0))
@@ -1248,7 +1258,7 @@ func from_dict(d: Dictionary) -> void:
 		badges[k] = int(badges[k])
 	mastery = d.get("mastery", {})
 	for k in mastery:
-		mastery[k] = int(mastery[k])
+		mastery[k] = float(mastery[k])
 	mastery_claimed = d.get("mastery_claimed", {})
 	for k in mastery_claimed:
 		mastery_claimed[k] = int(mastery_claimed[k])

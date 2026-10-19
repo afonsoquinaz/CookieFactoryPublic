@@ -2,9 +2,9 @@
 
 A 3D idle base-builder about the AI supply chain, made in **Godot 4.7** (GDScript, Mobile renderer, portrait). It's a complete remake of Cookie Empire: tokens instead of cookies.
 
-You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny local model with 15 ms latency, powered by a small Solar Farm. Couriers carry power cells along the roads to the **Inference Server**, it serves Pico 1B, and the API van drives down the High Street to sell the tokens. From there you grow the whole AI supply chain: crawl the web for data, chill coolant, pull silicon crystals, mine copper and rare earths, and pay people for code, labels, feedback, research and expert data. Your labs turn those into GPUs, datasets, fine-tunes, HBM memory, reward models and synthetic data. With them you serve 17 models, from Pico 1B up to **Frontier 1T**. Nothing is locked; only money and builders decide where you invest. After about two weeks, crown your lab with the **AGI Megacluster**.
+You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny local model with 15 ms latency, powered by a small Solar Farm. Tokens aren't things you make and carry: **customers call your API**, your servers answer as fast as their GPUs allow, and every token answered is paid on the spot. The more servers you run, and the bigger they are, the more you can sell. From there you grow the whole AI supply chain and infrastructure: crawl the web for data, chill coolant, pull silicon, mine copper and rare earths, and pay people for code, labels, feedback, research and expert data. Your labs turn those into **GPUs and HBM** (couriers slot them into your servers) and **training data** (your Training Cluster turns it into new models). You serve 17 models, from Pico 1B up to **Frontier 1T**, sell through API Gateways, a Chat Café, enterprise contracts, Edge PoPs and Agent Hubs, and finally **launch servers into orbit**. Nothing is locked; only money and builders decide where you invest. After about two weeks, crown your lab with the **AGI Megacluster**. The full design is in [DESIGN.md](DESIGN.md).
 
-**Goal:** serve more tokens. Your **Lab level** (15 levels, from Garage Lab to AGI Pioneer) grows with every token you serve, and the HUD counts tokens served and tokens per second.
+**Goal:** serve more tokens. Your **Lab level** (15 levels, from Garage Lab to AGI Pioneer) grows with every token you serve, and with it the whole market for AI. The HUD shows tokens served, tokens per second and how loaded your servers are; tap it for the Market.
 
 **Look:** a clean, toy-like tech campus on an endless landscape with four regions: Tech Valley, Sun Desert, Cold North and Mining Hills. White panels, graphite racks, glass request buses, teal and cyan glow and soft LED light, staffed by cute toy couriers, technicians, engineers and builders. Every building has five looks as it levels up: the server goes from a garage rig to a server closet, a white server room, a steel data hall and a graphite hyperscale hall. In between, buildings gain props: crates, planters, lamps, server cabinets, cable reels and glowing token plinths.
 
@@ -15,7 +15,10 @@ All 3D art is procedural low-poly (`world/mesh_kit.gd` and the `*_art.gd` files)
 | | |
 |---|---|
 | Look around | drag to slide the land, pinch (or mouse wheel) to zoom |
-| A building | tap it: it lights up and its actions appear (Info, Upgrade, Model, Staff, Move, Finish) |
+| A building | tap it: it lights up and its actions appear (Info, Upgrade, Model, Tune, Train, Market, Staff, Move, Finish) |
+| A server | tap it again and again: every tap tunes it (up to +50%, fading slowly), like its engineers do |
+| Market | tap your tokens (top of the screen): demand, capacity, bandwidth, reputation, and your price for each model |
+| Sparks | tap your sparks for the shop |
 | Build | **Build**, pick a card. The building appears on the nearest free spot, facing the High Street, with its road previewed. Slide the land to move it, **Rotate**, **Place** |
 | Timers | the floating timer over anything being built. Under 30 seconds it says FREE: tap it |
 | Obstacles | tap a bush, e-waste pile, old container or boulder to clear it. Many hide sparks |
@@ -52,31 +55,42 @@ All 3D art is procedural low-poly (`world/mesh_kit.gd` and the `*_art.gd` files)
 | Synth Lab | 1 expert data + 2 web data | 1 synthetic data |
 
 ### The Inference Server
-One building holds a whole serving stack: a Request Router, a glass request bus, module bays and a GPU Core.
-- Couriers fill the power dock and the module bays.
-- Request packets flow down the bus, stop under each module their model needs for a dose (taking on its colour), and the GPU core puts a batch of tokens on the bench.
-- **Model** picks what it serves. **Auto** always serves the best model your sources and labs can feed.
-- Every 3 levels add a module bay (up to 7), so bigger models need a bigger server. Each extra server costs a lot more than the last.
+One building holds a whole serving stack: a Request Router, a glass request bus, GPU trays over it, an HBM shelf and a GPU Core.
+- **Requests come in, tokens go out.** Customers' API calls arrive as glowing packets at the router, run down the bus under the GPU trays into the core, and a stream of tokens leaves through the vent. The busier the server, the more packets.
+- **Accelerators.** It comes with a garage graphics card. Couriers bring **GPUs** from the Chip Fab and slot them into the trays: two slots to start, one more every two levels, up to 20. **HBM stacks** (HBM Works) go on the shelf: one slot every three levels, up to 12.
+- **Memory decides what it can run.** The card has 12 GB, each GPU adds 80 GB and each HBM stack 40 GB. A model needs its VRAM: Pico 1B 2 GB, Chat 7B 16 GB, a 70B model 150 GB, Frontier 1T 1,800 GB (20 GPUs and 5 HBM stacks).
+- **Power and cooling.** Every accelerator burns power cells while it serves: no power, no tokens. Real GPUs run hot and throttle to 60% without coolant.
+- **Wear.** Under load a GPU fails now and then (about once every three hours): its board goes dark until a courier brings a new one.
+- **Tuning.** Engineers walk the trays tapping them, and so can you: up to +50% throughput, fading slowly.
+- **Model** picks what it serves (it shows each model's VRAM, what this server would serve and what customers want). **Auto** picks the model that earns most with the demand still unserved.
 
 ### Models
-17 models, each with a size, a latency and a token price: Pico 1B, Mini 3B, Chat 7B, Chat 13B, Wiki 13B, Code 13B, Tool 30B, Vision 70B, Assist 70B, Code 70B, Aligned 70B, Long 120B, Reason 200B, Sage 400B, Omni 400B, Expert MoE and Frontier 1T. Frontier 1T needs seven resources (data, coolant, GPUs, fine-tunes, research, reward models and HBM) and a server with seven bays.
+17 models, each with a size, VRAM, speed per GPU, latency and price: Pico 1B, Mini 3B, Chat 7B (open weights: download them), and Chat 13B, Wiki 13B, Code 13B, Tool 30B, Vision 70B, Assist 70B, Code 70B, Aligned 70B, Long 120B, Reason 200B, Sage 400B, Omni 400B, Expert MoE and Frontier 1T (train them yourself). Bigger models answer fewer tokens per GPU but sell for more, so each one earns more per GPU than the last. Tool 30B and up can run agents.
 
-**Packing:** the Batcher batches 6 tokens into a response (+25%); the Agent Studio wraps a batch into an agent run (+60%).
+**The Training Cluster** trains them: couriers bring the data a model needs (datasets, code, labels, fine-tunes, research, reward models, synthetic data, expert data...) and its GPUs do the compute, from 10 minutes of GPU time for Chat 13B to 200,000 GPU-seconds for Frontier 1T (slot more GPUs into it). Models go stale as rivals ship better ones (quality drops toward 70%); a **refresh** run brings them back up to 150%. Auto trains the next model whose data you make.
 
-### Selling
-- **API Depot**: the API van drives out of its depot onto the High Street and off to town, sells the load, and comes back. In the depot a turntable turns it around.
-- **Chat Café**: visitors stroll in to chat with your models and pay 30% more. Decor nearby brings more of them.
-- **Enterprise Desk**: contracts pay big rewards plus **sparks**.
-- **Hyperloop Station**: a pod takes huge loads to the city, +15%.
-- **Drone Port**: cargo drones fly agent runs around the world: agents sell for double.
-- **Trending models**: one model is trending and sells for more, changing every 15 minutes.
+### Customers: the market
+Every model has its own demand (in tokens per second): the more AI catches on (your Lab level), the more customers, multiplied by your channels, your reputation, the model's quality, its latency and your price. Each model serves what its servers can answer; what leaves the campus has to fit through your gateways' bandwidth; the rest of the demand is lost.
+- **API Gateway**: brings developers' calls (+60% customers, more each level) and carries the traffic. Couriers rack fiber spools (Fiber Hub) on it for more bandwidth.
+- **Chat Café**: visitors sit down and chat live with your fastest model, phone in hand, and pay 30% more (snappy models up to 25% on top). They leave if the answers stop coming. Decor nearby brings more of them.
+- **Enterprise Desk**: contracts ("serve 4.5M tokens of Code 13B") add their own demand at 1.2x and pay a big bonus plus **sparks** when served in full.
+- **Edge PoP**: every model answers 25 ms sooner, and more customers find you.
+- **Agent Hub**: AI agents run long jobs on tool-capable models and pay double; its robots trundle around the plaza.
+- **Price**: in the Market, set each model's price from 0.5x to 2x. Customers are price-sensitive (demand x price^-1.6), so dearer earns more per token but loses customers.
+- **Latency** rises steeply as servers fill up, and slow answers lose customers. **Reputation** falls when you're swamped and climbs back when you keep up.
+- **Trending models**: one model is trending: twice the customers, and they pay more. It changes every 15 minutes.
+
+### Space
+- **Launch Complex**: couriers bring an orbital module's parts to its three assembly bays (24 GPUs, 8 HBM stacks, 60 power cells). Then the rocket rolls out, counts down and launches. The pad needs a while to turn around.
+- **In orbit** each module adds 48 accelerators serving the best model that fits (2,240 GB): free solar power, radiative cooling, no wear, but 80 ms further away. The station floats in the sky over the pad, one module more per launch.
+- **Ground Stations** downlink it: orbit serves only as much as they can carry (their beams pulse with the traffic).
 
 ### Staff
 | Role | Look | Job |
 |---|---|---|
-| Courier | blue jacket and cap, hand truck | carries everything along the roads: resources, tokens, contracts |
+| Courier | blue jacket and cap, hand truck | carries everything along the roads: resources, GPUs, HBM, fiber, training data, rocket parts |
 | Technician | hi-vis vest, safety helmet, wrench | works one source faster |
-| Engineer | hoodie, headphones, laptop | works one server or lab faster |
+| Engineer | hoodie, headphones, laptop | on a server: walks its GPU trays tapping each one (tuning it); on a lab: works it faster. Engineers without a post patrol the server that needs it most |
 | Builder | orange overalls, hard hat, hammer | builds and upgrades (one per Builder's Hut) |
 
 Everyone you hire starts as a courier. On a source, server or lab, **Staff > +** turns a courier into its technician or engineer. One courier always stays a courier. Staff Housing decides how many people you can house.
@@ -114,23 +128,24 @@ The town changes as the Lab levels up. A card announces each new era, and the ne
 The ground shader blends the looks with an `era` uniform. Building lots are written into the road texture, so paving follows your buildings. Street props and the far-off sprawl are streamed MultiMeshes, like the trees.
 
 ### Progression
-- **Research** (money): Scaling Laws (every token sells for more), E-Scooters and Cargo Carts for couriers, Prefab Modules (faster builds), Employer Brand (hiring), Low-Latency Routing (vehicles return sooner), Hype Machine (trending models), Autoscaling (offline hours), Overclocking, Zoning Permits.
+- **Research** (money): Scaling Laws (every token sells for more), KV Cache (servers serve more), Developer Relations (more customers), Speculative Decoding (lower latency), Profiling Tools (tuning counts more), E-Scooters and Cargo Carts for couriers, Prefab Modules (faster builds), Employer Brand (hiring), Hype Machine (trending models), Autoscaling (offline hours), Overclocking, Zoning Permits.
 - **Perks** (sparks): Brand Moat, Supply Deals, Team Spirit, Continuous Batching, Sales Team, Liquid Cooling.
 - **Overclock**: everything runs at 2x for a while.
 - **Offline**: builders keep building, and your servers keep earning for a few hours.
-- **The AGI Megacluster** ($200M): five stages (Groundbreaking, Power Plant, Cooling Halls, GPU Halls, The Core). Each stage needs Frontier 1T tokens delivered, a big payment and many hours of building. Finishing The Core wins the game.
+- **The AGI Megacluster** ($200M): five stages (Groundbreaking, Power Plant, Cooling Halls, GPU Halls, The Core). Each stage needs Frontier 1T tokens served to customers since the last stage (anywhere: API, café, contracts, agents, orbit), a big payment and many hours of building. Finishing The Core wins the game.
 
 ### Every day: streaks, quests, leagues, seasons
 A layer around the empire that gives you a reason to come back, borrowed from games that are good at it: a Duolingo-style streak, Pokémon GO's daily research and community events, and Clash Royale's crates and season pass. The **Today** button (right edge) opens Lab HQ, and its red dot counts what's waiting.
 
 - **Daily goal and streak.** Serve about ten minutes' worth of tokens a day to keep the flame lit (the chip under your money). Miss a day and a **Streak Freeze** covers it (hold up to two; 10 sparks each, or free at 7 and 30 days). Lose a streak anyway and you can **repair** it for sparks the same day or the next. Milestones at 3, 7, 14, 30, 50, 100, 150, 200 and 365 days bring sparks, crates and, at 30, the **Eternal Flame**. The chip pulses in the evening if today's goal is still open.
-- **Daily quests.** Three a day (easy, medium, hard), picked from what makes sense for your empire: serve tokens, upgrade, welcome café visitors, finish contracts, sell the trending model, ship van loads, research, hire... One free swap a day. Finishing all three gives a Supply Crate and a **Breakthrough** stamp; seven stamps (not necessarily in a row) open a Breakthrough: a GPU Crate and, the first time, the **Quantum Core**.
+- **Daily quests.** Three a day (easy, medium, hard), picked from what makes sense for your empire: serve tokens, serve through the API, install GPUs, tune servers, upgrade, welcome café visitors, finish contracts, sell the trending model, train a model, launch a module, serve agents, research, hire... One free swap a day. Finishing all three gives a Supply Crate and a **Breakthrough** stamp; seven stamps (not necessarily in a row) open a Breakthrough: a GPU Crate and, the first time, the **Quantum Core**.
 - **Daily bonus.** A gift for opening the lab each day, on a 7-day loop that ends in a Server Crate. Missing a day doesn't reset it.
 - **Crates.** Supply (3 h), Server (8 h), GPU (12 h) and Lab (24 h) crates sit in four slots and unlock one at a time, so it's worth starting one before you leave. Open early for sparks. Inside: money in proportion to your income, sparks, **Time Warps** (15 min / 1 h off a builder's job, from the job's action bar), **Overclock Charges** (skip the cooldown) and Streak Freezes. A crate that arrives with full slots waits in the inbox.
 - **Benchmark League.** A weekly race (Monday to Sunday) against 29 rival AI labs, from Bronze through Silver, Gold, Sapphire, Ruby, Emerald, Amethyst, Pearl and Obsidian to Diamond. Points come from tokens served, quests, your daily goal, upgrades, contracts and Lab levels. The top 7 move up, the bottom 5 move down; the top 3 win crates (and the first time, the **Benchmark Trophy**). You join a week by earning a point in it. The rival labs are simulated, fixed for each week, with their own rhythms (and the odd lab that never shows up).
 - **Lab Pass.** A season each calendar month with its own theme. Quests, daily goals, the daily bonus and Breakthroughs earn Pass points; 30 tiers, a free track (the **Neon Token Sign** at tier 10) and a premium track for 120 sparks (the **Hologram Assistant** at 15, a Lab Crate at 30). Rewards you didn't claim go to the inbox when the season ends.
 - **Events**, on your local calendar so every player shares them: **Spotlight Hour** (Tuesdays 18:00-19:00, one model sells for 3x), **Hackathon Weekend** (builds and upgrades started at the weekend take 25% less time), **Community Day** (the second Saturday of the month, 14:00-17:00: tokens sell for 2x, triple Pass points and three special quests for the **Liquid-Cooled Fountain**), **Launch Week** (research 20% cheaper) and **Final Push** (double Pass points in a season's last two days). A banner shows what's on.
 - **Album.** 13 badges with five tiers each (sparks per tier), and mastery stars for every model: serve 100, 1K, 10K and 100K of its tokens for sparks and +2% on its price per star. Models you haven't served show as silhouettes.
+- **Sparks shop.** Tap your sparks: spark packs (80 to 7,000), a one-time **Starter Pack** (400 sparks, three 1-hour Time Warps and a Lab Crate), and the **Spark Exchange**, which trades money for 10 sparks up to five times a day (dearer each time). Packs are sold through Google Play Billing on Android and StoreKit on iOS (`autoload/store.gd`; add the Play Billing plugin / InAppStore plugin to the export and create the product ids from `Store.PACKS` and `starter`). Where there's no store (desktop, the web demo) the shop says so honestly and only the Exchange works. A production release should also validate receipts on a server.
 - **Me.** Name your lab and pick its colour (it's how you appear in the League), share your friend code (a friend who enters it gets a welcome gift), share an invite or a snapshot of your lab with a stats banner, see your records, and choose your reminders.
 - **Reminders.** When you leave, the game plans a few nudges: builders done, a crate unlocked, earnings at their cap, your streak at 19:30 if today's goal is open, tomorrow's quests at 9:00, an event starting, the League's last evening, a note after three days away. At most one of each, none between 22:00 and 08:00 (unless you turn quiet hours off), each kind can be switched off. On the web they use the browser's notifications (allow them in Me > Reminders) and fire while the tab stays open; Android and iOS exports use a local-notification plugin if there is one (a `LocalNotification` singleton with `show()` and `cancel_all()`).
 - **Coming back** after three days or more brings a welcome-back gift (bigger after two weeks).
@@ -143,8 +158,11 @@ Everything works offline. The daily layer saves in its own file next to the game
 ```
 boot.gd/.tscn        emblem + loading bar; warms up every mesh, shader and panel (render/warmup.gd), then fades in
 main.gd/.tscn        World + HUD; dev flags (--demo, --showcase, --bot, --shot, --tour ...)
+autoload/market.gd   the inference market: capacity, demand per model and channel, serving, bandwidth, prices,
+                     reputation, latency, quality, the orbit (ticks 4x a second)
 autoload/game.gd     state: money, sparks, tokens served, the Lab level, game clock, buildings, builder jobs,
-                     land, obstacles, research, perks, staff, contracts, save/load and time away
+                     land, obstacles, research, perks, staff, contracts, save/load (v1 saves migrate) and time away
+autoload/store.gd    the sparks shop: Play Billing / StoreKit, packs, Starter Pack, Spark Exchange
 autoload/live.gd     the daily layer: streak, quests, login bonus, crates, boosters, badges, mastery,
                      Benchmark League, Lab Pass, events, inbox, profile (own save file)
 autoload/notifier.gd plans reminders and hands them to the browser or a mobile plugin
@@ -161,16 +179,17 @@ world/
   terrain.gd         endless ground (regions, land, roads), streamed decor, For Sale signs
   camera_rig.gd      free pan / zoom camera with a little glide
   building.gd        base for everything placeable (footprint, entrance, ports, tiers, save)
-  b_server.gd  b_source.gd  b_machine.gd (labs, Batcher, Agent Studio)  b_storage.gd  b_vehicle.gd
-  b_cafe.gd  b_desk.gd  b_dorm.gd  b_hut.gd  b_site.gd  b_decor.gd  b_mega.gd
-  server_art.gd  source_art.gd  stations.gd  lab_art.gd  sales_art.gd  town_art.gd  previews.gd   (the looks)
+  b_server.gd  b_source.gd  b_machine.gd (labs)  b_storage.gd  b_trainer.gd  b_channel.gd (gateway, edge,
+  agent hub, ground station)  b_launch.gd  b_cafe.gd  b_desk.gd  b_dorm.gd  b_hut.gd  b_site.gd  b_decor.gd  b_mega.gd
+  orbit_view.gd      the orbital datacenter in the sky and its downlink beams
+  server_art.gd  source_art.gd  stations.gd  lab_art.gd  infra_art.gd  town_art.gd  previews.gd   (the looks)
   growth.gd          the gear buildings gain level by level (slots, schedule, roof heights)
   growth_parts.gd    that gear: cabinets, GPU crates, chillers, dishes, screens... in four grades
   growth_tops.gd     generated roof heights for roof gear (dev/tops.tscn --write)
-  items.gd           resources, tokens, batches and agent runs
+  items.gd           resources (and token coins for icons and signs)
   holder.gd  animal.gd (crawler bots, drones, ore carts)  character.gd  worker.gd  builder.gd  tech_worker.gd  customer.gd
-ui/                  title menu, HUD, action bar, job timers, placement, build / building / model / staff /
-                     research / settings panels, Lab HQ (live_panel.gd), sharing (share.gd), goals (tutorial)
+ui/                  title menu, HUD, action bar, job timers, placement, build / building / model / training /
+                     market / shop / staff / research / settings panels, Lab HQ (live_panel.gd), sharing, goals (tutorial)
 render/              toon, ground, glass, belt shaders; warmup.gd
 assets/              icons (rendered), UI skins, audio (synthesized), fonts (OFL)
 tests/               headless logic tests + the autopilot bot
@@ -180,7 +199,7 @@ dev/                 art bench (every building x 5 tiers), icon renderer, screen
 
 **Adding content is mostly data:**
 - **A building** is a row in `Defs.BUILDINGS` (price, growth, build time, optional limit), plus a `Building` subclass (or an existing one) and its art in the matching `*_art.gd`.
-- **A model** is a row in `Defs.RECIPES` and `Defs.MODEL_LOOK`; its icon `tk_<id>` is rendered by `tools/icons.sh`.
+- **A model** is a row in `Defs.RECIPES` (VRAM, speed, price, demand, open-weights price or training data and compute) and `Defs.MODEL_LOOK`; its icon `tk_<id>` is rendered by `tools/icons.sh`.
 - **A resource** is a row in `Defs.ITEMS`, a mesh in `Items.resource_into`, and a source (with a station in `Stations`) or a lab that makes it.
 - **Research or a perk** is a row in `Bal.RESEARCH` / `Bal.PERKS`, read with `Game.research(id)` / `Game.perk(id)`.
 
@@ -193,8 +212,8 @@ tools/test.sh                    # headless tests (data, balance, game state, bu
 tools/bot.sh 60                  # the autopilot plays 60 game-minutes (fixed-step, faster than real time)
 tools/icons.sh                   # render every icon from the game's models (tools/icons.sh gpu tk_pico for some)
 tools/shot.sh res://main.tscn out.png -- --demo
-tools/shot.sh res://dev/bench.tscn out.png -- --kinds=server,van --spacing=12 --tiers=0,2,4   # looks side by side
-tools/shot.sh res://dev/bench.tscn out.png -- --kinds=van --levels=1,3,5,14,40                # looks + level gear
+tools/shot.sh res://dev/bench.tscn out.png -- --kinds=server,gateway --spacing=12 --tiers=0,2,4   # looks side by side
+tools/shot.sh res://dev/bench.tscn out.png -- --kinds=gateway --levels=1,3,5,14,40                # looks + level gear
 RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --kind=server --levels=1,3,6,10,20,40   # one building, many levels
 RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --parts=floor --tier=2                # every gear part in its grades
 godot --headless --path . res://dev/tops.tscn -- --write                                          # regenerate roof heights
@@ -202,39 +221,42 @@ godot --headless --path . res://dev/tops.tscn -- --write                        
 
 Dev flags (after `--`):
 - `--fresh` starts a new game.
-- `--demo` loads a mid-game empire.
+- `--demo` loads a mid-game empire; `--demo --space` adds a Launch Complex, Ground Stations and four modules in orbit.
 - `--era=0..4` jumps to an era (sets the Lab level it starts at), e.g. `--demo --era=4 --zoom=2.2`.
 - `--showcase` places every building, `--showcase --tier=4` at its top look, `--top` at its top level with all its gear.
 - `--place=src_coolant` opens the placement mode.
 - `--select=server` selects a building (`--info` also opens its card); `--recipes` opens the model picker.
-- `--panel=build|staff|research|settings` opens a panel; `--panel=today|league|pass|events|album|me` opens Lab HQ on that tab.
+- `--panel=build|staff|research|settings|market|shop` opens a panel; `--panel=today|league|pass|events|album|me` opens Lab HQ on that tab.
 - `--days=N` moves the daily layer's clock N days ahead.
 - `--tut=N` jumps to a tutorial step; `--tour=<dir>` plays the opening and saves a screenshot per step.
 - `--title` shows the title menu in screenshots.
 - `--perf` prints render stats.
 - `--wdbg` prints worker and building states.
-- `--hitch` runs every common action and prints its cost and the slowest frame after it; `--boottime` (on the boot scene) times the loading screen; `--film=<dir> --van` saves a screenshot sequence of the van's trip.
+- `--hitch` runs every common action and prints its cost and the slowest frame after it; `--boottime` (on the boot scene) times the loading screen; `--film=<dir>` saves a screenshot sequence.
+- `--store-sandbox` (debug builds) completes shop purchases at once, for free, to test the shop.
 
 ## Pacing
 
 The game is tuned for about **two weeks**, base-builder style. Nothing is locked, so money paces the first hours; after that builder timers do. Upgrades take seconds for the first levels (finish them free), minutes in the middle and up to eight hours at the top, and you have at most five builders. Timers keep running while you're away.
 
-The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful player who never spends sparks on timers or huts). The Lab level counts tokens served, and its thresholds are set so it keeps Cookie Empire's tested pacing; time away counts too (your servers keep serving):
+The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful player who never spends sparks on timers, taps a server every few seconds and nudges prices when servers are full or idle). The Lab level counts tokens served; time away counts too (your servers keep serving):
 
 | Milestone | Play time |
 |---|---|
-| First sale | about 30 s |
-| Serving Mini 3B | about 1 min |
+| First tokens answered | about 10 s |
 | Lab level 2 | about 2 min |
-| Lab level 3 | about 5 min |
-| Serving Chat 7B | about 8 min |
-| Lab level 4 | about 14 min |
-| Serving Chat 13B | about 18 min |
-| Lab level 5 | about 21 min |
-| Lab level 6 | about 30 min |
-| Lab level 8 | about 77 min |
+| Lab level 3 | about 3 min |
+| Mini 3B downloaded, Lab level 4 | about 14 min |
+| First GPU slotted into a server | about 15 min |
+| Lab level 5 | about 18 min |
+| First model of your own trained (Chat 13B) | about 21 min |
+| Lab level 6 | about 21 min |
+| Lab level 8 | about 45 min |
+| Code 13B trained | about 47 min |
 
-The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T token deliveries.
+Demand always runs ahead of what you can serve (AI adoption grows with every Lab level), so there's always a reason to add GPUs, servers and gateways, or to raise prices.
+
+The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T tokens served.
 
 ## Export
 

@@ -1,14 +1,23 @@
 class_name ServerB
 extends Building
-## The Inference Server: a whole serving stack in one building. Couriers
-## drop power cells in the dock by the Router and fill the module bays; the
-## Router sends a request packet into the glass bus, it stops under each bay
-## its model needs for a dose (growing and changing colour), then flows into
-## the GPU Core, which puts a batch of tokens on the bench in front for
-## couriers to take.
-##
-## You choose the model (or leave it on Auto: the best one you can feed).
-## Every 3 levels adds a module bay, so bigger models need a bigger server.
+## The Inference Server (see DESIGN.md). It loads one model and answers API
+## calls with it: request packets come in at the Router, run down the glass
+## bus past the GPU trays and into the core, and the tokens stream back out
+## to the network. How much it serves is up to the Market (customers) and
+## its capacity:
+##   accelerators  the garage card it comes with, plus up to 20 GPUs that
+##                 couriers slot into the trays over the bus (more trays as
+##                 it levels)
+##   memory        a model needs VRAM: 12 GB on the card, 80 GB per GPU,
+##                 40 GB per HBM stack (the shelf by the core)
+##   power         every accelerator burns power cells while it serves;
+##                 no power, no tokens
+##   coolant       real GPUs run hot: without coolant they throttle to 60%
+##   tune          engineers walk the trays and tap them (so can you): up
+##                 to +50%, fading over time
+## GPUs wear out under load: a dead board goes dark until a courier brings
+## a new one. You choose the model, or leave it on Auto (the one that earns
+## most with the demand that's left).
 
 const W := 10.0
 const D := 6.0
@@ -20,35 +29,40 @@ const CORE_X := 3.5
 const DOCK_POS := Vector3(-3.9, 0, 1.2)
 const BENCH_POS := Vector3(3.3, 0, 1.0)
 const BAY_GAP := 0.68
+const PER_TRAY := 3
 
-var cells: Holder
-var bench: Holder
-var bays := {}                # resource -> Holder
+var cells: Holder              # power cells (dock)
+var coolant: Holder            # coolant (bench)
+var gpu_in: Holder             # GPUs on their way into a tray
+var hbm_in: Holder             # HBM on its way onto the shelf
 var recipe := "pico"
-var queue := 0
-var packets: Array[Dictionary] = []   # {s, stops, wait, node, mat, got, dosing}
+var load_now := 0.0            # share of capacity in use (Market)
+var last_cap := 0.0            # K tokens/s it could serve last tick
+var tune := 0.0                # 0..1
+var throttled := false
+var offline := false
+var packets: Array[Dictionary] = []   # {s, node}
 var _spawn_cd := 0.0
-var _infer_t := 0.0
 var _glow: OmniLight3D
-var _puff_t := 0.0
 var _fan: Node3D
 var _spin := 0.0
 var _bay_root: Node3D
-var _bay_nodes := {}          # resource -> Node3D (for the dose squash)
+var _hbm_node: MeshInstance3D
 var _make_label: Label3D
 var _make_icon: Sprite3D
-var _bench_label: Label3D
+var _rate_label: Label3D
+var _tune_label: Label3D
 var _vent := Vector3.ZERO
-var _bay_x := {}              # resource -> local x
-var _inited := false
 var _recheck := 0.0
-var _starve := 0.0
-var _blocked := {}            # model -> game time until Auto won't pick it
-var _avail := 1.0             # how often the inputs were there lately (0..1)
-var _on_recipe := 0.0         # seconds on the current model
 var _want: Node3D
 var _want_icon := ""
-var _built_slots := 0
+var _pw := 0.0                 # energy left from the last power cell
+var _cl := 0.0                 # cooling left from the last coolant
+var _wear := 0.0
+var _earn := 0.0
+var _earn_t := 0.0
+var _stream_t := 0.0
+var _shown := ""
 
 
 func _build() -> void:
@@ -65,13 +79,23 @@ func _build() -> void:
 	var tr := Node3D.new()
 	tr.position = BENCH_POS
 	add_child(tr)
-	bench = Holder.new().setup(18, [], Holder.Layout.GRID)
-	bench.grid = Vector2i(3, 2)
-	bench.cell = Vector2(0.4, 0.38)
-	bench.max_visible = 36
-	bench.position = Vector3(0, 0.78, 0)
-	tr.add_child(bench)
-	add_port(bench, null, "out")
+	coolant = Holder.new().setup(10, ["coolant"], Holder.Layout.GRID)
+	coolant.grid = Vector2i(3, 2)
+	coolant.cell = Vector2(0.4, 0.38)
+	coolant.max_visible = 12
+	coolant.position = Vector3(0, 0.78, 0)
+	tr.add_child(coolant)
+	add_port(coolant, null, "in")
+	gpu_in = Holder.new().setup(1, ["gpu"], Holder.Layout.NONE)
+	gpu_in.position = Vector3(-0.7, ServerArt.Y + 1.2, BUS_Z)
+	add_child(gpu_in)
+	gpu_in.landed.connect(_install_gpu)
+	add_port(gpu_in, null, "in")
+	hbm_in = Holder.new().setup(1, ["hbm"], Holder.Layout.NONE)
+	hbm_in.position = Vector3(CORE_X, 3.0, BUS_Z)
+	add_child(hbm_in)
+	hbm_in.landed.connect(_install_hbm)
+	add_port(hbm_in, null, "in")
 	_bay_root = Node3D.new()
 	add_child(_bay_root)
 	_glow = OmniLight3D.new()
@@ -86,14 +110,20 @@ func _build() -> void:
 	_make_label = UI3D.label("", 34)
 	_make_label.position = Vector3(CORE_X - 0.3, 5.0, BUS_Z)
 	add_child(_make_label)
-	_bench_label = UI3D.label("", 28)
-	_bench_label.position = BENCH_POS + Vector3(0, 1.55, 0)
-	add_child(_bench_label)
+	_rate_label = UI3D.label("", 26, Color(0.7, 0.96, 1.0))
+	_rate_label.position = Vector3(CORE_X - 0.3, 3.85, BUS_Z + 0.2)
+	add_child(_rate_label)
+	_tune_label = UI3D.label("", 24, Color(1.0, 0.86, 0.5))
+	_tune_label.position = Vector3(-0.7, ServerArt.Y + 2.5, BUS_Z)
+	add_child(_tune_label)
 	var wb := UI3D.badge("power", Pal.STEEL_DARK, 0.55)
 	wb.position = DOCK_POS + Vector3(0, 1.6, 0)
 	add_child(wb)
-	bench.changed.connect(_update_labels)
+	var cb := UI3D.badge("coolant", Pal.STEEL_DARK, 0.5)
+	cb.position = BENCH_POS + Vector3(0, 1.6, 0)
+	add_child(cb)
 	cells.changed.connect(_update_labels)
+	coolant.changed.connect(_update_labels)
 
 
 func solid_rects() -> Array[Rect2]:
@@ -120,7 +150,6 @@ func _visual(root: Node3D, t: int) -> void:
 	belt.position = Vector3((BUS_X0 + BUS_X1) * 0.5, ServerArt.Y - 0.44, BUS_Z)
 	belt.material_override = ServerArt.belt_material()
 	root.add_child(belt)
-	# the router and its spinning fan (ServerArt pieces sit 1 m behind their origin)
 	Mats.inst(MeshKit.cached("router_%d" % t, func(): return ServerArt.router(t)), root, MeshKit.at(ROUTER_X, 0, BUS_Z - ServerArt.TZ))
 	_fan = Node3D.new()
 	_fan.position = Vector3(ROUTER_X + (0.35 if t == 0 else 0.0), ServerArt.fan_y(t), BUS_Z + (0.0 if t != 0 else -0.1))
@@ -129,61 +158,133 @@ func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("power_dock_%d" % t, func(): return ServerArt.power_dock(t)), root, MeshKit.at(DOCK_POS.x, 0, DOCK_POS.z))
 	Mats.inst(MeshKit.cached("core_%d" % t, func(): return ServerArt.core(t)), root, MeshKit.at(CORE_X, 0, BUS_Z - ServerArt.TZ))
 	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return ServerArt.bench(t)), root, MeshKit.at(BENCH_POS.x, 0, BENCH_POS.z))
+	_hbm_node = Mats.inst(null, root, MeshKit.at(BENCH_POS.x, 0.8, BENCH_POS.z - 0.25))
 	var vt := ServerArt.vent_top(t)
 	_vent = Vector3(CORE_X + vt.x, vt.y, BUS_Z - ServerArt.TZ + vt.z)
+	_shown = ""
 	_build_bays()
 
 
 func _on_level() -> void:
 	cells.capacity = Bal.power_cap(level)
-	bench.capacity = Bal.bench_cap(level)
-	for k in bays:
-		bays[k].capacity = Bal.bay_cap(level)
-	_pick_recipe()
+	coolant.capacity = Bal.coolant_cap(level)
+	_build_bays()
+	_pick_recipe(true)
+
+
+# ---------------------------------------------------------------- hardware
+
+func gpus() -> int:
+	return int(data.get("gpus", 0))
+
+
+func dead() -> int:
+	return int(data.get("dead", 0))
+
+
+func hbm() -> int:
+	return int(data.get("hbm", 0))
+
+
+func gpu_slots() -> int:
+	return Bal.gpu_slots(level)
+
+
+func hbm_slots() -> int:
+	return Bal.hbm_slots(level)
+
+
+## Working accelerators (the garage card plus live GPUs).
+func accels() -> float:
+	return Bal.garage_accel(level) + gpus()
+
+
+func vram() -> float:
+	return Bal.GARAGE_VRAM + gpus() * Bal.GPU_VRAM + hbm() * Bal.HBM_VRAM
+
+
+func _install_gpu(t: String) -> void:
+	gpu_in.take(t)
+	if dead() > 0:
+		data["dead"] = dead() - 1
+	if gpus() + dead() < gpu_slots():
+		data["gpus"] = gpus() + 1
+	Game.track("installs")
+	_build_bays()
+	_pick_recipe(true)
+	if is_inside_tree():
+		Fx.burst(get_tree().current_scene, to_world(_tray_x(gpus() - 1), BUS_Z, ServerArt.Y + 1.2), Color(0.5, 1.0, 0.6), 10, false)
+		UI3D.pop_text(get_tree().current_scene, to_world(_tray_x(gpus() - 1), BUS_Z, ServerArt.Y + 2.4), "GPU installed!", Color(0.6, 1.0, 0.7), 46)
+	Sfx.play("upgrade", -8.0, 1.2)
+	bump(0.04)
+
+
+func _install_hbm(t: String) -> void:
+	hbm_in.take(t)
+	if hbm() < hbm_slots():
+		data["hbm"] = hbm() + 1
+	Game.track("installs")
+	_build_bays()
+	_pick_recipe(true)
+	if is_inside_tree():
+		UI3D.pop_text(get_tree().current_scene, to_world(BENCH_POS.x, BENCH_POS.z, 2.2), "+40 GB HBM", Color(0.6, 0.86, 1.0), 44)
+	Sfx.play("upgrade", -8.0, 1.3)
+
+
+## x of tray holding GPU i.
+func _tray_x(i: int) -> float:
+	var n := trays()
+	var mid := (BUS_X0 + BUS_X1) * 0.5 + 0.2
+	var tray := clampi(i / PER_TRAY, 0, n - 1)
+	return mid + (tray - (n - 1) * 0.5) * BAY_GAP
+
+
+func trays() -> int:
+	return clampi(int(ceil(gpu_slots() / float(PER_TRAY))), 1, 7)
+
+
+## GPU trays over the bus (installed boards light up) and the HBM shelf.
+func _build_bays() -> void:
+	if _bay_root == null:
+		return
+	var sig := "%d_%d_%d_%d_%d" % [gpus(), dead(), hbm(), level, tier]
+	if sig == _shown:
+		return
+	_shown = sig
+	for c in _bay_root.get_children():
+		c.queue_free()
+	var n := trays()
+	var left := gpus()
+	var broken := dead()
+	var slots := gpu_slots()
+	var mid := (BUS_X0 + BUS_X1) * 0.5 + 0.2
+	for i in n:
+		var cap_here := mini(PER_TRAY, slots - i * PER_TRAY)
+		var live := mini(left, cap_here)
+		left -= live
+		var dd := mini(broken, cap_here - live)
+		broken -= dd
+		var node := Node3D.new()
+		node.position = Vector3(mid + (i - (n - 1) * 0.5) * BAY_GAP, ServerArt.Y + 0.47, BUS_Z)
+		_bay_root.add_child(node)
+		var mesh := MeshKit.cached("gpu_tray_%d_%d_%d" % [live + dd, dd, tier], func(): return ServerArt.gpu_tray(live + dd, dd, tier))
+		Mats.inst(mesh, node, MeshKit.xf(Vector3.ZERO, Vector3.ZERO, Vector3(0.62, 0.62, 0.62)))
+	if _hbm_node:
+		var hs := hbm_slots()
+		_hbm_node.mesh = MeshKit.cached("hbm_shelf_%d_%d_%d" % [hbm(), hs, tier], func(): return ServerArt.hbm_shelf(hbm(), hs, tier)) if hs > 0 else null
+	gpu_in.capacity = 1 if gpus() + dead() < slots or dead() > 0 else 0
+	hbm_in.capacity = 1 if hbm() < hbm_slots() else 0
 
 
 # ---------------------------------------------------------------- model
 
-func slots() -> int:
-	return Defs.server_slots(level)
-
-
-## Models this server could serve (enough bays for their resources).
+## Models this server can load (enough VRAM).
 func choices() -> Array[String]:
 	var out: Array[String] = []
-	for r in Defs.RECIPES:
-		if (r["ings"] as Array).size() <= slots():
-			out.append(r["id"])
+	for rid in Game.known_list():
+		if float(Defs.recipe(rid)["vram"]) <= vram():
+			out.append(rid)
 	return out
-
-
-## The best model whose resources the empire makes right now and has in
-## stock (Auto steps back down for a while if a model starves it).
-func auto_recipe() -> String:
-	var best := "pico"
-	var best_p := 0.0
-	var now := Game.clock
-	for id in choices():
-		var r := Defs.recipe(id)
-		if float(_blocked.get(id, 0.0)) > now:
-			continue
-		var ok := true
-		for i in r["ings"]:
-			# stick with the current model; only move up when the stock is there
-			if not Game.can_make(i) or (id != recipe and not _in_stock(i)):
-				ok = false
-				break
-		if ok and float(r["price"]) > best_p:
-			best_p = float(r["price"])
-			best = id
-	return best
-
-
-## Some of this resource is around (in our bay, or anywhere in the empire).
-func _in_stock(i: String) -> bool:
-	if bays.has(i) and (bays[i] as Holder).count() > 0:
-		return true
-	return world != null and world.stock(i) >= 6
 
 
 func chosen() -> String:
@@ -193,190 +294,203 @@ func chosen() -> String:
 ## Sets the model ("" = Auto).
 func choose(id: String) -> void:
 	data["recipe"] = id
-	_pick_recipe()
+	_pick_recipe(true)
 	Game.save_game()
 
 
-func _pick_recipe() -> void:
+## K tokens/s it would serve of a model at full load.
+func capacity_for(rid: String) -> float:
+	var r := Defs.recipe(rid)
+	if r.is_empty() or float(r["vram"]) > vram():
+		return 0.0
+	var c := accels() * float(r["tps"]) * Bal.server_eff(level) * (1.0 + Bal.TUNE_BONUS * tune) * compute_mult() * Game.speed_mult()
+	if throttled and gpus() > 0:
+		c *= Bal.THROTTLE
+	return c
+
+
+## Auto: the model that earns most with the demand still unserved.
+func auto_recipe() -> String:
+	var best := "pico"
+	var best_v := -1.0
+	for rid in choices():
+		var c := capacity_for(rid)
+		var v := minf(c, Market.headroom(rid, self)) * Market.token_price(rid)
+		if rid == recipe:
+			v *= 1.15     # don't flip-flop
+		if v > best_v:
+			best_v = v
+			best = rid
+	return best
+
+
+func _pick_recipe(force := false) -> void:
 	var want := chosen()
 	if want == "" or not choices().has(want):
 		want = auto_recipe()
-	if want != recipe or not _inited or _built_slots != slots():
-		_inited = true
-		if want != recipe:
-			_on_recipe = 0.0
-			_avail = 1.0
+	if want != recipe or force:
 		recipe = want
-		_rebuild_bay_holders()
-		_build_bays()
 	_update_labels()
 
 
-func ings() -> Array:
-	return Defs.recipe(recipe)["ings"]
+## What the Market can count on this tick (K/s); 0 when it's offline.
+func capacity() -> float:
+	offline = cells.count() == 0 and _pw <= 0.0
+	last_cap = 0.0 if offline else capacity_for(recipe)
+	return last_cap
 
 
-func _rebuild_bay_holders() -> void:
-	var keep := {}
-	for i in ings():
-		keep[i] = true
-	# resources the new model doesn't use go back to a Supply Depot
-	for k in bays.keys():
-		if not keep.has(k):
-			var h: Holder = bays[k]
-			var back := h.items.duplicate()
-			h.queue_free()
-			bays.erase(k)
-			_return_to_store(back)
-	for i in ings():
-		if not bays.has(i):
-			var h2 := Holder.new().setup(Bal.bay_cap(level), [i], Holder.Layout.NONE)
-			add_child(h2)
-			bays[i] = h2
-			h2.changed.connect(_update_labels)
-	ports = ports.filter(func(p): return p["holder"] == cells or p["holder"] == bench)
-	for i in ings():
-		add_port(bays[i], null, "in")
+func set_load(u: float) -> void:
+	load_now = clampf(u, 0.0, 1.0)
 
 
-func _return_to_store(items: Array) -> void:
-	if world == null or items.is_empty():
+## Money it just made (for the "+$" pop now and then).
+func earned(m: float) -> void:
+	_earn += m
+
+
+## A tap on the server: an engineer's (small) or yours (bigger).
+func tap(amount: float, at := Vector3.INF) -> void:
+	tune = minf(1.0, tune + amount * Bal.tune_mult())
+	Game.track("tunes")
+	if not is_inside_tree():
 		return
-	for n in world.bnodes.values():
-		if n is StorageB and (n as StorageB).store.can_accept(str(items[0])):
-			for t in items:
-				if (n as StorageB).store.space() > 0:
-					(n as StorageB).store.add(str(t), false)
-			return
+	var p := at if at != Vector3.INF else to_world(_tray_x(randi() % maxi(1, gpu_slots())), BUS_Z, ServerArt.Y + 1.0)
+	Fx.burst(get_tree().current_scene, p, Color(1.0, 0.86, 0.4), 6, false)
+	_spin = 1.0
+	bump(0.015)
 
 
-## Module meshes over the bus: one per bay; used ones show their resource.
-func _build_bays() -> void:
-	if _bay_root == null:
-		return
-	for c in _bay_root.get_children():
-		c.queue_free()
-	_bay_nodes.clear()
-	_bay_x.clear()
-	var n := slots()
-	_built_slots = n
-	var used := ings()
-	var mid := (BUS_X0 + BUS_X1) * 0.5 + 0.2
-	for i in n:
-		var x := mid + (i - (n - 1) * 0.5) * BAY_GAP
-		var ing: String = used[i] if i < used.size() else ""
-		var node := Node3D.new()
-		node.position = Vector3(x, ServerArt.Y + 0.47, BUS_Z)
-		_bay_root.add_child(node)
-		var s := 0.62
-		var mesh := MeshKit.cached("bay_%s_%d" % [ing if ing != "" else "empty", tier], func(): return ServerArt.module(ing, tier))
-		Mats.inst(mesh, node, MeshKit.xf(Vector3.ZERO, Vector3.ZERO, Vector3(s, s, s)))
-		if ing != "" and bays.has(ing):
-			var b := UI3D.badge(ing, Pal.STEEL_DARK, 0.42)
-			b.position = Vector3(0, ServerArt.module_top(tier) * s + 0.25, 0)
-			node.add_child(b)
-			_bay_nodes[ing] = node
-			_bay_x[ing] = x
-			var h: Holder = bays[ing]
-			h.position = node.position + Vector3(0, 0.8, 0)
+## Where engineers stand to tap a tray (world).
+func tune_spot(i: int) -> Vector3:
+	return to_world(_tray_x((i * PER_TRAY) % maxi(1, gpu_slots())), BUS_Z + 0.95)
 
 
 # ---------------------------------------------------------------- simulation
 
 func _process(dt: float) -> void:
 	super(dt)
-	# Auto picks up new sources and labs as soon as they're ready
 	_recheck -= dt
 	if _recheck <= 0.0:
-		_recheck = 1.5
+		_recheck = 3.0
 		_pick_recipe()
-	var mult := Game.speed_mult() * staff_mult()
+	# power and coolant drain with load; GPUs wear
+	var work := load_now * dt
+	_pw -= accels() * work * Bal.POWER_PER_ACCEL
+	while _pw <= 0.0 and cells.has("power"):
+		cells.take("power")
+		_pw += 1.0
+	if _pw < 0.0:
+		_pw = 0.0
+	if gpus() > 0:
+		_cl -= gpus() * work * Bal.COOLANT_PER_GPU
+		while _cl <= 0.0 and coolant.has("coolant"):
+			coolant.take("coolant")
+			_cl += 1.0
+		throttled = _cl <= 0.0
+		if _cl < 0.0:
+			_cl = 0.0
+		_wear += gpus() * work * Bal.GPU_FAIL
+		if _wear >= 1.0:
+			_wear -= 1.0
+			_gpu_fails()
+	else:
+		throttled = false
+	tune = maxf(0.0, tune - Bal.TUNE_DECAY * dt)
+	# the router fan and the request packets: as busy as the server
+	var busy := load_now * last_cap
 	_spin = maxf(0.0, _spin - dt * 0.8)
 	if _fan:
-		_fan.rotation.y += dt * (2.0 + _spin * 18.0)
-	var spd := Bal.bus_speed(level) * mult
-	var len := BUS_X1 - BUS_X0
-	_spawn_cd -= dt * mult
-	var room: bool = packets.is_empty() or packets[packets.size() - 1]["s"] > Bal.PACKET_GAP + 0.4
-	var has := _has_inputs()
-	if room and _spawn_cd <= 0.0 and packets.size() < 10 and has:
-		_spawn_cd = Bal.router_interval(level)
-		_consume()
+		_fan.rotation.y += dt * (2.0 + load_now * 12.0 + _spin * 10.0)
+	_spawn_cd -= dt
+	if busy > 0.0 and _spawn_cd <= 0.0 and packets.size() < 12:
+		_spawn_cd = clampf(1.2 / (0.4 + busy * 2.0), 0.18, 2.5)
 		_spawn_packet()
-	_starve = 0.0 if has else _starve + dt
-	_on_recipe += dt
-	var ready := has or bench.space() < batch() or packets.size() >= 3
-	_avail = lerpf(_avail, 1.0 if ready else 0.0, clampf(dt / 45.0, 0.0, 1.0))
-	if chosen() == "" and recipe != "pico" and _on_recipe > 60.0 and (_avail < 0.35 or _starve > 90.0):
-		# Auto: this model's supply can't keep up; serve something else for a while
-		_blocked[recipe] = Game.clock + 300.0
-		_starve = 0.0
-		_pick_recipe()
-	_show_want(_missing_input() if _starve > 3.0 and packets.is_empty() else "")
-	for i in packets.size():
-		var d: Dictionary = packets[i]
-		var stop := len
-		if i > 0:
-			stop = minf(stop, packets[i - 1]["s"] - Bal.PACKET_GAP)
-		if d["wait"] > 0.0:
-			d["wait"] -= dt * mult
-			if d["wait"] <= 0.0:
-				_dose_land(d)
-		else:
-			var st := _next_stop(d)
-			if st >= 0.0 and d["s"] >= st - 0.02:
-				d["s"] = st
-				_dose(d)
-			elif d["s"] < stop:
-				var lim := stop if st < 0.0 else minf(stop, st)
-				d["s"] = minf(lim, d["s"] + spd * dt)
+	var spd := 2.2 + load_now * 2.0
+	var len := BUS_X1 - BUS_X0
+	for d in packets:
+		d["s"] = minf(len, float(d["s"]) + spd * dt)
 		var n: Node3D = d["node"]
 		n.position = Vector3(BUS_X0 + d["s"], ServerArt.Y - 0.36 + sin(_t * 6.0 + float(d["s"]) * 3.0) * 0.03, BUS_Z)
-		n.rotation.y = d["s"] * 2.0
-	while not packets.is_empty() and (packets[0]["stops"] as Array).is_empty() and packets[0]["wait"] <= 0.0 and packets[0]["s"] >= len - 0.01 and queue < 2:
+	while not packets.is_empty() and float(packets[0]["s"]) >= len - 0.01:
 		var d0: Dictionary = packets.pop_front()
 		var node: Node3D = d0["node"]
 		var tw := node.create_tween()
-		tw.tween_property(node, "scale", Vector3(0.2, 0.2, 0.2), 0.25)
+		tw.tween_property(node, "scale", Vector3(0.15, 0.15, 0.15), 0.18)
 		tw.tween_callback(node.queue_free)
-		queue += 1
-		Sfx.play("plop", -6.0, 1.3)
-	# the GPU core
-	var busy := queue > 0
-	if busy and bench.space() >= batch():
-		_infer_t += dt * mult
-		if _infer_t >= Bal.infer_time(level):
-			_infer_t = 0.0
-			queue -= 1
-			_finish()
-	_glow.light_energy = lerpf(_glow.light_energy, (1.1 + sin(_t * 9.0) * 0.2) if busy else 0.25, clampf(dt * 3.0, 0.0, 1.0))
-	if busy:
-		_puff_t -= dt
-		if _puff_t <= 0.0 and is_inside_tree():
-			_puff_t = 0.6
-			Fx.puff(get_tree().current_scene, to_world(_vent.x, _vent.z, _vent.y), Color(0.9, 0.95, 1.0), 1)
+	_glow.light_energy = lerpf(_glow.light_energy, (0.4 + load_now * 0.9 + sin(_t * 9.0) * 0.1) if busy > 0.0 else 0.15, clampf(dt * 3.0, 0.0, 1.0))
+	# tokens streaming back out to the network
+	_stream_t -= dt
+	if busy > 0.0 and _stream_t <= 0.0 and is_inside_tree():
+		_stream_t = clampf(0.9 / (0.3 + busy), 0.12, 1.6)
+		_stream()
+	_earn_t -= dt
+	if _earn_t <= 0.0:
+		_earn_t = 3.0
+		if _earn >= 1.0 and is_inside_tree():
+			UI3D.pop_text(get_tree().current_scene, to_world(CORE_X - 0.3, BUS_Z, 5.6), "+$%s" % Fmt.num(_earn), Color(1.0, 0.88, 0.3), 54)
+		_earn = 0.0
+	if int(_t * 2.0) != int((_t - dt) * 2.0):
+		_update_labels()
+	_show_want(_blocker_icon())
 
 
-func _has_inputs() -> bool:
-	if cells.count() <= 0:
-		return false
-	for i in ings():
-		if not bays.has(i) or (bays[i] as Holder).count() <= 0:
-			return false
-	return true
+func _gpu_fails() -> void:
+	if gpus() <= 0:
+		return
+	data["gpus"] = gpus() - 1
+	data["dead"] = dead() + 1
+	Game.track("gpu_failures")
+	_build_bays()
+	_pick_recipe(true)
+	if is_inside_tree():
+		var p := to_world(_tray_x(gpus()), BUS_Z, ServerArt.Y + 1.0)
+		Fx.puff(get_tree().current_scene, p, Color(0.35, 0.35, 0.38), 8)
+		UI3D.pop_text(get_tree().current_scene, p + Vector3(0, 1.2, 0), "GPU failed!", Color(1.0, 0.6, 0.5), 44)
+	Sfx.play("deny", -10.0, 0.8)
 
 
-## The first input that's run out ("" if none).
-func _missing_input() -> String:
-	if cells.count() <= 0:
+func _spawn_packet() -> void:
+	var n := Node3D.new()
+	add_child(n)
+	n.position = Vector3(BUS_X0, ServerArt.Y - 0.36, BUS_Z)
+	var mi := Mats.inst(MeshKit.cached("request_packet", func():
+		var k := MeshKit.new()
+		k.sphere(0.2, Color(1, 1, 1, 0.55), MeshKit.at(0, 0.24, 0), 14, 10)
+		k.torus(0.24, 0.025, Color(1, 1, 1, 0.8), MeshKit.xf(Vector3(0, 0.24, 0), Vector3(90, 0, 0)), 16, 4)
+		return k.commit()), n, Transform3D.IDENTITY, false)
+	var m := Mats.toon().duplicate() as ShaderMaterial
+	m.set_shader_parameter("tint", Defs.MODEL_LOOK.get(recipe, {"base": Color(0.7, 0.86, 1.0)})["base"].lightened(0.25))
+	mi.material_override = m
+	n.scale = Vector3(0.5, 0.5, 0.5)
+	packets.append({"s": 0.0, "node": n})
+
+
+## A little token rises from the core's vent and fades: tokens going back out.
+func _stream() -> void:
+	var c := Items.node("t:" + recipe)
+	get_tree().current_scene.add_child(c)
+	var p := to_world(_vent.x, _vent.z, _vent.y)
+	c.global_position = p
+	c.scale = Vector3(0.5, 0.5, 0.5)
+	var tw := c.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(c, "global_position", p + Vector3(randf_range(-0.6, 0.6), 2.6, randf_range(-0.6, 0.6)), 1.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "scale", Vector3(0.15, 0.15, 0.15), 1.1)
+	tw.chain().tween_callback(c.queue_free)
+
+
+## What's holding it back, for the bubble ("" = nothing).
+func _blocker_icon() -> String:
+	if offline:
 		return "power"
-	for i in ings():
-		if not bays.has(i) or (bays[i] as Holder).count() <= 0:
-			return i
+	if throttled and gpus() > 0:
+		return "coolant"
+	if dead() > 0:
+		return "gpu"
 	return ""
 
 
-## A bobbing bubble over the server with what it's waiting for.
 func _show_want(icon: String) -> void:
 	if icon == _want_icon:
 		if _want:
@@ -393,192 +507,72 @@ func _show_want(icon: String) -> void:
 	add_child(_want)
 
 
-func _consume() -> void:
-	cells.take("power")
-	for i in ings():
-		(bays[i] as Holder).take(i)
-	_spin = 1.0
-	bump(0.02)
-
-
-func _spawn_packet() -> void:
-	var n := Node3D.new()
-	add_child(n)
-	n.position = Vector3(BUS_X0, ServerArt.Y - 0.36, BUS_Z)
-	var mi := Mats.inst(MeshKit.cached("request_packet", func():
-		var k := MeshKit.new()
-		k.sphere(0.2, Color(1, 1, 1, 0.55), MeshKit.at(0, 0.24, 0), 14, 10)
-		k.torus(0.24, 0.025, Color(1, 1, 1, 0.8), MeshKit.xf(Vector3(0, 0.24, 0), Vector3(90, 0, 0)), 16, 4)
-		return k.commit()), n, Transform3D.IDENTITY, false)
-	var m := Mats.toon().duplicate() as ShaderMaterial
-	m.set_shader_parameter("tint", Color(0.7, 0.86, 1.0))
-	mi.material_override = m
-	n.scale = Vector3(0.6, 0.6, 0.6)
-	var stops: Array = []
-	for i in ings():
-		if _bay_x.has(i):
-			stops.append(i)
-	stops.sort_custom(func(a, b): return _bay_x[a] < _bay_x[b])
-	packets.append({"s": 0.0, "stops": stops, "node": n, "wait": 0.0, "mat": m, "got": 0, "dosing": ""})
-
-
-## Distance along the bus of the next bay this packet stops under (-1 = none).
-func _next_stop(d: Dictionary) -> float:
-	var stops: Array = d["stops"]
-	# the model may have changed since this packet left the router
-	while not stops.is_empty() and not _bay_x.has(stops[0]):
-		stops.pop_front()
-	if stops.is_empty():
-		return -1.0
-	return float(_bay_x[stops[0]]) - BUS_X0
-
-
-func _dose(d: Dictionary) -> void:
-	var ing: String = (d["stops"] as Array).pop_front()
-	d["wait"] = 0.3
-	d["dosing"] = ing
-	var node: Node3D = _bay_nodes.get(ing)
-	if node:
-		var tw := node.create_tween()
-		tw.tween_property(node, "scale", Vector3(1.06, 0.92, 1.06), 0.08)
-		tw.tween_property(node, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	var drop := Items.node(ing)
-	add_child(drop)
-	var top := Vector3(BUS_X0 + float(d["s"]), ServerArt.Y + 0.4, BUS_Z)
-	drop.position = top
-	drop.scale = Vector3(0.45, 0.45, 0.45)
-	var tw2 := drop.create_tween()
-	tw2.tween_property(drop, "position:y", ServerArt.Y - 0.2, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw2.parallel().tween_property(drop, "scale", Vector3(0.2, 0.2, 0.2), 0.25)
-	tw2.tween_callback(drop.queue_free)
-	Sfx.play("dispense", -12.0)
-
-
-func _dose_land(d: Dictionary) -> void:
-	var ing: String = d["dosing"]
-	d["got"] = int(d["got"]) + 1
-	var n: Node3D = d["node"]
-	# the packet takes on a little of each resource's colour
-	var m: ShaderMaterial = d["mat"]
-	var cur: Color = m.get_shader_parameter("tint")
-	m.set_shader_parameter("tint", cur.lerp(Defs.item_color(ing).lightened(0.25), 0.55))
-	var s := 0.6 + int(d["got"]) * 0.06
-	var tw := n.create_tween()
-	tw.tween_property(n, "scale", Vector3(s * 1.2, s * 0.84, s * 1.2), 0.08)
-	tw.tween_property(n, "scale", Vector3(s, s, s), 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	Sfx.play("plop", -14.0, 1.2 + int(d["got"]) * 0.08)
-
-
-func batch() -> int:
-	return Bal.batch_size(level) + Game.perk("bigbatch")
-
-
-func staff_mult() -> float:
-	return Bal.engineer_boost(Game.workers_with("engineer", uid)) * compute_mult()
-
-
-func _finish() -> void:
-	var item := "t:" + recipe
-	var n := batch()
-	Game.stats["batches"] = int(Game.stats["batches"]) + 1
-	Game.track("batches")
-	Game.discover(recipe)
-	Sfx.play("oven_ding", -12.0, 1.25)
-	var mouth := to_world(CORE_X - 0.25, BUS_Z + 0.95, 0.1)
-	var root := get_tree().current_scene if is_inside_tree() else null
-	for i in n:
-		if root == null:
-			bench.add(item, false)
-			continue
-		var c := Items.node(item)
-		root.add_child(c)
-		c.global_position = mouth
-		c.scale = Vector3(0.5, 0.5, 0.5)
-		bench.incoming += 1
-		var tw := c.create_tween()
-		tw.tween_interval(i * 0.06)
-		tw.tween_property(c, "global_position", mouth + Vector3(0, 0.3, 0) + global_transform.basis.z * 0.3, 0.14)
-		tw.parallel().tween_property(c, "scale", Vector3.ONE, 0.14)
-		tw.tween_property(c, "global_position", bench.next_slot_global(), 0.22).set_trans(Tween.TRANS_QUAD)
-		tw.tween_callback(func():
-			if is_instance_valid(c):
-				c.queue_free()
-			if is_instance_valid(bench):
-				bench.incoming -= 1
-				bench.add(item))
-	if root:
-		Fx.burst(root, mouth + Vector3(0, 0.3, 0), Defs.item_color(item).lightened(0.3), 6, false)
-	bump(0.02)
-
-
 func _update_labels() -> void:
 	if _make_label == null:
 		return
 	var r := Defs.recipe(recipe)
-	_make_label.text = "%s  $%s" % [r["name"], Fmt.num(Bal.item_value("t:" + recipe))]
+	_make_label.text = "%s  $%s/1K" % [r["name"], Fmt.num(Market.token_price(recipe))]
 	_make_icon.texture = Icons.tex("tk_" + recipe)
-	_bench_label.text = str(bench.count())
-	_bench_label.visible = bench.count() > 0
+	if offline:
+		_rate_label.text = "OFFLINE: no power"
+		_rate_label.modulate = Color(1.0, 0.6, 0.5)
+	else:
+		_rate_label.text = "%s tok/s  ·  %d%% busy%s" % [Fmt.tokens(last_cap * load_now), roundi(load_now * 100), "  ·  HOT" if throttled and gpus() > 0 else ""]
+		_rate_label.modulate = Color(1.0, 0.75, 0.5) if throttled and gpus() > 0 else Color(0.7, 0.96, 1.0)
+	_tune_label.text = ("Tuned +%d%%" % roundi(Bal.TUNE_BONUS * tune * 100)) if tune > 0.02 else ""
 
 
-## Wants power and its model's resources, more when running low.
+## Power and coolant: more the emptier; a free GPU or HBM slot: urgent.
 func need(t: String) -> float:
-	var h: Holder = cells if t == "power" else bays.get(t)
-	if h == null or not h.can_accept(t):
-		return 0.0
-	return (1.0 - float(h.count()) / maxf(1.0, h.capacity)) * 1.2
+	match t:
+		"power":
+			return (1.0 - float(cells.count()) / maxf(1.0, cells.capacity)) * 1.2 if cells.can_accept(t) else 0.0
+		"coolant":
+			if gpus() + dead() == 0 or not coolant.can_accept(t):
+				return 0.0
+			return (1.0 - float(coolant.count()) / maxf(1.0, coolant.capacity)) * 1.0
+		"gpu":
+			return 1.5 if gpu_in.can_accept(t) and gpu_in.incoming == 0 else 0.0
+		"hbm":
+			return 1.3 if hbm_in.can_accept(t) and hbm_in.incoming == 0 else 0.0
+	return 0.0
 
 
+## Models it can't load yet for want of memory, for hints.
 func missing() -> Array[String]:
 	var out: Array[String] = []
-	for i in ings():
-		if not Game.can_make(i):
-			out.append(i)
+	if chosen() != "" and not choices().has(chosen()):
+		out.append("gpu")
 	return out
 
 
 func save_contents() -> Dictionary:
-	var d := {"cells": cells.items.duplicate(), "bench": bench.items.duplicate(), "queue": queue}
-	for k in bays:
-		d["bay_" + k] = bays[k].items.duplicate()
-	return d
+	return {"cells": cells.items.duplicate(), "coolant": coolant.items.duplicate(), "tune": tune}
 
 
 func load_contents(d: Dictionary) -> void:
 	Building.fill(cells, d.get("cells", []))
-	Building.fill(bench, d.get("bench", []))
-	queue = int(d.get("queue", 0))
-	for k in bays:
-		Building.fill(bays[k], d.get("bay_" + k, []))
-
-
-## Tokens per minute at most (router or core, whichever is slower).
-func max_rate() -> float:
-	var router_rate := 60.0 / Bal.router_interval(level)
-	var core_rate := 60.0 / Bal.infer_time(level) * staff_mult()
-	return minf(router_rate, core_rate) * batch()
+	Building.fill(coolant, d.get("coolant", []))
+	tune = float(d.get("tune", 0.0))
 
 
 func status() -> String:
-	var m := missing()
-	if not m.is_empty():
-		return "Needs %s: build its source or lab" % Defs.item_name(m[0]).to_lower()
+	if offline:
+		return "Offline: it needs power cells"
 	var r := Defs.recipe(recipe)
-	return "Serves %s · %d ms%s" % [r["name"], int(r["lat"]), "  (Auto)" if chosen() == "" else ""]
+	return "Serves %s · %s tok/s max%s" % [r["name"], Fmt.tokens(capacity_for(recipe)), "  (Auto)" if chosen() == "" else ""]
 
 
 func info() -> Array:
 	var out := [
-		["tk_" + recipe, "%s: up to %s tokens / min" % [Defs.recipe(recipe)["name"], Fmt.num(max_rate())]],
-		["power", "Power %d / %d" % [cells.count(), cells.capacity]],
+		["tk_" + recipe, "%s: up to %s tokens/s, %d%% busy" % [Defs.recipe(recipe)["name"], Fmt.tokens(capacity_for(recipe)), roundi(load_now * 100)]],
+		["gpu", "GPUs %d / %d%s  ·  garage card x%.2f" % [gpus(), gpu_slots(), ("  (%d dead)" % dead()) if dead() > 0 else "", Bal.garage_accel(level)]],
+		["hbm", "VRAM %d GB  ·  HBM %d / %d" % [int(vram()), hbm(), hbm_slots()]],
+		["power", "Power %d / %d  ·  %.1f cells/min at full load" % [cells.count(), cells.capacity, accels() * Bal.POWER_PER_ACCEL * 60.0]],
 	]
-	for i in ings():
-		out.append([i, "%s %d / %d" % [Defs.item_name(i), bays[i].count(), bays[i].capacity]])
-	out.append(["token", "Bench %d / %d" % [bench.count(), bench.capacity]])
-	out.append(["bay", "%d module bay%s" % [slots(), "s" if slots() > 1 else ""]])
-	var engs := Game.workers_with("engineer", uid)
-	if engs > 0:
-		out.append(["engineer", "%d engineer%s: x%.1f speed" % [engs, "s" if engs > 1 else "", Bal.engineer_boost(engs)]])
+	if gpus() + dead() > 0:
+		out.append(["coolant", "Coolant %d / %d%s" % [coolant.count(), coolant.capacity, "  ·  throttling!" if throttled else ""]])
+	out.append(["engineer", "Tuned +%d%%  ·  %d engineer%s tapping" % [roundi(Bal.TUNE_BONUS * tune * 100), Game.workers_with("engineer", uid), "" if Game.workers_with("engineer", uid) == 1 else "s"]])
 	if compute_mult() > 1.0:
 		out.append(["rack_row", "Datacenter gear nearby: +%d%% speed" % roundi((compute_mult() - 1.0) * 100)])
 	return out
@@ -587,10 +581,12 @@ func info() -> Array:
 func upgrade_info() -> Array:
 	var n := level + 1
 	var out := []
-	if Defs.server_slots(n) > slots():
-		out.append(["Module bays", str(slots()), str(Defs.server_slots(n))])
-	out.append(["Request every", "%.2fs" % Bal.router_interval(level), "%.2fs" % Bal.router_interval(n)])
-	out.append(["Inference", "%.2fs" % Bal.infer_time(level), "%.2fs" % Bal.infer_time(n)])
-	if Bal.batch_size(n) > Bal.batch_size(level):
-		out.append(["Batch", str(Bal.batch_size(level)), str(Bal.batch_size(n))])
+	if Bal.gpu_slots(n) > gpu_slots():
+		out.append(["GPU slots", str(gpu_slots()), str(Bal.gpu_slots(n))])
+	if Bal.hbm_slots(n) > hbm_slots():
+		out.append(["HBM slots", str(hbm_slots()), str(Bal.hbm_slots(n))])
+	out.append(["Efficiency", "x%.2f" % Bal.server_eff(level), "x%.2f" % Bal.server_eff(n)])
+	if Bal.garage_accel(n) > Bal.garage_accel(level) + 0.001:
+		out.append(["Garage card", "x%.2f" % Bal.garage_accel(level), "x%.2f" % Bal.garage_accel(n)])
+	out.append(["Power store", str(Bal.power_cap(level)), str(Bal.power_cap(n))])
 	return out

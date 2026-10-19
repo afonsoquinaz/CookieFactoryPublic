@@ -112,7 +112,7 @@ func _refresh() -> void:
 
 
 func _recipes() -> void:
-	var tip := Kit.label("Every model needs power plus one server module bay per resource. Choose what each server serves with its Model button.", 16, Kit.MUTED, 0, false)
+	var tip := Kit.label("Download open-weight models, or train your own on a Training Cluster from the data your labs make. A server loads any model that fits its VRAM.", 16, Kit.MUTED, 0, false)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tip.custom_minimum_size.x = 400
 	body.add_child(tip)
@@ -130,18 +130,23 @@ func _recipes() -> void:
 		h.add_child(v)
 		var top := Kit.hbox(8)
 		v.add_child(top)
-		top.add_child(Kit.game(r["name"] if known else "???", 22, Kit.INK, 0))
-		top.add_child(Kit.game("$%s" % Fmt.num(Bal.item_value("t:" + r["id"])), 20, Color(0.16, 0.56, 0.5), 0))
-		if known:
-			v.add_child(Kit.label("%s params  ·  %d ms" % [r["params"], int(r["lat"])], 14, Kit.MUTED, 0, false))
-		var ings := Kit.hbox(4)
-		v.add_child(ings)
-		ings.add_child(Kit.icon("power", 30))
-		for i in r["ings"]:
-			var ii := Kit.icon(i, 30)
-			if not Game.can_make(i):
-				ii.modulate = Color(1, 1, 1, 0.4)
-			ings.add_child(ii)
+		top.add_child(Kit.game(r["name"], 22, Kit.INK if known else Kit.MUTED, 0))
+		top.add_child(Kit.game("$%s/1K" % Fmt.num(Bal.token_price(r["id"])), 20, Color(0.16, 0.56, 0.5), 0))
+		v.add_child(Kit.label("%s params  ·  %d GB VRAM  ·  %s tok/s per GPU%s" % [r["params"], int(r["vram"]), Fmt.tokens(float(r["tps"])), "  ·  agents" if r["agent"] else ""], 14, Kit.MUTED, 0, false))
+		if not known:
+			var ings := Kit.hbox(4)
+			v.add_child(ings)
+			if int(r["open"]) >= 0:
+				ings.add_child(Kit.label("Open weights: $%s in a server's Model list" % Fmt.num(float(r["open"])), 14, Kit.SAGE_EDGE, 0, false))
+			else:
+				for i in r["train"]:
+					var ii := Kit.icon(i, 30)
+					if not Game.can_make(i):
+						ii.modulate = Color(1, 1, 1, 0.4)
+					ings.add_child(ii)
+					ings.add_child(Kit.label("%d" % int(r["train"][i]), 14, Kit.MUTED, 0))
+		else:
+			v.add_child(Kit.label("Quality %d%%  ·  served %s tok/s of %s wanted" % [roundi(Market.quality_of(r["id"]) * 100), Fmt.tokens(float(Market.served.get(r["id"], 0.0))), Fmt.tokens(float(Market.demand.get(r["id"], 0.0)))], 14, Kit.SAGE_EDGE, 0, false))
 		if Game.trending == r["id"]:
-			v.add_child(Kit.label("Trending now: sells for more!", 14, Kit.SAGE_EDGE, 0))
+			v.add_child(Kit.label("Trending now: twice the customers!", 14, Kit.SAGE_EDGE, 0))
 		body.add_child(box)

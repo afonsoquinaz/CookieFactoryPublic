@@ -28,6 +28,7 @@ var _roads_dirty := true
 
 
 func _ready() -> void:
+	Market.world = self
 	sun = Env.build(self)
 	Quality.changed.connect(_on_quality)
 	_on_quality.call_deferred(Quality.level)
@@ -37,6 +38,9 @@ func _ready() -> void:
 	actors = Node3D.new()
 	actors.name = "Actors"
 	add_child(actors)
+	var orbit := OrbitView.new()
+	orbit.world = self
+	add_child(orbit)
 	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)

@@ -1,11 +1,11 @@
 class_name LabArt
-## The labs, the Batcher and the Agent Studio, five tiers each:
+## The labs, five tiers each:
 ##   0 garage (plywood bench, a desk lamp)   1 steel workshop
 ##   2 white lab with a teal band           3 steel and glass, deck lights
 ##   4 graphite and brass, glowing edges
 ## Each has a moving part: the fab's wafer stage, the refinery's filter
 ## ring, the tune lab's dial, the HBM press, the gym's robot arm, the synth
-## lab's reactor ring, the batcher's conveyor, the studio's assembly arm.
+## lab's reactor ring.
 
 const Z := -0.85
 
@@ -118,25 +118,6 @@ static func machine(kind: String, t: int) -> Mesh:
 			k.cyl(0.5, 0.2, sh, MeshKit.at(0, by, Z), 16, 0.04)
 			k.sphere(0.38, lit(col, 0.5), MeshKit.at(0, by + 0.8 * s, Z), 16, 10)
 			k.sphere(0.2, lit(Color(1, 1, 1), 0.3), MeshKit.at(0, by + 0.8 * s, Z), 10, 6)
-		"batcher":
-			# a sorter cabinet feeding a roller conveyor
-			k.rbox(Vector3(1.0, 1.4, 1.1), 0.1, sh, MeshKit.at(-0.55, by + 0.7, Z))
-			k.rbox(Vector3(0.5, 0.35, 0.05), 0.05, Color(0.6, 0.8, 0.9, 0.7), MeshKit.at(-0.55, by + 0.95, Z + 0.56))
-			k.rbox(Vector3(1.6, 0.08, 0.5), 0.02, Pal.STEEL_DARK, MeshKit.at(0.45, by + 0.5, Z + 0.1))
-			for i in 5:
-				k.cyl(0.05, 0.5, Pal.STEEL, MeshKit.xf(Vector3(-0.2 + i * 0.32, by + 0.56, Z + 0.1), Vector3(90, 0, 0)), 8)
-			for sx in [-1.0, 1.0]:
-				k.rbox(Vector3(0.06, 0.5, 0.06), 0.02, Pal.STEEL_DARK, MeshKit.at(0.45 + sx * 0.7, by + 0.25, Z + 0.1))
-			k.cyl(0.24, 0.3, Color(0.5, 0.78, 0.96, 0.75), MeshKit.at(-0.55, by + 1.4, Z), 12, 0.03, 0.12)
-			k.rbox(Vector3(0.12, 0.06, 0.02), 0.01, lit(Color(0.5, 1.0, 0.6)), MeshKit.at(-0.25, by + 1.25, Z + 0.56))
-		"agent_studio":
-			# an assembly table where agent bots are put together, an arm overhead
-			k.rbox(Vector3(2.0, 0.9, 1.1), 0.08, sh, MeshKit.at(0, by + 0.45, Z))
-			k.rbox(Vector3(2.04, 0.05, 1.14), 0.02, trim, MeshKit.at(0, by + 0.92, Z))
-			for i in 3:
-				k.rbox(Vector3(0.28, 0.22, 0.26), 0.05, Color(0.95, 0.95, 0.94), MeshKit.at(0.3 + i * 0.32, by + 1.06, Z + 0.1))
-				k.rbox(Vector3(0.16, 0.06, 0.01), 0.02, lit(Color(0.5, 0.95, 1.0), 0.4), MeshKit.at(0.3 + i * 0.32, by + 1.1, Z + 0.235))
-			k.cyl(0.08, 0.9, trim, MeshKit.at(-0.55, by + 0.92, Z - 0.3), 8)
 	return k.commit()
 
 
@@ -162,8 +143,6 @@ static func anim_pivot(kind: String, t: int) -> Vector3:
 		"hbm_works": return Vector3(0, by + 1.4 * s, Z)
 		"rlhf_gym": return Vector3(-0.5, by + 0.5, Z)
 		"synth_lab": return Vector3(0, by + 0.8 * s, Z)
-		"batcher": return Vector3(-0.1, by + 0.62, Z + 0.1)
-		"agent_studio": return Vector3(-0.55, by + 1.82, Z - 0.3)
 	return Vector3(0, 1, Z)
 
 
@@ -199,16 +178,6 @@ static func part(kind: String, t: int) -> Mesh:
 		"synth_lab":
 			k.torus(0.55, 0.04, lit(col, 0.4), MeshKit.xf(Vector3.ZERO, Vector3(90, 0, 0)), 24, 4)
 			k.torus(0.6, 0.025, Pal.BRASS, MeshKit.xf(Vector3.ZERO, Vector3(90, 0, 60)), 24, 4)
-		"batcher":
-			# a batch case riding the conveyor
-			k.rbox(Vector3(0.3, 0.2, 0.26), 0.04, Color(0.86, 0.88, 0.9), MeshKit.at(0, 0.12, 0))
-			k.rbox(Vector3(0.31, 0.03, 0.27), 0.01, lit(Color(0.5, 0.9, 1.0), 0.5), MeshKit.at(0, 0.15, 0))
-		"agent_studio":
-			# an assembly arm with a robot head in its grip
-			k.rbox(Vector3(0.9, 0.08, 0.08), 0.03, Pal.STEEL_DARK, MeshKit.at(0.45, 0, 0))
-			k.cyl(0.03, 0.3, Pal.STEEL, MeshKit.at(0.85, -0.3, 0), 6)
-			k.rbox(Vector3(0.2, 0.16, 0.18), 0.05, Color(0.95, 0.95, 0.94), MeshKit.at(0.85, -0.38, 0))
-			k.rbox(Vector3(0.12, 0.04, 0.01), 0.015, lit(Color(0.5, 0.95, 1.0), 0.4), MeshKit.at(0.85, -0.37, 0.095))
 	return k.commit()
 
 
@@ -231,10 +200,3 @@ static func animate(kind: String, n: Node3D, t: float, busy: bool) -> void:
 			n.position.y = float(n.get_meta("y0")) - absf(sin(t * 3.0)) * 0.35 * sp
 		"rlhf_gym":
 			n.rotation.y = sin(t * 1.6) * 1.4 * sp
-		"batcher":
-			if not n.has_meta("x0"):
-				n.set_meta("x0", n.position.x)
-			n.position.x = float(n.get_meta("x0")) + (fmod(t * 0.6, 1.0) * 1.2 if busy else 0.0)
-			n.visible = busy
-		"agent_studio":
-			n.rotation.y = -0.4 + sin(t * 1.4) * 0.9 * sp

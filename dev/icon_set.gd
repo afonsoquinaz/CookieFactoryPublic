@@ -83,18 +83,28 @@ static func _building(root: Node3D, kind: String) -> void:
 			_mi(LabArt.machine(kind, 2), root)
 			_mi(LabArt.part(kind, 2), root, Transform3D(Basis.IDENTITY, LabArt.anim_pivot(kind, 2)))
 		"pack":
-			if kind == "depot" or kind == "cache":
-				_mi(StorageB.mesh(kind, 2), root)
+			_mi(StorageB.mesh(kind, 2), root)
+		"train":
+			_mi(InfraArt.trainer(3), root)
+			root.set_meta("pitch", 34.0)
+		"space":
+			if kind == "launchpad":
+				_mi(InfraArt.rocket(), root)
+				root.set_meta("pitch", 14.0)
 			else:
-				_mi(LabArt.machine(kind, 2), root)
-				_mi(LabArt.part(kind, 2), root, Transform3D(Basis.IDENTITY, LabArt.anim_pivot(kind, 2) + Vector3(0.4, 0, 0)))
+				_mi(InfraArt.groundstation(2), root)
+				root.set_meta("pitch", 30.0)
 		"sell":
 			match kind:
-				"van": _mi(SalesArt.van(1), root, MeshKit.xf(Vector3.ZERO, Vector3(0, -90, 0)))
-				"hyperloop": _mi(SalesArt.train(2), root, MeshKit.xf(Vector3.ZERO, Vector3(0, 90, 0)))
-				"droneport":
-					_mi(SalesArt.airship(1), root)
-					root.set_meta("pitch", 22.0)
+				"gateway":
+					_mi(InfraArt.gateway(2), root)
+					root.set_meta("yaw", -25.0)
+				"edge":
+					_mi(InfraArt.edge(2), root)
+					root.set_meta("yaw", -25.0)
+				"agent_hub":
+					_mi(InfraArt.agent_bot(Color(0.5, 0.86, 1.0)), root)
+					root.set_meta("pitch", 16.0)
 				"cafe": _mi(CafeB.mesh(2), root)
 				"desk": _mi(DeskB.mesh(), root)
 		"staff":

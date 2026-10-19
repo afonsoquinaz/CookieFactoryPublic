@@ -25,15 +25,18 @@ static func slots(kind: String, t: int) -> Array:
 		"source": return _source(d["res"])
 		"server": return _server(t)
 		"lab", "pack":
-			if kind == "depot" or kind == "cache":
+			if kind == "depot":
 				return _storage(kind)
 			return _machine(kind)
+		"train": return _trainer()
 		"sell":
 			match kind:
-				"van": return _van()
+				"gateway": return _gateway()
 				"cafe": return _cafe()
-				"hyperloop": return _hyperloop()
-				"droneport": return _droneport()
+				"edge": return _edge()
+				"agent_hub": return _agent_hub()
+		"space":
+			return _launchpad() if kind == "launchpad" else _groundstation()
 		"staff":
 			if kind == "dorm":
 				return _dorm()
@@ -102,8 +105,6 @@ const MACHINE_PARTS := {
 	"hbm_works": ["tanks", "chiller", "drums", "cabinet", "plant", "lamp", "wafers", "battery"],
 	"rlhf_gym": ["cabinet", "chiller", "bikes", "battery", "plant", "lamp", "robot", "kiosk"],
 	"synth_lab": ["chiller", "tanks", "cabinet", "drums", "plant", "lamp", "robot", "crates"],
-	"batcher": ["chiller", "cabinet", "pallet", "battery", "plant", "lamp", "crates", "kiosk"],
-	"agent_studio": ["cabinet", "chiller", "battery", "cabinet", "plant", "lamp", "robot", "kiosk"],
 }
 
 
@@ -123,11 +124,11 @@ static func _storage(kind: String) -> Array:
 	]
 
 
-static func _van() -> Array:
-	# the yard around the turntable, and two spots on the loading counter
+static func _gateway() -> Array:
+	# the front yard around the fiber rack, the hut's roof, along the sides
 	return [
-		_s(-1.65, 2.75, "pallet"), _s(1.6, 2.75, "lamp"), _s(1.85, -1.3, "battery"), _s(-0.75, -1.38, "crates", 0.0, 0.5),
-		_s(-1.85, 2.05, "cabinet", 90.0), _s(-1.85, -0.85, "chiller", 90.0), _s(1.8, 2.0, "kiosk", -90.0), _s(0.75, -1.38, "reels", 0.0, 0.5),
+		_s(-1.0, 2.6, "pallet"), _top(0.3, -1.4, "ac"), _s(1.0, 2.6, "lamp"), _s(-1.85, 0.3, "cabinet", 90.0),
+		_top(0.6, -1.0, "solar_s"), _s(1.6, 1.6, "kiosk", -90.0), _s(-1.85, 1.95, "reels", 90.0), _top(-1.4, -1.0, "vent"),
 	]
 
 
@@ -139,19 +140,43 @@ static func _cafe() -> Array:
 	]
 
 
-static func _hyperloop() -> Array:
+static func _edge() -> Array:
+	# the yard in front of the container (its roof is all cooling units)
 	return [
-		_s(-2.55, 2.55, "pallet"), _s(2.55, 2.55, "lamp"), _top(-1.6, 0.6, "ac"), _s(-2.6, 1.6, "crates", 90.0),
-		_top(0.0, 0.6, "solar_s"), _s(2.6, 1.6, "kiosk", -90.0), _top(1.6, 0.6, "antenna"), _s(1.6, 2.6, "bikes"),
-		_s(-1.6, 2.6, "plant"),
+		_s(2.55, 2.55, "lamp"), _s(0.4, 2.55, "pallet"), _s(-0.3, 1.55, "chiller"), _s(2.65, 1.35, "kiosk", -90.0),
+		_s(0.5, 0.65, "crates"), _s(1.25, 1.6, "cabinet"), _s(1.5, 2.6, "plant"), _s(-0.6, 2.6, "bench"),
+		_s(-0.95, 0.6, "battery"),
 	]
 
 
-static func _droneport() -> Array:
+static func _agent_hub() -> Array:
+	# around the plaza (its robots need the middle)
 	return [
-		_s(-2.55, 2.55, "drone"), _s(2.55, 2.55, "lamp"), _s(-2.6, 1.6, "pallet", 90.0), _s(2.6, 1.6, "kiosk", -90.0),
-		_s(-2.55, -2.45, "drone"), _s(2.55, -2.45, "battery"), _s(-1.6, 2.6, "crates"), _s(1.6, 2.6, "plant"),
-		_s(-2.6, -1.2, "cabinet", 90.0), _s(2.6, -1.2, "chiller", -90.0),
+		_s(-2.65, 1.8, "plant", 90.0), _s(2.65, 1.8, "lamp", -90.0), _top(-1.5, -0.8, "solar_s"), _top(1.5, -0.8, "solar_s"),
+		_s(-2.65, -1.6, "cabinet", 90.0), _s(2.65, -1.6, "battery", -90.0), _s(-2.6, 2.75, "kiosk"), _s(2.6, 2.75, "robot"),
+		_top(0.0, -1.8, "ac"),
+	]
+
+
+static func _trainer() -> Array:
+	return [
+		_s(-3.4, 2.95, "chiller"), _top(-2.6, -3.75, "ac"), _s(2.0, 3.1, "plant"), _top(2.6, -3.75, "vent"),
+		_s(-2.0, 3.1, "battery"), _s(3.6, -0.15, "cabinet", -90.0), _s(-3.65, -0.15, "tanks", 90.0), _s(0.0, 3.1, "kiosk"),
+		_s(3.55, 3.4, "lamp"), _top(0.0, -3.75, "solar_s"),
+	]
+
+
+static func _launchpad() -> Array:
+	return [
+		_s(-3.4, -3.3, "tanks"), _s(3.5, 0.8, "lamp"), _s(-3.4, -0.2, "cabinet", 90.0), _top(3.0, 2.4, "dish_s"),
+		_s(-3.6, 1.5, "battery", 90.0), _s(1.8, 3.4, "crates"), _s(3.6, -0.4, "chiller", -90.0), _s(-0.4, 3.5, "plant"),
+	]
+
+
+static func _groundstation() -> Array:
+	return [
+		_s(1.0, 2.5, "cabinet"), _s(2.5, 2.5, "lamp"), _top(-1.5, 1.8, "solar_s"), _s(-2.65, 0.4, "battery", 90.0),
+		_s(0.6, 1.5, "kiosk"), _s(-2.6, -2.7, "plant"), _s(0.4, -2.7, "crates"), _s(2.6, 1.5, "chiller", -90.0),
 	]
 
 

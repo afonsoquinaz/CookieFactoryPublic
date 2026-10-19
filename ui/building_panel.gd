@@ -163,7 +163,7 @@ func _scroll_to(c: Control) -> void:
 
 ## The last server, solar farm, API depot or builder's hut can't be sold.
 func _protected() -> bool:
-	return node.kind in ["server", "src_power", "van", "hut"] and Game.count_of(node.kind) <= 1
+	return node.kind in ["server", "src_power", "gateway", "hut"] and Game.count_of(node.kind) <= 1
 
 
 func _on_money(_v: float, _d: float) -> void:
@@ -275,7 +275,7 @@ func _upgrade() -> void:
 		else:
 			Sfx.play("deny")
 			Kit.shake(_upgrade_btn)
-			Game.toast.emit("Not enough gems (%d needed)" % g, "gem")
+			Game.toast.emit("Not enough sparks (%d needed): tap your sparks for the shop" % g, "gem")
 		_refresh()
 		return
 	var why := Game.upgrade_block(node.uid)
