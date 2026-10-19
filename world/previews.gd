@@ -25,7 +25,7 @@ static func _build(kind: String, ing: String, t := 0, lvl := 1) -> Mesh:
 			k.add_mesh(SourceArt.bed(res, w, dd, t), MeshKit.at(0, 0, cz))
 			k.add_mesh(SourceArt.wall(w + 0.3, dd + 0.3, t), MeshKit.at(0, 0, cz))
 			k.add_mesh(SourceArt.extras(res, w + 0.3, dd + 0.3, t), MeshKit.at(0, 0, cz))
-			var cm := MeshKit.cached("station_" + res, func(): return Stations.station(res))
+			var cm := MeshKit.cached("station_%s_%d" % [res, t], func(): return Stations.station(res, t))
 			for p in SourceArt.station_spots(res, lvl, w, dd, cz):
 				k.add_mesh(cm, MeshKit.xf(p, Vector3.ZERO, Vector3.ONE * 1.22))
 			k.add_mesh(MeshKit.cached("crate", SourceB.crate_mesh), MeshKit.at(0, 0, SourceB.CRATE_Z))

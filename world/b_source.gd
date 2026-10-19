@@ -188,20 +188,20 @@ func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("srcwall_%d" % t, func(): return SourceArt.wall(w + 0.3, d + 0.3, t)), root, MeshKit.at(0, 0, cz))
 	Mats.inst(MeshKit.cached("srcextra_%s_%d" % [ing, t], func(): return SourceArt.extras(ing, w + 0.3, d + 0.3, t)), root, MeshKit.at(0, 0, cz))
 	# stations, each with what it's making on it (more of them as it levels)
-	var pp := Stations.product_at(ing)
+	var pp := Stations.product_at(ing, t)
 	var ps := Stations.product_scale(ing)
-	var sp := Stations.spinner_at(ing)
+	var sp := Stations.spinner_at(ing, t)
 	for p in SourceArt.station_spots(ing, level, w, d, cz):
 		var node := Node3D.new()
 		node.position = p
 		node.scale = Vector3.ONE * 1.22
 		root.add_child(node)
-		Mats.inst(MeshKit.cached("station_" + ing, func(): return Stations.station(ing)), node)
+		Mats.inst(MeshKit.cached("station_%s_%d" % [ing, t], func(): return Stations.station(ing, t)), node)
 		if sp != Vector3.INF:
 			var spin := Node3D.new()
 			spin.position = sp
 			node.add_child(spin)
-			Mats.inst(MeshKit.cached("spinner_" + ing, func(): return Stations.spinner(ing)), spin, Transform3D.IDENTITY, false)
+			Mats.inst(MeshKit.cached("spinner_%s_%d" % [ing, t], func(): return Stations.spinner(ing, t)), spin, Transform3D.IDENTITY, false)
 			_spinners.append(spin)
 		var prod := Node3D.new()
 		prod.position = pp

@@ -67,10 +67,10 @@ static func _building(root: Node3D, kind: String) -> void:
 			k.rbox(Vector3(2.9, 0.12, 1.4), 0.05, Color(0.62, 0.6, 0.56).lerp(Defs.ITEMS[res]["color"], 0.15), MeshKit.at(0, 0.0, 0))
 			for i in 3:
 				var p := Vector3(-0.95 + i * 0.95, 0.06, -0.1 + (i % 2) * 0.2)
-				k.add_mesh(Stations.station(res), MeshKit.xf(p, Vector3.ZERO, Vector3.ONE * 1.1))
+				k.add_mesh(Stations.station(res, 2), MeshKit.xf(p, Vector3.ZERO, Vector3.ONE * 1.1))
 				var sp := Stations.spinner_at(res)
 				if sp != Vector3.INF:
-					k.add_mesh(Stations.spinner(res), MeshKit.xf(p + sp * 1.1, Vector3.ZERO, Vector3.ONE * 1.1))
+					k.add_mesh(Stations.spinner(res, 2), MeshKit.xf(p + sp * 1.1, Vector3.ZERO, Vector3.ONE * 1.1))
 				var pp := Stations.product_at(res) * 1.1
 				k.add_mesh(Items.mesh(res), MeshKit.xf(p + pp, Vector3.ZERO, Vector3.ONE * Stations.product_scale(res) * 1.1))
 			_mi(k.commit(), root)
