@@ -96,23 +96,24 @@ static func _server(t: int) -> Array:
 	]
 
 
-## The parts a lab gathers, by slot: back corners, sides, front corners,
-## front sides.
+## The parts a lab gathers, by slot: the first four sit on its wings' flat
+## roofs (LabArt.ROOFS), the rest in the front yard (corners, then sides).
 const MACHINE_PARTS := {
-	"fab": ["chiller", "tanks", "cabinet", "wafers", "plant", "lamp", "crates", "battery"],
-	"refinery": ["cabinet", "chiller", "drums", "cabinet", "plant", "lamp", "crates", "battery"],
-	"tune_lab": ["chiller", "cabinet", "cabinet", "battery", "plant", "lamp", "kiosk", "crates"],
-	"hbm_works": ["tanks", "chiller", "drums", "cabinet", "plant", "lamp", "wafers", "battery"],
-	"rlhf_gym": ["cabinet", "chiller", "bikes", "battery", "plant", "lamp", "robot", "kiosk"],
-	"synth_lab": ["chiller", "tanks", "cabinet", "drums", "plant", "lamp", "robot", "crates"],
+	"fab": ["ac", "tank_s", "vent", "solar_s", "plant", "lamp", "crates", "battery"],
+	"refinery": ["dish_s", "ac", "antenna", "vent", "plant", "lamp", "crates", "battery"],
+	"tune_lab": ["dish_s", "ac", "antenna", "solar_s", "plant", "lamp", "kiosk", "crates"],
+	"hbm_works": ["tank_s", "ac", "vent", "solar_s", "plant", "lamp", "wafers", "battery"],
+	"rlhf_gym": ["sign", "ac", "antenna", "solar_s", "plant", "lamp", "robot", "kiosk"],
+	"synth_lab": ["tank_s", "ac", "vent", "beacon", "plant", "lamp", "robot", "crates"],
 }
 
 
 static func _machine(kind: String) -> Array:
 	var p: Array = MACHINE_PARTS.get(kind, MACHINE_PARTS["fab"])
+	var r: Array = LabArt.ROOFS
 	return [
-		_s(-1.6, -1.6, p[0]), _s(1.6, 1.55, p[5]), _s(1.6, -1.6, p[1]), _s(-1.6, 1.55, p[4]),
-		_s(-1.66, -0.55, p[2], 90.0), _s(1.66, -0.55, p[3], -90.0), _s(-1.72, 0.85, p[6], 90.0), _s(1.72, 0.85, p[7], -90.0),
+		_top(r[0].x, r[0].y, p[0]), _s(1.6, 1.55, p[5]), _top(r[1].x, r[1].y, p[1]), _s(-1.6, 1.55, p[4]),
+		_top(r[2].x, r[2].y, p[2]), _top(r[3].x, r[3].y, p[3]), _s(-1.72, 0.85, p[6], 90.0), _s(1.72, 0.85, p[7], -90.0),
 	]
 
 

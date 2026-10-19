@@ -19,6 +19,7 @@ var _steam_t := 0.0
 var _starve := 0.0
 var _want: Node3D
 var _want_icon := ""
+var _badge: Node3D
 
 
 func _build() -> void:
@@ -62,9 +63,9 @@ func _build() -> void:
 	var icon: String = def["icon"]
 	if def.has("out"):
 		icon = (def["out"] as Dictionary).keys()[0]
-	var b := UI3D.badge(icon, Pal.STEEL_DARK, 0.6)
-	b.position = Vector3(0, 3.4, -0.9)
-	add_child(b)
+	_badge = UI3D.badge(icon, Pal.STEEL_DARK, 0.6)
+	_badge.position = Vector3(0, 3.4, -0.9)
+	add_child(_badge)
 
 
 func solid_rects() -> Array[Rect2]:
@@ -77,8 +78,17 @@ func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("bench_%d" % t, func(): return LabArt.bench(t)), root, MeshKit.at(OUT_POS.x, 0, OUT_POS.z))
 	_anim = Node3D.new()
 	_anim.position = LabArt.anim_pivot(kind, t)
+	_anim.set_meta("tier", t)
 	root.add_child(_anim)
+	# the icon floats above the roof (tall tiers lift it)
+	if _badge:
+		_badge.position.y = _badge_y()
 	Mats.inst(MeshKit.cached("machpart_%s_%d" % [kind, t], func(): return LabArt.part(kind, t)), _anim, Transform3D.IDENTITY, false)
+
+
+## Badge height: above the lab's roof.
+func _badge_y() -> float:
+	return maxf(3.4, LabArt.height(kind, maxi(tier, 0)) + 0.6)
 
 
 func _on_level() -> void:
@@ -165,7 +175,7 @@ func _missing() -> String:
 func _show_want(icon: String) -> void:
 	if icon == _want_icon:
 		if _want:
-			_want.position.y = 4.4 + sin(_t * 3.0) * 0.12
+			_want.position.y = _badge_y() + 1.0 + sin(_t * 3.0) * 0.12
 		return
 	_want_icon = icon
 	if _want:
@@ -174,7 +184,7 @@ func _show_want(icon: String) -> void:
 	if icon == "":
 		return
 	_want = UI3D.badge(icon, Pal.TERRACOTTA, 0.8)
-	_want.position = Vector3(0, 4.4, -0.9)
+	_want.position = Vector3(0, _badge_y() + 1.0, -0.9)
 	add_child(_want)
 
 
