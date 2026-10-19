@@ -127,8 +127,8 @@ static func _gateway() -> Array:
 
 static func _cafe() -> Array:
 	return [
-		_s(2.55, 1.5, "plant"), _top(-1.5, -1.3, "ac"), _s(-2.65, 1.55, "bench"), _top(2.2, -1.3, "solar_s"),
-		_s(2.6, 0.55, "lamp", -90.0), _s(1.6, 1.6, "bikes"), _top(1.0, -1.4, "sign"), _top(-2.4, -1.4, "vent"),
+		_s(2.55, 1.5, "plant"), _top(-1.5, -1.35, "ac"), _s(-2.65, 1.55, "bench"), _top(2.3, -1.35, "solar_s"),
+		_s(2.6, 0.55, "lamp", -90.0), _s(1.6, 1.6, "bikes"), _top(1.45, -1.35, "sign"), _top(-2.4, -1.35, "vent"),
 		_s(-2.65, 0.75, "kiosk", 90.0),
 	]
 
