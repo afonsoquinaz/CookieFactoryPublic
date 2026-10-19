@@ -84,18 +84,9 @@ static func _source(res: String) -> Array:
 
 
 static func _server(t: int) -> Array:
-	var h := 2.6 + t * 0.3                  # ServerArt.house back wall height
-	var top := h + 0.24
-	var wz := -ServerB.D * 0.5 + 0.38       # the inner face of the back wall
-	var ty := -ServerB.D * 0.5 + 0.22
-	var wy := h - 0.68
-	return [
-		_s(-0.9, wz, "screen", 0.0, wy), _s(2.6, ty, "ac", 0.0, top), _s(-4.0, 2.45, "cabinet"),
-		_s(0.4, wz, "panel", 0.0, wy), _s(-2.6, ty, "dish_s", 0.0, top), _s(4.0, 2.45, "plant"),
-		_s(-2.2, wz, "neon", 0.0, wy), _s(3.75, ty, "ac", 0.0, top), _s(-2.4, 2.55, "battery"),
-		_s(1.7, wz, "ledbar", 0.0, wy), _s(-3.75, ty, "antenna", 0.0, top), _s(1.95, 2.55, "kiosk"),
-		_s(-1.45, ty, "solar_s", 0.0, top), _s(-4.62, 0.35, "chiller", 90.0), _s(1.45, ty, "vent", 0.0, top), _s(4.62, 0.1, "crates", -90.0),
-	]
+	# the server becomes a different building on every tier, so its art says
+	# where the wall, roof and yard gear goes
+	return ServerArt.slots(t)
 
 
 ## The parts a lab gathers, by slot: back corners, sides, front corners,
