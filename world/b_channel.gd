@@ -14,6 +14,7 @@ extends Building
 var fiber_in: Holder
 var _spools: MeshInstance3D
 var _label: Label3D
+var _badge: Node3D
 var _bots: Array[Node3D] = []
 var _bot_goal: Array[Vector3] = []
 var _beacon_t := 0.0
@@ -31,17 +32,22 @@ func _build() -> void:
 	_label = UI3D.label("", 26, Color(0.7, 0.96, 1.0))
 	_label.position = Vector3(0, _label_y(), 0.0)
 	add_child(_label)
-	var b := UI3D.badge(def["icon"], Pal.STEEL_DARK, 0.6)
-	b.position = Vector3(0, _label_y() + 0.7, 0.0)
-	add_child(b)
+	_badge = UI3D.badge(def["icon"], Pal.STEEL_DARK, 0.6)
+	_badge.position = Vector3(0, _label_y() + 0.7, 0.0)
+	add_child(_badge)
 
 
 func _label_y() -> float:
-	match kind:
-		"gateway": return 4.4
-		"edge": return 4.0
-		"agent_hub": return 4.8
-	return 3.6
+	return InfraArt.label_y(kind, maxi(tier, 0))
+
+
+## Taller tiers lift the label clear of the roof.
+func _place_label(t: int) -> void:
+	if _label == null:
+		return
+	_label.position.y = InfraArt.label_y(kind, t)
+	if _badge:
+		_badge.position.y = InfraArt.label_y(kind, t) + 0.7
 
 
 func solid_rects() -> Array[Rect2]:
@@ -57,6 +63,7 @@ func _visual(root: Node3D, t: int) -> void:
 		"agent_hub": mesh = MeshKit.cached("agent_hub_%d" % t, func(): return InfraArt.agent_hub(t))
 		_: mesh = MeshKit.cached("groundstation_%d" % t, func(): return InfraArt.groundstation(t))
 	Mats.inst(mesh, root)
+	_place_label(t)
 	if kind == "gateway":
 		_spools = Mats.inst(null, root)
 		_show_spools()
@@ -161,7 +168,7 @@ func _traffic(dt: float) -> void:
 		return
 	var s: ServerB = busy[randi() % busy.size()]
 	var router := s.to_world(ServerB.ROUTER_X, ServerB.BUS_Z, 1.6)
-	var dish := to_world(-0.9, -2.0, 3.6)
+	var dish := intake()
 	_fly(dish, router, Color(0.45, 0.95, 1.0), false)
 	var vent := s.to_world(ServerB.CORE_X, ServerB.BUS_Z, 3.2)
 	_fly(vent, dish, Color(1.0, 0.85, 0.4), true)
@@ -255,7 +262,7 @@ func save_contents() -> Dictionary:
 
 ## Where request packets drop in from the sky (world): the dish.
 func intake() -> Vector3:
-	match kind:
-		"gateway": return to_world(-0.9, -2.0, 3.6)
-		"edge": return to_world(2.2, -1.8, 4.5)
+	if kind == "gateway" or kind == "edge":
+		var p := InfraArt.intake(kind, maxi(tier, 0))
+		return to_world(p.x, p.z, p.y)
 	return global_position + Vector3(0, 3, 0)

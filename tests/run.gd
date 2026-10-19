@@ -322,12 +322,15 @@ func _test_live() -> void:
 	ok(Live.league_history.size() >= 1 and int(Live.league_history.back()["rank"]) == 1, "the result is kept")
 	ok(not (Live.inbox[0]["reward"] as Dictionary).is_empty() and Live.inbox[0]["reward"].has("decor"), "the reward (and the trophy) waits in the inbox")
 	Live.add_bp(1)
+	# rivals are random per profile (some never show up), so work out where one point lands this week
+	var rank1 := Live.my_rank(Live.standings(Live.week_start(w + 2) * 86400 - 1))
+	var expect := 0 if rank1 > LiveDefs.LEAGUE_SIZE - LiveDefs.DEMOTE else 1
 	_live_at((Live.week_start(w + 2) * 86400) + 3600)
 	Live.tick()
-	ok(int(Live.league["tier"]) == 0, "a one-point week in Silver: back to Bronze")
+	ok(int(Live.league["tier"]) == expect, "a one-point week in Silver: back to Bronze unless enough rivals never showed up (rank %d)" % rank1)
 	_live_at((Live.week_start(w + 3) * 86400) + 3600)
 	Live.tick()
-	ok(int(Live.league["tier"]) == 0 and int(Live.league_history.back()["week"]) == w + 1, "skipping a week changes nothing")
+	ok(int(Live.league["tier"]) == expect and int(Live.league_history.back()["week"]) == w + 1, "skipping a week changes nothing")
 	# Lab Pass
 	var sid := int(Live.season["id"])
 	Live.season["sp"] = 0

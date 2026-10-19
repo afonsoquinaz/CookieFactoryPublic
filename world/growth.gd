@@ -52,8 +52,8 @@ static func _top(x: float, z: float, part: String, yaw := 0.0) -> Dictionary:
 	return {"p": Vector3(x, 0, z), "yaw": yaw, "part": part, "top": true}
 
 
-## The parts each source's front yard gathers (8 in the yard, 4 along the
-## inside of its fence).
+## The parts each source's front yard gathers (8 in the yard, 4 in the front
+## corners inside its fence).
 const SOURCE_PARTS := {
 	"power": ["battery", "solar", "gen", "lamp", "cabinet", "battery", "plant", "crates", "lamp", "cabinet", "lamp", "battery"],
 	"data": ["dish", "cabinet", "mast", "lamp", "robot", "crates", "kiosk", "plant", "cabinet", "lamp", "cabinet", "lamp"],
@@ -72,47 +72,41 @@ const SOURCE_PARTS := {
 
 static func _source(res: String) -> Array:
 	var p: Array = SOURCE_PARTS.get(res, SOURCE_PARTS["code"])
+	var sx := 2.62 if res == "power" else 2.52     # clear of the solar farm's wide stations
 	# the front yard either side of the crate (back row tall, front row low),
-	# then along the inside of the side fences
+	# then the front corners inside the fence (the back of the plot and the
+	# back half of the side fences belong to the tier's buildings, SourceArt)
 	return [
 		_s(-1.55, 1.62, p[0]), _s(1.55, 1.62, p[1]), _s(-2.45, 1.62, p[2]), _s(2.45, 1.62, p[3]),
 		_s(-1.55, 2.5, p[4]), _s(1.55, 2.5, p[5]), _s(-2.45, 2.5, p[6]), _s(2.45, 2.5, p[7]),
-		_s(-2.62, -1.5, p[8], 90.0), _s(2.62, -1.5, p[9], -90.0), _s(-2.62, -0.4, p[10], 90.0), _s(2.62, -0.4, p[11], -90.0),
+		_s(-2.45, 0.62, p[8], 90.0), _s(2.45, 0.62, p[9], -90.0), _s(-sx, -0.35, p[10], 90.0), _s(sx, -0.35, p[11], -90.0),
 	]
 
 
 static func _server(t: int) -> Array:
-	var h := 2.6 + t * 0.3                  # ServerArt.house back wall height
-	var top := h + 0.24
-	var wz := -ServerB.D * 0.5 + 0.38       # the inner face of the back wall
-	var ty := -ServerB.D * 0.5 + 0.22
-	var wy := h - 0.68
-	return [
-		_s(-0.9, wz, "screen", 0.0, wy), _s(2.6, ty, "ac", 0.0, top), _s(-4.0, 2.45, "cabinet"),
-		_s(0.4, wz, "panel", 0.0, wy), _s(-2.6, ty, "dish_s", 0.0, top), _s(4.0, 2.45, "plant"),
-		_s(-2.2, wz, "neon", 0.0, wy), _s(3.75, ty, "ac", 0.0, top), _s(-2.4, 2.55, "battery"),
-		_s(1.7, wz, "ledbar", 0.0, wy), _s(-3.75, ty, "antenna", 0.0, top), _s(1.95, 2.55, "kiosk"),
-		_s(-1.45, ty, "solar_s", 0.0, top), _s(-4.62, 0.35, "chiller", 90.0), _s(1.45, ty, "vent", 0.0, top), _s(4.62, 0.1, "crates", -90.0),
-	]
+	# the server becomes a different building on every tier, so its art says
+	# where the wall, roof and yard gear goes
+	return ServerArt.slots(t)
 
 
-## The parts a lab gathers, by slot: back corners, sides, front corners,
-## front sides.
+## The parts a lab gathers, by slot: the first four sit on its wings' flat
+## roofs (LabArt.ROOFS), the rest in the front yard (corners, then sides).
 const MACHINE_PARTS := {
-	"fab": ["chiller", "tanks", "cabinet", "wafers", "plant", "lamp", "crates", "battery"],
-	"refinery": ["cabinet", "chiller", "drums", "cabinet", "plant", "lamp", "crates", "battery"],
-	"tune_lab": ["chiller", "cabinet", "cabinet", "battery", "plant", "lamp", "kiosk", "crates"],
-	"hbm_works": ["tanks", "chiller", "drums", "cabinet", "plant", "lamp", "wafers", "battery"],
-	"rlhf_gym": ["cabinet", "chiller", "bikes", "battery", "plant", "lamp", "robot", "kiosk"],
-	"synth_lab": ["chiller", "tanks", "cabinet", "drums", "plant", "lamp", "robot", "crates"],
+	"fab": ["ac", "tank_s", "vent", "solar_s", "plant", "lamp", "crates", "battery"],
+	"refinery": ["dish_s", "ac", "antenna", "vent", "plant", "lamp", "crates", "battery"],
+	"tune_lab": ["dish_s", "ac", "antenna", "solar_s", "plant", "lamp", "kiosk", "crates"],
+	"hbm_works": ["tank_s", "ac", "vent", "solar_s", "plant", "lamp", "wafers", "battery"],
+	"rlhf_gym": ["sign", "ac", "antenna", "solar_s", "plant", "lamp", "robot", "kiosk"],
+	"synth_lab": ["tank_s", "ac", "vent", "beacon", "plant", "lamp", "robot", "crates"],
 }
 
 
 static func _machine(kind: String) -> Array:
 	var p: Array = MACHINE_PARTS.get(kind, MACHINE_PARTS["fab"])
+	var r: Array = LabArt.ROOFS
 	return [
-		_s(-1.6, -1.6, p[0]), _s(1.6, 1.55, p[5]), _s(1.6, -1.6, p[1]), _s(-1.6, 1.55, p[4]),
-		_s(-1.66, -0.55, p[2], 90.0), _s(1.66, -0.55, p[3], -90.0), _s(-1.72, 0.85, p[6], 90.0), _s(1.72, 0.85, p[7], -90.0),
+		_top(r[0].x, r[0].y, p[0]), _s(1.6, 1.55, p[5]), _top(r[1].x, r[1].y, p[1]), _s(-1.6, 1.55, p[4]),
+		_top(r[2].x, r[2].y, p[2]), _top(r[3].x, r[3].y, p[3]), _s(-1.72, 0.85, p[6], 90.0), _s(1.72, 0.85, p[7], -90.0),
 	]
 
 
@@ -134,8 +128,8 @@ static func _gateway() -> Array:
 
 static func _cafe() -> Array:
 	return [
-		_s(2.55, 1.5, "plant"), _top(-1.5, -1.3, "ac"), _s(-2.65, 1.55, "bench"), _top(2.2, -1.3, "solar_s"),
-		_s(2.6, 0.55, "lamp", -90.0), _s(1.6, 1.6, "bikes"), _top(1.0, -1.4, "sign"), _top(-2.4, -1.4, "vent"),
+		_s(2.55, 1.5, "plant"), _top(-1.5, -1.35, "ac"), _s(-2.65, 1.55, "bench"), _top(2.3, -1.35, "solar_s"),
+		_s(2.6, 0.55, "lamp", -90.0), _s(1.6, 1.6, "bikes"), _top(1.45, -1.35, "sign"), _top(-2.4, -1.35, "vent"),
 		_s(-2.65, 0.75, "kiosk", 90.0),
 	]
 
@@ -161,7 +155,7 @@ static func _agent_hub() -> Array:
 static func _trainer() -> Array:
 	return [
 		_s(-3.4, 2.95, "chiller"), _top(-2.6, -3.75, "ac"), _s(2.0, 3.1, "plant"), _top(2.6, -3.75, "vent"),
-		_s(-2.0, 3.1, "battery"), _s(3.6, -0.15, "cabinet", -90.0), _s(-3.65, -0.15, "tanks", 90.0), _s(0.0, 3.1, "kiosk"),
+		_s(-2.0, 3.1, "battery"), _s(3.45, 1.05, "cabinet", -90.0), _s(1.85, 1.0, "tanks"), _s(0.0, 3.1, "kiosk"),
 		_s(3.55, 3.4, "lamp"), _top(0.0, -3.75, "solar_s"),
 	]
 
