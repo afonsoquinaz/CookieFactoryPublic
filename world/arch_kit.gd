@@ -393,7 +393,8 @@ static func tank(k: MeshKit, base: Transform3D, r: float, h: float, col: Color, 
 
 ## A horizontal tank on saddles (len along local x).
 static func hz_tank(k: MeshKit, base: Transform3D, r: float, len: float, col: Color) -> void:
-	k.capsule(r, len, col, base * xf(Vector3(0, r + 0.25, 0), Vector3(0, 0, 90)), 12, 3)
+	# the capsule grows along +y from its base: rotated onto -x, so start it at +len/2
+	k.capsule(r, len, col, base * xf(Vector3(len * 0.5, r + 0.25, 0), Vector3(0, 0, 90)), 12, 3)
 	for sx in [-1.0, 1.0]:
 		k.box(Vector3(0.2, r + 0.25, r * 1.4), Color(0.35, 0.36, 0.4), base * at(sx * len * 0.3, (r + 0.25) * 0.5, 0))
 

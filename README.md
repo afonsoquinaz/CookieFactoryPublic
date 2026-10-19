@@ -6,7 +6,17 @@ You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny lo
 
 **Goal:** serve more tokens. Your **Lab level** (15 levels, from Garage Lab to AGI Pioneer) grows with every token you serve, and with it the whole market for AI. The HUD shows tokens served, tokens per second and how loaded your servers are; tap it for the Market.
 
-**Look:** a clean, toy-like tech campus on an endless landscape with four regions: Tech Valley, Sun Desert, Cold North and Mining Hills. White panels, graphite racks, glass request buses, teal and cyan glow and soft LED light, staffed by cute toy couriers, technicians, engineers and builders. Every building has five looks as it levels up: the server goes from a garage rig to a server closet, a white server room, a steel data hall and a graphite hyperscale hall. In between, buildings gain props: crates, planters, lamps, server cabinets, cable reels and glowing token plinths.
+**Look:** a clean, toy-like tech campus on an endless landscape with four regions: Tech Valley, Sun Desert, Cold North and Mining Hills, staffed by cute toy couriers, technicians, engineers and builders. Every building evolves through five eras, and each era is a different building, not a recolour (`world/arch_kit.gd` holds the shared design language and parts):
+
+| Era | Look | Example: the Inference Server |
+|---|---|---|
+| Garage | plywood, corrugated tin, tarps, crates, extension cords, string lights | a garage with a gaming tower on pallets, a cat asleep on top |
+| Workshop | prefab steel sheds, shipping containers, roll-up doors, yellow rails, AC units | a corrugated server closet with a container office on top |
+| Campus | white panels, glass curtain walls, teal bands, planters, solar | a two-storey white server room with glass walls |
+| Industrial | steel halls, catwalks, stair towers, chillers, pipe racks, generators, blue LEDs | a steel data hall with a gantry crane and a stair tower |
+| Hyperscale | graphite and brass, glowing fins, liquid-cooling loops, drone pads, a crown | a 13 m graphite tower with glowing coolant loops and a brass crown |
+
+Every resource source, lab, channel, space building and campus building has its own story through the five eras (the Solar Farm goes from salvaged panels on crates to a heliostat tower; the Chat Café from a coffee cart to a sky lounge; the Launch Complex from a backyard rocket stand to a graphite spaceport; the Megacluster rises from a dug pit to a glowing core). Within an era, buildings gain gear level by level (crates, cabinets, chillers, dishes, rooftop AC, screens...), each piece growing through four grades in the style of its era.
 
 All 3D art is procedural low-poly (`world/mesh_kit.gd` and the `*_art.gd` files). The icons, app icon and logo are rendered from the game's own models (`dev/icons.gd`, `tools/icon_post.py`). All sound and music is synthesized in code (`tools/gen_audio.py`). No third-party art or audio.
 
@@ -182,6 +192,7 @@ world/
   b_server.gd  b_source.gd  b_machine.gd (labs)  b_storage.gd  b_trainer.gd  b_channel.gd (gateway, edge,
   agent hub, ground station)  b_launch.gd  b_cafe.gd  b_desk.gd  b_dorm.gd  b_hut.gd  b_site.gd  b_decor.gd  b_mega.gd
   orbit_view.gd      the orbital datacenter in the sky and its downlink beams
+  arch_kit.gd        the five-era design language: palettes and building parts (windows, stairs, chillers...)
   server_art.gd  source_art.gd  stations.gd  lab_art.gd  infra_art.gd  town_art.gd  previews.gd   (the looks)
   growth.gd          the gear buildings gain level by level (slots, schedule, roof heights)
   growth_parts.gd    that gear: cabinets, GPU crates, chillers, dishes, screens... in four grades
@@ -217,6 +228,9 @@ tools/shot.sh res://dev/bench.tscn out.png -- --kinds=gateway --levels=1,3,5,14,
 RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --kind=server --levels=1,3,6,10,20,40   # one building, many levels
 RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --parts=floor --tier=2                # every gear part in its grades
 godot --headless --path . res://dev/tops.tscn -- --write                                          # regenerate roof heights
+godot --headless --path . res://dev/artstats.tscn                                                  # triangles per building and era
+RES=1600x1200 tools/shot.sh res://dev/kitbench.tscn out.png                                        # the architecture kit in all eras
+RES=1600x1200 tools/shot.sh res://dev/partbench.tscn out.png -- --part=cabinet,solar               # level gear: eras x grades
 ```
 
 Dev flags (after `--`):
@@ -270,6 +284,7 @@ Older phones fall back to the OpenGL renderer and step quality down automaticall
 ## Performance notes
 - **Few materials.** Most meshes are merged per prop and share one toon material through vertex colours (a colour with alpha below 1 glows: LEDs, screens, data).
 - **Cheap stacks and decor.** Crates, benches and racks draw one MultiMesh per item type. The streamed decor (trees, cacti, snowy pines, rocks, flowers, grass) is one MultiMesh per kind around the camera.
+- **Cheap detail.** Small details are sharp boxes (12 triangles each); rounded shapes only for big forms. A building's look at any era is one merged mesh of about 4–20k triangles.
 - **One ground plane.** It follows the camera; a shader colours the regions and the land you own and draws the roads from a one-texel-per-cell texture.
 - **Cheap pathfinding.** Couriers walk an `AStarGrid2D` over road cells. Roads are rebuilt only when something is built, moved, sold or cleared.
 - **No first-time freezes.** WebGL compiles a shader the first time it's drawn, every session, and GDScript builds meshes on first use. The loading screen does all of that up front (`render/warmup.gd`): every building at every look, construction sites, ghosts, items, people, decor, every material, every panel and effect.
