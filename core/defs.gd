@@ -219,6 +219,19 @@ const BUILDINGS := {
 		"aura": {"what": "compute", "r": 5, "v": 0.2}, "desc": "Never a brown-out. Servers and labs within 5 tiles work 20% faster."},
 	"transformer": {"name": "Transformer Yard", "cat": "decor", "tab": "decor", "icon": "transformer", "size": Vector2i(3, 3), "cost": 2.5e6, "growth": 2.0, "up": 0, "max": 1, "time": 0,
 		"aura": {"what": "compute", "r": 6, "v": 0.25}, "desc": "High voltage straight from the grid. Servers and labs within 6 tiles work 25% faster."},
+	# ---- exclusive decor: earned (streaks, quests, the League, the Lab Pass, Community Day), see LiveDefs.EXCLUSIVE
+	"neon_sign": {"name": "Neon Token Sign", "cat": "decor", "tab": "decor", "icon": "neon_sign", "size": Vector2i(1, 1), "limit": 1, "cost": 500, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 3, "v": 0.06}, "desc": "A glowing token on a post. Cafés within 3 tiles get 6% more visitors."},
+	"holo_bot": {"name": "Hologram Assistant", "cat": "decor", "tab": "decor", "icon": "holo_bot", "size": Vector2i(1, 1), "limit": 1, "cost": 2000, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "walk", "r": 4, "v": 0.15}, "desc": "A friendly hologram points the way. Staff within 4 tiles move 15% faster."},
+	"server_fountain": {"name": "Liquid-Cooled Fountain", "cat": "decor", "tab": "decor", "icon": "server_fountain", "size": Vector2i(2, 2), "limit": 1, "cost": 5000, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "charm", "r": 5, "v": 0.15}, "desc": "Coolant that sparkles. Cafés within 5 tiles get 15% more visitors."},
+	"trophy": {"name": "Benchmark Trophy", "cat": "decor", "tab": "decor", "icon": "trophy", "size": Vector2i(1, 1), "limit": 1, "cost": 3000, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 5, "v": 0.15}, "desc": "Proof you topped the leaderboard. Servers and labs within 5 tiles work 15% faster."},
+	"streak_flame": {"name": "Eternal Flame", "cat": "decor", "tab": "decor", "icon": "flame", "size": Vector2i(1, 1), "limit": 1, "cost": 3000, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "source", "r": 4, "v": 0.2}, "desc": "Lit by a 30-day streak. Sources within 4 tiles work 20% faster."},
+	"quantum_core": {"name": "Quantum Core", "cat": "decor", "tab": "decor", "icon": "quantum_core", "size": Vector2i(2, 2), "limit": 1, "cost": 20000, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"aura": {"what": "compute", "r": 6, "v": 0.3}, "desc": "A breakthrough in a box. Servers and labs within 6 tiles work 30% faster."},
 	"gpu_statue": {"name": "Golden GPU", "cat": "decor", "tab": "decor", "icon": "gpu_statue", "size": Vector2i(2, 2), "cost": 1.3e6, "growth": 4.0, "up": 0, "max": 1, "time": 0,
 		"aura": {"what": "global_price", "r": 0, "v": 0.05}, "desc": "Every token in the empire sells for 5% more."},
 
@@ -235,6 +248,7 @@ const BUILD_ORDER: Array[String] = [
 	"van", "cafe", "desk", "hyperloop", "droneport",
 	"hut", "dorm", "mega",
 	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "net_cab", "rack_row", "chiller", "generator", "transformer", "gpu_statue",
+	"neon_sign", "holo_bot", "server_fountain", "trophy", "streak_flame", "quantum_core",
 ]
 
 ## Lab levels: lifetime tokens served needed, and the sparks each level brings.

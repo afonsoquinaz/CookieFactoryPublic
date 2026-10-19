@@ -34,7 +34,7 @@ static func build_time(kind: String, owned: int) -> float:
 	var t := float(Defs.BUILDINGS[kind].get("time", 0))
 	if t <= 0.0:
 		return 0.0
-	return minf(t * pow(2.0, owned), 4.0 * 3600.0) * tool_mult()
+	return minf(t * pow(2.0, owned), 4.0 * 3600.0) * tool_mult() * Live.time_mult()
 
 
 ## Seconds to upgrade from level l to l+1. Short at first (a few seconds),
@@ -47,7 +47,7 @@ static func upgrade_time(kind: String, l: int) -> float:
 	if d["cat"] == "staff":
 		top = 2.0 * 3600.0
 	var f := float(l - 1) / float(mx - 2) if mx > 2 else 0.0
-	return roundf(t0 * pow(top / t0, pow(f, 0.75))) * tool_mult()
+	return roundf(t0 * pow(top / t0, pow(f, 0.75))) * tool_mult() * Live.time_mult()
 
 
 static func tool_mult() -> float:
@@ -209,7 +209,7 @@ static func item_value(t: String) -> float:
 	if c == "raw" or c == "proc":
 		return 0.0
 	var r := Defs.recipe(Defs.recipe_of(t))
-	var v: float = float(r.get("price", 1.0)) * price_mult()
+	var v: float = float(r.get("price", 1.0)) * price_mult() * Live.price_mult(Defs.recipe_of(t))
 	if Game.trending == Defs.recipe_of(t):
 		v *= 1.5 + 0.1 * Game.research("market")
 	match c:

@@ -29,6 +29,7 @@ signal trend_changed(recipe: String)
 signal discovered(recipe: String)
 signal toast(text: String, icon: String)
 signal victory
+signal tracked(metric: String, n: float, arg: String)   # for Live: quests, goals, badges
 
 const SAVE_PATH := "user://token_empire_v1.json"
 const VERSION := 1
@@ -176,6 +177,7 @@ func add_money(amount: float, earned := true) -> void:
 	if earned and amount > 0.0:
 		stats["earned"] = float(stats["earned"]) + amount
 		_income_window.append([_clock, amount])
+		track("money", amount)
 	money_changed.emit(money, amount)
 	if earned and amount > 0.0:
 		_check_level()
@@ -254,6 +256,11 @@ func add_tokens(n: int) -> void:
 	_check_level()
 
 
+## Something happened that the daily layer counts (see Live.track).
+func track(metric: String, n := 1.0, arg := "") -> void:
+	tracked.emit(metric, n, arg)
+
+
 ## Sells items through a channel. Returns the money made.
 func sell(items: Array, mult := 1.0, agent_mult := 1.0) -> float:
 	var total := 0.0
@@ -263,10 +270,19 @@ func sell(items: Array, mult := 1.0, agent_mult := 1.0) -> float:
 		if Defs.cat(t) == "agent":
 			v *= agent_mult
 		total += v
-		n += Defs.token_count(t)
-		if Defs.recipe_of(t) == "frontier":
+		var tc := Defs.token_count(t)
+		n += tc
+		var rid := Defs.recipe_of(t)
+		if rid == "frontier":
 			stats["frontier"] = int(stats["frontier"]) + 1
+		track("served", tc, rid)
+		if rid == trending:
+			track("trend_tokens", tc)
+		if Defs.cat(t) == "agent":
+			track("agents", 1)
 	stats["tokens"] = int(stats["tokens"]) + n
+	track("tokens", n)
+	track("sales", n)
 	_token_window.append([_clock, n])
 	total = roundf(total)
 	add_money(total)
@@ -323,6 +339,8 @@ func build_time_of(kind: String) -> float:
 
 ## Why a new building can't be placed now ("" when it can).
 func build_block(kind: String) -> String:
+	if not Live.is_unlocked(kind):
+		return "Locked: " + LiveDefs.EXCLUSIVE[kind]
 	var mx := Defs.limit_of(kind)
 	if mx >= 0 and count_of(kind) >= mx:
 		return "You have all of these" if mx > 1 else "You already have one"
@@ -445,6 +463,7 @@ func _finish_upgrade(b: Dictionary) -> void:
 	b["lvl"] = int(b["lvl"]) + 1
 	var uid := int(b["uid"])
 	building_upgraded.emit(uid, int(b["lvl"]))
+	track("upgrades")
 
 
 ## Whether the empire can currently make an ingredient.
@@ -533,6 +552,7 @@ func _complete(j: Dictionary) -> void:
 				b["lvl"] = maxi(1, int(b["lvl"]))
 				_counts.erase(b["kind"])
 				building_built.emit(int(b["uid"]))
+				track("builds")
 		"upgrade":
 			var b2 := building(int(j["uid"]))
 			if not b2.is_empty():
@@ -553,6 +573,7 @@ func _complete(j: Dictionary) -> void:
 				obstacle_cleared.emit(j["ob"], g)
 				obstacles.erase(j["ob"])
 				cleared += 1
+				track("clears")
 				if g > 0:
 					add_gems(g)
 				obstacles_changed.emit()
@@ -711,7 +732,7 @@ func research(id: String) -> int:
 
 
 func research_cost(id: String) -> float:
-	return Bal.research_cost(id, research(id))
+	return Bal.snap_price(Bal.research_cost(id, research(id)) * Live.research_mult())
 
 
 func research_maxed(id: String) -> bool:
@@ -723,6 +744,7 @@ func buy_research(id: String) -> bool:
 		return false
 	research_lv[id] = research(id) + 1
 	researched.emit(id, research_lv[id])
+	track("research")
 	save_game()
 	return true
 
@@ -820,6 +842,7 @@ func deliver(item: String) -> bool:
 				add_money(float(o["reward"]))
 				add_gems(int(o["gems"]))
 				stats["orders"] = int(stats["orders"]) + 1
+				track("orders")
 				toast.emit("Contract complete! +$%s  +%d sparks" % [Fmt.num(o["reward"]), int(o["gems"])], "gem")
 				refill_orders()
 			orders_changed.emit()
@@ -860,6 +883,7 @@ func hire() -> Dictionary:
 	next_worker_id += 1
 	hired += 1
 	workers.append(w)
+	track("hires")
 	workers_changed.emit()
 	save_game()
 	return w
@@ -916,6 +940,7 @@ func start_rush() -> bool:
 	rush_time = Bal.rush_duration()
 	rush_cooldown = Bal.rush_duration() + Bal.rush_cooldown()
 	rush_changed.emit(true)
+	track("overclock")
 	return true
 
 
@@ -1026,3 +1051,4 @@ func wipe() -> void:
 	reset_state()
 	if FileAccess.file_exists(SAVE_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	Live.wipe()

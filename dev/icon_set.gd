@@ -6,7 +6,9 @@ class_name IconSet
 
 const UI := ["coin", "cash", "gem", "star", "trophy", "lock", "gear", "clock", "boost", "speed", "price",
 	"recipe", "research", "hammer", "land", "move", "rotate", "storage", "bay", "deliver", "hire", "worker",
-	"builder", "token", "batch", "agent", "courier", "tech", "engineer", "brand"]
+	"builder", "token", "batch", "agent", "courier", "tech", "engineer", "brand",
+	"flame", "calendar", "mail", "gift", "crate_supply", "crate_server", "crate_gpu", "crate_lab", "freeze", "pass",
+	"event", "album", "profile", "shield", "share"]
 
 
 static func names() -> Array[String]:
@@ -105,6 +107,9 @@ static func _building(root: Node3D, kind: String) -> void:
 			root.set_meta("pitch", 24.0)
 		"decor":
 			_mi(DecorB.mesh(kind), root)
+			var sy := {"neon_sign": 1.9, "quantum_core": 1.55, "trophy": 1.05, "holo_bot": 0.55, "streak_flame": 0.75, "server_fountain": 1.25}
+			if sy.has(kind):
+				_mi(DecorB.spinner(kind), root, MeshKit.at(0, sy[kind], 0))
 			match kind:
 				"turbine":
 					var k2 := MeshKit.new()
@@ -312,6 +317,108 @@ static func _ui(root: Node3D, name: String) -> void:
 			k.add_mesh(Items.mesh("b:assist70"))
 			k.sphere(0.06, Pal.BRASS, MeshKit.at(0, 0.32, 0), 8, 5)
 			root.set_meta("pitch", 30.0)
+		"flame":
+			# the streak flame: layered glowing tongues
+			k.ellipsoid(Vector3(0.36, 0.5, 0.3), Color(1.0, 0.5, 0.14), MeshKit.at(0, 0.45, 0), 14, 10)
+			k.cone(0.3, 0.7, Color(1.0, 0.5, 0.14), MeshKit.at(0, 0.6, 0), 14)
+			k.ellipsoid(Vector3(0.22, 0.32, 0.2), Color(1.0, 0.78, 0.3, 0.45), MeshKit.at(0, 0.38, 0.12), 12, 8)
+			k.cone(0.16, 0.42, Color(1.0, 0.86, 0.4, 0.45), MeshKit.at(0, 0.5, 0.14), 12)
+			k.ellipsoid(Vector3(0.1, 0.14, 0.08), Color(1.0, 0.98, 0.85, 0.3), MeshKit.at(0, 0.3, 0.26), 10, 6)
+			root.set_meta("yaw", -10.0)
+			root.set_meta("pitch", 8.0)
+		"calendar":
+			k.rbox(Vector3(0.9, 0.86, 0.08), 0.06, Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.45, 0))
+			k.rbox(Vector3(0.92, 0.22, 0.1), 0.06, Color(0.92, 0.36, 0.32), MeshKit.at(0, 0.8, 0))
+			for sx in [-0.24, 0.24]:
+				k.cyl(0.04, 0.2, Color(0.3, 0.32, 0.36), MeshKit.at(sx, 0.82, 0.04), 8)
+			for i in 9:
+				var c := Color(0.36, 0.76, 0.48) if i == 4 else Color(0.84, 0.86, 0.9)
+				k.rbox(Vector3(0.18, 0.12, 0.02), 0.02, c, MeshKit.at(-0.24 + (i % 3) * 0.24, 0.58 - (i / 3) * 0.16, 0.045))
+			root.set_meta("yaw", -12.0)
+			root.set_meta("pitch", 8.0)
+		"mail":
+			k.rbox(Vector3(0.9, 0.6, 0.12), 0.05, Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.4, 0))
+			for sx in [-1.0, 1.0]:
+				k.rbox(Vector3(0.54, 0.04, 0.02), 0.01, Color(0.8, 0.82, 0.86), MeshKit.xf(Vector3(sx * 0.21, 0.56, 0.065), Vector3(0, 0, sx * 34)))
+			k.sphere(0.12, Color(0.92, 0.36, 0.32), MeshKit.at(0.4, 0.68, 0.1), 12, 8)
+			root.set_meta("yaw", -12.0)
+			root.set_meta("pitch", 10.0)
+		"gift":
+			k.rbox(Vector3(0.7, 0.5, 0.7), 0.05, Color(0.3, 0.66, 0.68), MeshKit.at(0, 0.25, 0))
+			k.rbox(Vector3(0.78, 0.16, 0.78), 0.05, Color(0.36, 0.74, 0.76), MeshKit.at(0, 0.56, 0))
+			k.rbox(Vector3(0.14, 0.68, 0.8), 0.02, Color(1.0, 0.82, 0.32), MeshKit.at(0, 0.34, 0))
+			k.rbox(Vector3(0.8, 0.68, 0.14), 0.02, Color(1.0, 0.82, 0.32), MeshKit.at(0, 0.34, 0))
+			for sx in [-1.0, 1.0]:
+				k.torus(0.13, 0.05, Color(1.0, 0.82, 0.32), MeshKit.xf(Vector3(sx * 0.12, 0.74, 0), Vector3(90, 0, sx * 30)), 14, 6)
+		"crate_supply", "crate_server", "crate_gpu", "crate_lab":
+			var kind := name.trim_prefix("crate_")
+			var cc: Color = LiveDefs.CRATES[kind]["color"]
+			var band := Color(0.3, 0.32, 0.36) if kind != "gpu" else Color(0.5, 0.36, 0.14)
+			k.rbox(Vector3(0.9, 0.48, 0.62), 0.06, cc, MeshKit.at(0, 0.26, 0))
+			k.cyl(0.31, 0.9, cc.lightened(0.08), MeshKit.xf(Vector3(-0.45, 0.5, 0), Vector3(0, 0, -90)), 16, 0.03)
+			for sx in [-0.3, 0.3]:
+				k.rbox(Vector3(0.08, 0.5, 0.64), 0.02, band, MeshKit.at(sx, 0.26, 0))
+				k.torus(0.31, 0.04, band, MeshKit.xf(Vector3(sx, 0.5, 0), Vector3(0, 0, 90)), 16, 4, PI)
+			k.rbox(Vector3(0.22, 0.26, 0.06), 0.03, Color(1.0, 0.84, 0.36), MeshKit.at(0, 0.5, 0.33))
+			k.rbox(Vector3(0.06, 0.08, 0.02), 0.01, Color(0.2, 0.2, 0.22), MeshKit.at(0, 0.46, 0.365))
+			if kind == "lab" or kind == "gpu":
+				k.rbox(Vector3(0.86, 0.04, 0.02), 0.01, lit.call(Color(1.0, 0.9, 0.5) if kind == "gpu" else Color(0.85, 0.6, 1.0)), MeshKit.at(0, 0.5, 0.315))
+			root.set_meta("yaw", -22.0)
+			root.set_meta("pitch", 18.0)
+		"freeze":
+			# an ice cube with a snowflake
+			k.rbox(Vector3(0.7, 0.7, 0.7), 0.1, Color(0.62, 0.86, 1.0), MeshKit.at(0, 0.4, 0))
+			for i in 3:
+				k.rbox(Vector3(0.05, 0.5, 0.02), 0.02, Color(1, 1, 1), MeshKit.xf(Vector3(0, 0.4, 0.36), Vector3(0, 0, i * 60)))
+			k.sphere(0.06, Color(1, 1, 1), MeshKit.at(0, 0.4, 0.37), 8, 5)
+			root.set_meta("yaw", -18.0)
+			root.set_meta("pitch", 14.0)
+		"pass":
+			# the Lab Pass: a ticket with a star
+			k.rbox(Vector3(1.0, 0.6, 0.06), 0.08, Color(0.36, 0.3, 0.7), MeshKit.at(0, 0.4, 0))
+			k.rbox(Vector3(0.9, 0.5, 0.02), 0.06, Color(0.5, 0.42, 0.9), MeshKit.at(0, 0.4, 0.03))
+			k.star(0.2, 0.09, 5, 0.04, Color(1.0, 0.84, 0.36), MeshKit.xf(Vector3(-0.2, 0.4, 0.09), Vector3(-90, 0, 0)))
+			for i in 2:
+				k.rbox(Vector3(0.3 - i * 0.08, 0.05, 0.02), 0.02, Color(0.94, 0.94, 0.98), MeshKit.at(0.2, 0.46 - i * 0.12, 0.05))
+			root.set_meta("yaw", -12.0)
+			root.set_meta("pitch", 8.0)
+		"event":
+			# a megaphone with confetti
+			k.cyl(0.12, 0.3, Color(0.3, 0.32, 0.36), MeshKit.xf(Vector3(-0.35, 0.45, 0), Vector3(0, 0, -90)), 12)
+			k.cyl(0.14, 0.6, Color(0.92, 0.36, 0.32), MeshKit.xf(Vector3(-0.08, 0.45, 0), Vector3(0, 0, -90)), 16, 0.0, 0.34)
+			k.cyl(0.34, 0.03, Color(0.97, 0.97, 0.96), MeshKit.xf(Vector3(0.52, 0.45, 0), Vector3(0, 0, -90)), 16)
+			var cf := [Color(1.0, 0.84, 0.36), Color(0.36, 0.76, 0.48), Color(0.4, 0.7, 1.0), Color(0.9, 0.5, 0.9)]
+			for i in 7:
+				k.rbox(Vector3(0.08, 0.04, 0.02), 0.01, cf[i % 4], MeshKit.xf(Vector3(0.62 + (i % 3) * 0.1, 0.2 + i * 0.1, 0.05), Vector3(0, 0, i * 40)))
+			root.set_meta("yaw", -10.0)
+			root.set_meta("pitch", 8.0)
+		"album":
+			k.rbox(Vector3(0.74, 0.92, 0.14), 0.05, Color(0.3, 0.66, 0.68), MeshKit.at(0, 0.48, 0))
+			k.rbox(Vector3(0.66, 0.86, 0.12), 0.03, Color(0.97, 0.96, 0.92), MeshKit.at(0.05, 0.48, -0.01))
+			k.rbox(Vector3(0.08, 0.94, 0.16), 0.03, Color(0.22, 0.5, 0.52), MeshKit.at(-0.36, 0.48, 0))
+			Items.token_into(k, "frontier", 0.18, 0.04, MeshKit.xf(Vector3(0.02, 0.5, 0.08), Vector3(90, 0, 0)))
+			root.set_meta("yaw", -14.0)
+			root.set_meta("pitch", 8.0)
+		"profile":
+			k.cyl(0.46, 0.06, Color(0.3, 0.66, 0.68), MeshKit.xf(Vector3(0, 0.48, 0), Vector3(90, 0, 0)), 24)
+			k.sphere(0.15, Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.6, 0.05), 14, 8)
+			k.ellipsoid(Vector3(0.26, 0.16, 0.1), Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.3, 0.05), 14, 8)
+			root.set_meta("yaw", -10.0)
+			root.set_meta("pitch", 6.0)
+		"shield":
+			# a league shield, pale so the UI can tint it
+			var sh := PackedVector2Array([Vector2(-0.4, 0.42), Vector2(0.4, 0.42), Vector2(0.4, 0.0), Vector2(0.0, -0.46), Vector2(-0.4, 0.0)])
+			k.prism(sh, 0.12, Color(0.92, 0.93, 0.95), MeshKit.xf(Vector3(0, 0.5, 0.06), Vector3(-90, 0, 0)))
+			k.prism(PackedVector2Array([Vector2(-0.3, 0.32), Vector2(0.3, 0.32), Vector2(0.3, 0.02), Vector2(0.0, -0.32), Vector2(-0.3, 0.02)]), 0.04, Color(0.99, 0.99, 1.0), MeshKit.xf(Vector3(0, 0.5, 0.1), Vector3(-90, 0, 0)))
+			k.star(0.14, 0.06, 5, 0.04, Color(0.78, 0.8, 0.84), MeshKit.xf(Vector3(0, 0.53, 0.14), Vector3(-90, 0, 0)))
+			root.set_meta("yaw", -10.0)
+			root.set_meta("pitch", 6.0)
+		"share":
+			k.rbox(Vector3(0.7, 0.5, 0.12), 0.06, Color(0.3, 0.66, 0.68), MeshKit.at(0, 0.3, 0))
+			k.rbox(Vector3(0.12, 0.6, 0.12), 0.04, Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.6, 0.04))
+			k.cone(0.24, 0.26, Color(0.97, 0.97, 0.96), MeshKit.at(0, 0.88, 0.04), 4)
+			root.set_meta("yaw", -10.0)
+			root.set_meta("pitch", 8.0)
 		"hire", "builder":
 			if name == "builder":
 				var o := Color(0.97, 0.78, 0.26)

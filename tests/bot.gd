@@ -22,6 +22,7 @@ func _ready() -> void:
 	minutes = float(a.get("minutes", "20"))
 	seed(int(a.get("seed", "7")))
 	Game.no_save = true
+	Live.events_on = false
 	Game.tutorial_step = 99
 	Game.money_changed.connect(func(_v, d):
 		if d < 0:
