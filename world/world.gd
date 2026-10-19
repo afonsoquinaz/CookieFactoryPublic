@@ -38,6 +38,9 @@ func _ready() -> void:
 	actors = Node3D.new()
 	actors.name = "Actors"
 	add_child(actors)
+	var orbit := OrbitView.new()
+	orbit.world = self
+	add_child(orbit)
 	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)

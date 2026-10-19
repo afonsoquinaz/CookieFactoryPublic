@@ -120,8 +120,8 @@ static func garage_accel(l: int) -> float: return 0.5 * pow(1.12, mini(l, 12) - 
 static func server_eff(l: int) -> float: return (1.0 + 0.08 * (l - 1)) * (1.0 + 0.06 * Game.research("kv")) * (1.0 + 0.05 * Game.perk("bigbatch"))
 static func power_cap(l: int) -> int: return 12 + (l - 1) * 3
 static func coolant_cap(l: int) -> int: return 10 + (l - 1) * 3
-const POWER_PER_ACCEL := 1.0 / 6.0  # power cells per accelerator-second at full load
-const COOLANT_PER_GPU := 1.0 / 10.0 # coolant per GPU-second at full load
+const POWER_PER_ACCEL := 1.0 / 15.0 # power cells per accelerator-second at full load
+const COOLANT_PER_GPU := 1.0 / 25.0 # coolant per GPU-second at full load
 const THROTTLE := 0.6               # throughput without coolant (GPUs only)
 const GPU_FAIL := 1.0 / 10800.0     # failures per GPU-second at full load (one per ~3 h)
 ## Tuning: engineers and your taps; up to +50%, fading slowly.
@@ -133,7 +133,7 @@ static func tune_mult() -> float: return 1.0 + 0.1 * Game.research("tuning")
 
 # ---------------------------------------------------------------- market (DESIGN.md)
 ## AI adoption: every Lab level, the whole market grows.
-static func adoption(level: int) -> float: return pow(1.6, level - 1)
+static func adoption(level: int) -> float: return pow(1.32, level - 1)
 const ORGANIC := 1.0                # demand with no channels at all
 static func gateway_demand(l: int) -> float: return 0.6 + 0.08 * (l - 1)
 static func gateway_bw(l: int, fiber: int) -> float: return 2.0 * pow(1.25, l - 1) + 3.0 * fiber

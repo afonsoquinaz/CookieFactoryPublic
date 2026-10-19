@@ -1164,7 +1164,7 @@ func redeem(code: String) -> String:
 
 func invite_text() -> String:
 	return "I'm running %s in Token Empire: %s tokens served, Lab level %d, a %d-day streak. Join me and enter my code %s for a gift!" % [
-		profile["name"], Fmt.num(int(Game.stats["tokens"])), Game.level, streak, friend_code()]
+		profile["name"], Fmt.tokens(float(Game.stats["tokens"])), Game.level, streak, friend_code()]
 
 
 # ---------------------------------------------------------------- badges for the HUD

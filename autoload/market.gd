@@ -240,7 +240,10 @@ func step(dt: float) -> void:
 			wanted += out_d
 			lost += maxf(0.0, out_d - (float(served[rid]) - float(by_channel["cafe"].get(rid, 0.0))))
 	unmet = lost
-	var target := 1.0 - 0.8 * (lost / wanted if wanted > 0.0 else 0.0)
+	# customers forgive a busy API (they retry), not one that's swamped: at
+	# 1x demand reputation heads for 100%, at 5x or more for 40%
+	var over := wanted / maxf(0.0001, wanted - lost) if wanted > 0.0 else 1.0
+	var target := 1.0 - 0.6 * clampf((over - 1.0) / 4.0, 0.0, 1.0)
 	rep = clampf(rep + (target - rep) * dt * 0.004, 0.2, 1.0)
 	# models go stale as rivals ship better ones
 	for rid in Game.known_list():

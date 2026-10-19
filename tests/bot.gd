@@ -180,6 +180,9 @@ func _wants() -> Array[String]:
 			want.append(k)
 	if not Game.can_hire() and Game.workers.size() < 2 + world.bnodes.size() / 3:
 		want.append("dorm")
+	# sparks buy builders' huts: more builders, more upgrades at once
+	if Game.build_block("hut") == "":
+		want.insert(0, "hut")
 	return want
 
 
@@ -236,7 +239,7 @@ func _staff() -> void:
 
 func _research() -> void:
 	for id in ["recipe", "kv", "devrel", "wspeed", "wcarry", "tools", "spec", "tuning", "offline", "hiring", "market"]:
-		if not Game.research_maxed(id) and Game.research_cost(id) < _spare() * 0.25:
+		if not Game.research_maxed(id) and Game.research_cost(id) < _spare() * (0.25 if Game.free_builders() == 0 else 0.08):
 			_kind = "research"
 			Game.buy_research(id)
 			return

@@ -54,11 +54,16 @@ func _plan() -> void:
 	for k in Defs.OBSTACLES:
 		steps.append(_mesh.bind("obstacle_" + k, TownArt.obstacle.bind(k)))
 	steps.append(_effects)
+	# space: the rocket, its flame, the orbital station
+	steps.append(_mesh.bind("rocket", InfraArt.rocket))
+	steps.append(_mesh.bind("rocket_flame", InfraArt.flame))
+	steps.append(_mesh.bind("orbit_module", InfraArt.orbit_module))
+	steps.append(_mesh.bind("orbit_spine_1", InfraArt.orbit_spine.bind(1)))
 	# every panel once
 	if hud:
 		for tab in Defs.TABS:
 			steps.append(_panel.bind("build", tab[0]))
-		for p in ["staff", "research", "settings", "recipes", "building"]:
+		for p in ["staff", "research", "settings", "recipes", "building", "market", "shop"]:
 			steps.append(_panel.bind(p, ""))
 		for t in ["today", "league", "pass", "album"]:
 			steps.append(_panel.bind("live", t))
@@ -200,6 +205,8 @@ func _panel(which: String, arg: String) -> void:
 		"staff": s = StaffPanel.new()
 		"research": s = ResearchPanel.new()
 		"settings": s = SettingsPanel.new()
+		"market": s = MarketPanel.new()
+		"shop": s = ShopPanel.new()
 		"live":
 			LivePanel.last_tab = arg
 			s = LivePanel.new()

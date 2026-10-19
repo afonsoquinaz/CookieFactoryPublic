@@ -21,6 +21,7 @@ var _income_label: Label
 var _gem_chip: PanelContainer
 var _gem_label: Label
 var _token_chip: PanelContainer
+var _load_label: Label
 var _token_label: Label
 var _builders_chip: JuicyButton
 var _trend_chip: PanelContainer
@@ -129,7 +130,7 @@ func _ready() -> void:
 		for i in 3:
 			Fx.burst(get_tree().current_scene, c + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
 		_popup("Token Empire!", "The AGI Megacluster is online. Your tokens power the whole world.",
-			"%s tokens served  ·  %s earned  ·  %s played" % [Fmt.num(int(Game.stats["tokens"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
+			"%s tokens served  ·  %s earned  ·  %s played" % [Fmt.tokens(float(Game.stats["tokens"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
 			"mega", "Keep serving"))
 	_update_level()
 	_on_trend(Game.trending)
@@ -210,23 +211,41 @@ func _build_top() -> void:
 	# gems
 	_gem_chip = PanelContainer.new()
 	_gem_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
-	_gem_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gem_chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_gem_chip.gui_input.connect(func(e):
+		if (e is InputEventMouseButton or e is InputEventScreenTouch) and not e.pressed and playing:
+			Kit.bounce(_gem_chip)
+			open_sheet(ShopPanel.new()))
 	add_child(_gem_chip)
 	var gh := Kit.hbox(6)
+	gh.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gem_chip.add_child(gh)
 	gh.add_child(Kit.icon("gem", 34))
 	_gem_label = Kit.game("0", 22, Kit.WHITE, 5)
 	gh.add_child(_gem_label)
+	var plus := Kit.glyph("add", 24, Color(0.6, 1.0, 0.7))
+	plus.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gh.add_child(plus)
 	# tokens served: the score of the game, with the serving rate
 	_token_chip = PanelContainer.new()
 	_token_chip.add_theme_stylebox_override("panel", Kit.skin("card_dark", 26, Vector4(10, 4, 16, 8)))
-	_token_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_token_chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_token_chip.gui_input.connect(func(e):
+		if (e is InputEventMouseButton or e is InputEventScreenTouch) and not e.pressed and playing:
+			Kit.bounce(_token_chip)
+			open_sheet(MarketPanel.new()))
 	add_child(_token_chip)
 	var tkh := Kit.hbox(6)
+	tkh.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_token_chip.add_child(tkh)
 	tkh.add_child(Kit.icon("token", 34))
+	var tkv := Kit.vbox(0)
+	tkv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tkh.add_child(tkv)
 	_token_label = Kit.game("0", 20, Color(0.7, 0.96, 1.0), 5)
-	tkh.add_child(_token_label)
+	tkv.add_child(_token_label)
+	_load_label = Kit.game("", 13, Color(0.7, 1.0, 0.75), 4)
+	tkv.add_child(_load_label)
 	# builders: busy / total
 	_builders_chip = Kit.juicy("", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 20, Vector2(118, 60))
 	_builders_chip.set_icon("builder", 40)
@@ -433,7 +452,7 @@ func snapshot() -> void:
 	h.add_child(hv)
 	hv.add_child(Kit.game(Live.profile["name"], 32, Kit.WHITE, 6))
 	hv.add_child(Kit.game("Token Empire", 18, Color(0.7, 0.96, 1.0), 4))
-	v.add_child(Kit.game("%s tokens served  ·  Lab level %d" % [Fmt.num(int(Game.stats["tokens"])), Game.level], 20, Kit.WHITE, 4))
+	v.add_child(Kit.game("%s tokens served  ·  Lab level %d" % [Fmt.tokens(float(Game.stats["tokens"])), Game.level], 20, Kit.WHITE, 4))
 	v.add_child(Kit.game("%d-day streak  ·  %s League  ·  %d models" % [Live.streak, Live.league_name(), Game.known_recipes.size()], 18, Color(1.0, 0.86, 0.5), 4))
 	v.add_child(Kit.game("Join me: " + Live.friend_code(), 16, Color(0.8, 0.86, 0.94), 4))
 	var vs := get_viewport_rect().size
@@ -470,7 +489,7 @@ func _on_trend(rid: String) -> void:
 	_trend_icon.texture = Icons.tex("tk_" + rid)
 	_trend_label.text = "Trending: %s  x%.1f" % [Defs.recipe(rid)["name"], 1.5 + 0.1 * Game.research("market")]
 	if playing:
-		toast("%s is trending: its tokens sell for more!" % Defs.recipe(rid)["name"], "tk_" + rid)
+		toast("%s is trending: twice the customers, and they pay more!" % Defs.recipe(rid)["name"], "tk_" + rid)
 
 
 func _on_builders() -> void:
@@ -556,7 +575,7 @@ func _update_buttons(dt: float) -> void:
 	actions.visible = sel and placement == null and _sheet == null
 	_show_button(btn_build, true)
 	_show_button(btn_staff, true)
-	_show_button(btn_research, int(Game.stats["tokens"]) > 0)
+	_show_button(btn_research, float(Game.stats["tokens"]) > 0.0)
 	_show_button(_btn_rush, Game.level >= 2)
 	_gem_chip.visible = true
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
@@ -620,6 +639,15 @@ func open_building(n: Building, focus := "") -> void:
 	var p := BuildingPanel.new().setup(world, n, focus)
 	p.move_requested.connect(func(uid): start_placement.call_deferred(n.kind, uid))
 	open_sheet(p)
+
+
+## Your tap on a server: a tune, a spark of light, the tune % up top.
+func _tune(s: ServerB, at: Vector3) -> void:
+	s.tap(Bal.TUNE_PLAYER, at)
+	Sfx.play("pop", -6.0, 1.0 + s.tune * 0.6)
+	if at != Vector3.INF:
+		UI3D.pop_text(get_tree().current_scene, at + Vector3(0, 0.6, 0), "+tune %d%%" % roundi(s.tune * 100), Color(1.0, 0.9, 0.5), 40)
+	_refresh_actions.call_deferred()
 
 
 func open_recipes(n: ServerB) -> void:
@@ -717,8 +745,13 @@ func _refresh_actions() -> void:
 			b.append(["warp", "clock", "Warp %s x%d" % ["15m" if wk == "warp15" else "1h", int(Live.boosters[wk])], Kit.CHARCOAL])
 	elif not n is SiteB and Bal.max_level(n.kind) > 1 and n.level < Bal.max_level(n.kind):
 		b.append(["upgrade", "hammer", "$" + Fmt.num(Bal.upgrade_cost(n.kind, n.level)), Kit.SAGE])
-	if n is ServerB:
+	if n is ServerB and not n is SiteB:
 		b.append(["recipe", "tk_" + (n as ServerB).recipe, "Model", Kit.BRASS])
+		b.append(["tune", "engineer", "Tune %d%%" % roundi((n as ServerB).tune * 100), Kit.SAGE])
+	if n is TrainerB:
+		b.append(["train", "trainer", "Train", Kit.BRASS])
+	if (n is ServerB or n is ChannelB or n is DeskB or n is CafeB) and not n is SiteB:
+		b.append(["market", "gateway", "Market", Kit.CHARCOAL])
 	if (n is SourceB or n is ServerB or n is MachineB) and not n is SiteB:
 		b.append(["staff", "tech" if n is SourceB else "engineer", "Staff", Kit.CHARCOAL])
 	if n is MegaB and j2.is_empty() and not (n as MegaB).complete():
@@ -790,6 +823,12 @@ func _on_action(id: String) -> void:
 			open_building(n, "upgrade")
 		"recipe":
 			open_recipes(n as ServerB)
+		"tune":
+			_tune(n as ServerB, Vector3.INF)
+		"train":
+			open_sheet(TrainPanel.new().setup(n as TrainerB))
+		"market":
+			open_sheet(MarketPanel.new())
 		"staff":
 			open_building(n, "staff")
 		"move":
@@ -826,7 +865,8 @@ func _finish(j: Dictionary) -> void:
 		Sfx.play("cash" if g > 0 else "upgrade")
 	else:
 		Sfx.play("deny")
-		toast("Not enough gems (%d needed). Orders and obstacles give gems." % g, "gem")
+		toast("Not enough sparks (%d needed). Get more in the shop: tap your sparks." % g, "gem")
+		open_sheet(ShopPanel.new())
 
 
 func _on_timer(j: Dictionary) -> void:
@@ -881,6 +921,12 @@ func _on_tap(pos: Vector2) -> void:
 		var p2: Vector3 = o + d * ((y - o.y) / d.y)
 		var b := world.building_at(p2)
 		if b:
+			# tapping a running server tunes it (like its engineers do)
+			if b is ServerB and not b is SiteB and Game.job_of(b.uid).is_empty():
+				if b != selected:
+					select(b)
+				_tune(b as ServerB, p2 + Vector3(0, 1.2, 0))
+				return
 			if b == selected:
 				open_building(b)
 			else:
@@ -956,8 +1002,18 @@ func _process(dt: float) -> void:
 	_money_label.text = Fmt.num(roundf(_shown_money))
 	var inc := Game.recent_income()
 	_income_label.text = ("+%s/min" % Fmt.num(inc * 60.0)) if inc > 0.05 else ""
-	var tr := Game.token_rate()
-	_token_label.text = Fmt.num(int(Game.stats["tokens"])) + (("  ·  %s/s" % (("%.1f" % tr) if tr < 10.0 else Fmt.num(tr))) if tr > 0.05 else "")
+	var tr := Market.total(Market.served)
+	_token_label.text = Fmt.tokens(float(Game.stats["tokens"])) + (("  ·  %s/s" % Fmt.tokens(tr)) if tr > 0.0001 else "")
+	var cap := Market.total(Market.cap)
+	var dem := Market.total(Market.demand)
+	if cap <= 0.0:
+		_load_label.text = "servers idle: tap for Market"
+		_load_label.modulate = Color(1.0, 0.6, 0.55)
+	else:
+		var u := Market.utilisation()
+		var short := dem > cap * 1.1 or Market.used_bw >= Market.bandwidth * 0.98
+		_load_label.text = "load %d%%  ·  %s" % [roundi(u * 100), "unmet demand" if dem > cap * 1.1 else ("gateways full" if Market.used_bw >= Market.bandwidth * 0.98 else "Market")]
+		_load_label.modulate = Color(1.0, 0.75, 0.45) if short else Color(0.7, 1.0, 0.75)
 	if playing and placement == null:
 		_update_buttons(dt)
 	_live_t -= dt

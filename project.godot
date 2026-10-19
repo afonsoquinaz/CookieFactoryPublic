@@ -21,6 +21,7 @@ Market="*res://autoload/market.gd"
 Game="*res://autoload/game.gd"
 Live="*res://autoload/live.gd"
 Notifier="*res://autoload/notifier.gd"
+Store="*res://autoload/store.gd"
 Sfx="*res://autoload/sfx.gd"
 Quality="*res://autoload/quality.gd"
 

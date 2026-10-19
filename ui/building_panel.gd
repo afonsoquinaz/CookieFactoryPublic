@@ -275,7 +275,7 @@ func _upgrade() -> void:
 		else:
 			Sfx.play("deny")
 			Kit.shake(_upgrade_btn)
-			Game.toast.emit("Not enough gems (%d needed)" % g, "gem")
+			Game.toast.emit("Not enough sparks (%d needed): tap your sparks for the shop" % g, "gem")
 		_refresh()
 		return
 	var why := Game.upgrade_block(node.uid)

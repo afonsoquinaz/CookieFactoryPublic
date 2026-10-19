@@ -23,6 +23,7 @@ func _ready() -> void:
 	_test_game_state()
 	_test_save_roundtrip()
 	_test_live()
+	_test_store()
 	_test_grid()
 	_test_roads_unit()
 	await _test_holders()
@@ -558,6 +559,35 @@ func _test_save_roundtrip() -> void:
 	var v1 := {"v": 1, "buildings": [{"uid": 1, "kind": "van", "cell": [0, 0], "rot": 0, "lvl": 3, "data": {"cargo": ["t:pico"]}}, {"uid": 2, "kind": "cache", "cell": [4, 0], "rot": 0, "lvl": 2, "data": {}}], "money": 10.0, "stats": {"tokens": 50}}
 	var v2 := Game.migrate_v1(v1)
 	ok(v2["buildings"].size() == 1 and v2["buildings"][0]["kind"] == "gateway" and not v2["buildings"][0]["data"].has("cargo") and float(v2["money"]) > 10.0, "old saves: vans become gateways, token caches are refunded")
+	Game.reset_state()
+
+
+func _test_store() -> void:
+	Game.reset_state()
+	Live.reset_state()
+	Live.tick()
+	Store.sandbox = false
+	if Store.backend == "":
+		ok(not Store.available() and Store.unavailable_reason() != "" and not Store.buy("sparks_80"), "no store here: the shop says so and sells nothing")
+	Store.sandbox = true
+	var g0 := Game.gems
+	ok(Store.buy("sparks_500") and Game.gems == g0 + 500, "a spark pack grants its sparks")
+	ok(Store.buy("starter") and Game.gems == g0 + 900 and int(Live.boosters.get("warp60", 0)) >= 3, "the Starter Pack: sparks, Time Warps, a crate")
+	ok(not Store.buy("starter"), "the Starter Pack is once only")
+	ok(not Store.buy("nonsense"), "unknown products don't sell")
+	Game.money = 1e9
+	var p1 := Store.exchange_price()
+	var g1 := Game.gems
+	ok(Store.exchange() and Game.gems == g1 + Store.EXCHANGE_GEMS, "the Spark Exchange trades money for sparks")
+	ok(Store.exchange_price() > p1, "dearer with every trade")
+	while Store.exchange():
+		pass
+	ok(Store.exchange_left() == 0 and not Store.exchange(), "five trades a day")
+	var d: Dictionary = JSON.parse_string(JSON.stringify(Game.to_dict()))
+	Store.reset_state()
+	Game.from_dict(d)
+	ok(Store.starter_bought and Store.exchange_left() == 0, "the shop's state saves")
+	Store.sandbox = false
 	Game.reset_state()
 
 

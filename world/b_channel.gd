@@ -17,6 +17,8 @@ var _label: Label3D
 var _bots: Array[Node3D] = []
 var _bot_goal: Array[Vector3] = []
 var _beacon_t := 0.0
+var _traffic_t := 0.0
+var _in_flight := 0
 
 
 func _build() -> void:
@@ -136,6 +138,60 @@ func _process(dt: float) -> void:
 		n.position.y = 0.12 + absf(sin(_t * 6.0 + i)) * 0.03
 	if int(_t) != int(_t - dt):
 		_update()
+	if kind == "gateway" and is_inside_tree() and world:
+		_traffic(dt)
+
+
+## API traffic you can see: request packets (cyan) arc from the gateway to
+## the servers answering them, token streams (gold) fly back. More traffic,
+## more packets.
+func _traffic(dt: float) -> void:
+	var share := Market.used_bw / maxf(0.0001, Market.bandwidth)
+	if share <= 0.0:
+		return
+	_traffic_t -= dt
+	if _traffic_t > 0.0 or _in_flight >= 14:
+		return
+	_traffic_t = lerpf(1.2, 0.18, clampf(share, 0.0, 1.0)) * randf_range(0.7, 1.3)
+	var busy: Array = []
+	for n in world.buildings_of("server"):
+		if (n as ServerB).load_now > 0.05:
+			busy.append(n)
+	if busy.is_empty():
+		return
+	var s: ServerB = busy[randi() % busy.size()]
+	var router := s.to_world(ServerB.ROUTER_X, ServerB.BUS_Z, 1.6)
+	var dish := to_world(-0.9, -2.0, 3.6)
+	_fly(dish, router, Color(0.45, 0.95, 1.0), false)
+	var vent := s.to_world(ServerB.CORE_X, ServerB.BUS_Z, 3.2)
+	_fly(vent, dish, Color(1.0, 0.85, 0.4), true)
+
+
+func _fly(a: Vector3, b: Vector3, c: Color, token: bool) -> void:
+	var n := MeshInstance3D.new()
+	n.mesh = MeshKit.cached("traffic_%s" % ("tok" if token else "req"), func():
+		var k := MeshKit.new()
+		if token:
+			k.cyl(0.3, 0.1, Color(1.0, 0.85, 0.4, 0.3), MeshKit.xf(Vector3.ZERO, Vector3(90, 0, 0)), 10)
+		else:
+			k.rbox(Vector3(0.5, 0.32, 0.5), 0.08, Color(0.45, 0.95, 1.0, 0.3), MeshKit.at(0, 0, 0))
+		return k.commit())
+	n.material_override = Mats.glow()
+	n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_tree().current_scene.add_child(n)
+	n.global_position = a
+	_in_flight += 1
+	var top := maxf(a.y, b.y) + 2.0 + a.distance_to(b) * 0.15
+	var dur := clampf(a.distance_to(b) / 9.0, 0.6, 2.4)
+	var tw := n.create_tween()
+	tw.tween_method(func(f: float):
+		var p := a.lerp(b, f)
+		p.y = lerpf(a.y, b.y, f) + (top - maxf(a.y, b.y)) * 4.0 * f * (1.0 - f)
+		n.global_position = p
+		n.rotation.y = f * TAU, 0.0, 1.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(func():
+		_in_flight -= 1
+		n.queue_free())
 
 
 func _update() -> void:

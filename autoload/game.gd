@@ -115,6 +115,7 @@ func reset_state() -> void:
 	won = false
 	_counts = {}
 	Market.reset_state()
+	Store.reset_state()
 	_starting_empire()
 
 
@@ -945,7 +946,7 @@ func to_dict() -> Dictionary:
 		"known": known_recipes.keys(), "orders": orders, "trending": trending, "trend_t": trend_t,
 		"settings": settings, "tutorial": tutorial_step,
 		"time": int(Time.get_unix_time_from_system()), "income": recent_income(), "trate": token_rate(),
-		"rush_cd": rush_cooldown, "won": won, "market": Market.to_dict(),
+		"rush_cd": rush_cooldown, "won": won, "market": Market.to_dict(), "store": Store.to_dict(),
 	}
 
 
@@ -1001,6 +1002,7 @@ func from_dict(d: Dictionary) -> void:
 	tutorial_step = int(d.get("tutorial", 0))
 	won = bool(d.get("won", false))
 	Market.from_dict(d.get("market", {}))
+	Store.from_dict(d.get("store", {}))
 	level = level_for(float(stats["tokens"]))
 	var away := maxf(0.0, float(Time.get_unix_time_from_system() - int(d.get("time", 0))))
 	rush_cooldown = maxf(0.0, float(d.get("rush_cd", 0.0)) - away)
