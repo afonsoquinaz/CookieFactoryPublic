@@ -209,7 +209,9 @@ func _upgrade() -> bool:
 		var c := Bal.upgrade_cost(n.kind, n.level)
 		# servers and gateways first: they're the bottleneck
 		var w := c
-		if n is ServerB or n.kind == "gateway" or n is TrainerB:
+		if n is ServerB:
+			w *= 0.15
+		elif n.kind == "gateway" or n is TrainerB:
 			w *= 0.5
 		if w < bc and (c <= _spare() or c <= Game.money * 0.25):
 			bc = w

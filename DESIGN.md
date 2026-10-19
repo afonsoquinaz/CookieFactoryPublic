@@ -83,7 +83,7 @@ Revenue per GPU (speed times price) rises from $3/s on Pico to $48/s on Frontier
   - each GPU is 1 accelerator;
   - a server level gives x(1 + 0.08 x (level-1));
   - full tune gives x1.5.
-- **Slots:** a server holds 1 + (level-1)/2 GPUs (up to 20) and (level-1)/3 HBM stacks (up to 12), so a top server holds 1,892 GB: Frontier fits.
+- **Slots:** a server holds 2 + (level-1)/2 GPUs (up to 20) and (level-1)/3 HBM stacks (up to 12), so a top server holds 1,892 GB: Frontier fits.
 - **Power:** 1 power cell per accelerator every 15 s at full load. **Coolant:** 1 per GPU every 25 s.
 - **GPU failures:** about one per GPU every 3 hours of use.
 

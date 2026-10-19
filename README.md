@@ -57,7 +57,7 @@ All 3D art is procedural low-poly (`world/mesh_kit.gd` and the `*_art.gd` files)
 ### The Inference Server
 One building holds a whole serving stack: a Request Router, a glass request bus, GPU trays over it, an HBM shelf and a GPU Core.
 - **Requests come in, tokens go out.** Customers' API calls arrive as glowing packets at the router, run down the bus under the GPU trays into the core, and a stream of tokens leaves through the vent. The busier the server, the more packets.
-- **Accelerators.** It comes with a garage graphics card. Couriers bring **GPUs** from the Chip Fab and slot them into the trays: one slot to start, one more every two levels, up to 20. **HBM stacks** (HBM Works) go on the shelf: one slot every three levels, up to 12.
+- **Accelerators.** It comes with a garage graphics card. Couriers bring **GPUs** from the Chip Fab and slot them into the trays: two slots to start, one more every two levels, up to 20. **HBM stacks** (HBM Works) go on the shelf: one slot every three levels, up to 12.
 - **Memory decides what it can run.** The card has 12 GB, each GPU adds 80 GB and each HBM stack 40 GB. A model needs its VRAM: Pico 1B 2 GB, Chat 7B 16 GB, a 70B model 150 GB, Frontier 1T 1,800 GB (20 GPUs and 5 HBM stacks).
 - **Power and cooling.** Every accelerator burns power cells while it serves: no power, no tokens. Real GPUs run hot and throttle to 60% without coolant.
 - **Wear.** Under load a GPU fails now and then (about once every three hours): its board goes dark until a courier brings a new one.
@@ -239,22 +239,24 @@ Dev flags (after `--`):
 
 The game is tuned for about **two weeks**, base-builder style. Nothing is locked, so money paces the first hours; after that builder timers do. Upgrades take seconds for the first levels (finish them free), minutes in the middle and up to eight hours at the top, and you have at most five builders. Timers keep running while you're away.
 
-The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful player who never spends sparks on timers or huts). The Lab level counts tokens served, and its thresholds are set so it keeps Cookie Empire's tested pacing; time away counts too (your servers keep serving):
+The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful player who never spends sparks on timers, taps a server every few seconds and nudges prices when servers are full or idle). The Lab level counts tokens served; time away counts too (your servers keep serving):
 
 | Milestone | Play time |
 |---|---|
-| First sale | about 30 s |
-| Serving Mini 3B | about 1 min |
+| First tokens answered | about 10 s |
 | Lab level 2 | about 2 min |
-| Lab level 3 | about 5 min |
-| Serving Chat 7B | about 8 min |
-| Lab level 4 | about 14 min |
-| Serving Chat 13B | about 18 min |
-| Lab level 5 | about 21 min |
-| Lab level 6 | about 30 min |
-| Lab level 8 | about 77 min |
+| Lab level 3 | about 3 min |
+| Mini 3B downloaded, Lab level 4 | about 14 min |
+| First GPU slotted into a server | about 15 min |
+| Lab level 5 | about 18 min |
+| First model of your own trained (Chat 13B) | about 21 min |
+| Lab level 6 | about 21 min |
+| Lab level 8 | about 45 min |
+| Code 13B trained | about 47 min |
 
-The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T token deliveries.
+Demand always runs ahead of what you can serve (AI adoption grows with every Lab level), so there's always a reason to add GPUs, servers and gateways, or to raise prices.
+
+The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T tokens served.
 
 ## Export
 

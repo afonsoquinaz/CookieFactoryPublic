@@ -113,7 +113,7 @@ const BIOME_BONUS := 0.4        # sources on their favourite land work this much
 const GARAGE_VRAM := 12.0           # GB on the garage card
 const GPU_VRAM := 80.0              # GB per data-centre GPU
 const HBM_VRAM := 40.0              # GB per HBM stack
-static func gpu_slots(l: int) -> int: return mini(20, 1 + (l - 1) / 2)
+static func gpu_slots(l: int) -> int: return mini(20, 2 + (l - 1) / 2)
 static func hbm_slots(l: int) -> int: return mini(12, (l - 1) / 3)
 static func garage_accel(l: int) -> float: return 0.5 * pow(1.12, mini(l, 12) - 1)
 ## Kernels, batching and caching get better with every server level.

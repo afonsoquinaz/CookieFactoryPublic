@@ -115,7 +115,7 @@ func _test_balance() -> void:
 			ok(Bal.upgrade_cost(k, l + 1) >= Bal.upgrade_cost(k, l), "%s: upgrades cost more each level" % k)
 	ok(Bal.finish_gems(10.0) == 0 and Bal.finish_gems(30.0) == 0, "short jobs finish free")
 	ok(Bal.finish_gems(60.0) >= 1 and Bal.finish_gems(3600.0) > Bal.finish_gems(600.0), "longer jobs cost more gems")
-	ok(Bal.gpu_slots(1) == 1 and Bal.gpu_slots(5) == 3 and Bal.gpu_slots(40) == 20, "GPU slots grow with server level")
+	ok(Bal.gpu_slots(1) == 2 and Bal.gpu_slots(5) == 4 and Bal.gpu_slots(40) == 20, "GPU slots grow with server level")
 	ok(Bal.hbm_slots(1) == 0 and Bal.hbm_slots(4) == 1 and Bal.hbm_slots(40) == 12, "HBM slots too")
 	ok(Bal.adoption(2) > Bal.adoption(1), "the market grows with the Lab level")
 	ok(Bal.latency(100.0, 1.0, 0, 0.0) > Bal.latency(100.0, 0.2, 0, 0.0) and Bal.latency(100.0, 0.2, 1, 0.0) < Bal.latency(100.0, 0.2, 0, 0.0), "busy servers answer slower; Edge PoPs answer faster")
@@ -199,7 +199,8 @@ func _live_at(lt: int) -> void:
 func _test_live() -> void:
 	Game.reset_state()
 	Live.reset_state()
-	var base := (int(floor((Live.local() - Live.debug_offset) / 86400.0)) + 10) * 86400 + 12 * 3600   # noon, ten days on
+	# noon on a fixed day (the simulated league rivals are seeded by week, so a moving date makes results vary)
+	var base := int(Time.get_unix_time_from_datetime_dict({"year": 2026, "month": 10, "day": 28, "hour": 12, "minute": 0, "second": 0}))
 	_live_at(base)
 	Live.tick()
 	ok(Live.local() == base, "the Live clock can be moved (tests)")
