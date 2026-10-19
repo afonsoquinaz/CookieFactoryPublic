@@ -97,6 +97,9 @@ The **High Street** runs straight through your land. Every building has an entra
   - planters, smart lamps, trees, benches, bike racks, flags, robot statues and the food truck: the Chat Café gets more visitors (and planters help Rare Earth Mines);
   - the Golden GPU: +5% on every sale.
 
+### Every upgrade shows
+Each building gains gear level by level: a new server cabinet, a rooftop AC, a dashboard on the wall, GPU crates by the gate. Later upgrades make each piece bigger, then add a second one, then make it glow. The first twenty or so upgrades of every building each add something; after that they come every level or two, up to the top level. Buildings also get a whole new look at their tier levels, and sources gain a work station every other level (three to start, up to six, or eight for the solar farm). The upgrade card says what the next level adds ("Next level: New Rooftop AC"), and the new piece pops in with its name.
+
 ### Eras: from garage to datacenter
 The town changes as the Lab levels up. A card announces each new era, and the new look eases in.
 
@@ -139,7 +142,9 @@ world/
   b_server.gd  b_source.gd  b_machine.gd (labs, Batcher, Agent Studio)  b_storage.gd  b_vehicle.gd
   b_cafe.gd  b_desk.gd  b_dorm.gd  b_hut.gd  b_site.gd  b_decor.gd  b_mega.gd
   server_art.gd  source_art.gd  stations.gd  lab_art.gd  sales_art.gd  town_art.gd  previews.gd   (the looks)
-  level_art.gd       the props buildings gain as they level up
+  growth.gd          the gear buildings gain level by level (slots, schedule, roof heights)
+  growth_parts.gd    that gear: cabinets, GPU crates, chillers, dishes, screens... in four grades
+  growth_tops.gd     generated roof heights for roof gear (dev/tops.tscn --write)
   items.gd           resources, tokens, batches and agent runs
   holder.gd  animal.gd (crawler bots, drones, ore carts)  character.gd  worker.gd  builder.gd  tech_worker.gd  customer.gd
 ui/                  title menu, HUD, action bar, job timers, placement, build / building / model / staff /
@@ -167,14 +172,17 @@ tools/bot.sh 60                  # the autopilot plays 60 game-minutes (fixed-st
 tools/icons.sh                   # render every icon from the game's models (tools/icons.sh gpu tk_pico for some)
 tools/shot.sh res://main.tscn out.png -- --demo
 tools/shot.sh res://dev/bench.tscn out.png -- --kinds=server,van --spacing=12 --tiers=0,2,4   # looks side by side
-tools/shot.sh res://dev/bench.tscn out.png -- --kinds=van --levels=1,3,5,14,40                # looks + level props
+tools/shot.sh res://dev/bench.tscn out.png -- --kinds=van --levels=1,3,5,14,40                # looks + level gear
+RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --kind=server --levels=1,3,6,10,20,40   # one building, many levels
+RES=1280x1280 tools/shot.sh res://dev/growth.tscn out.png -- --parts=floor --tier=2                # every gear part in its grades
+godot --headless --path . res://dev/tops.tscn -- --write                                          # regenerate roof heights
 ```
 
 Dev flags (after `--`):
 - `--fresh` starts a new game.
 - `--demo` loads a mid-game empire.
 - `--era=0..4` jumps to an era (sets the Lab level it starts at), e.g. `--demo --era=4 --zoom=2.2`.
-- `--showcase` places every building, `--showcase --tier=4` at its top look.
+- `--showcase` places every building, `--showcase --tier=4` at its top look, `--top` at its top level with all its gear.
 - `--place=src_coolant` opens the placement mode.
 - `--select=server` selects a building (`--info` also opens its card); `--recipes` opens the model picker.
 - `--panel=build|staff|research|settings` opens a panel.
@@ -199,9 +207,9 @@ The first two hours, measured by the autopilot bot (`tools/bot.sh`, a careful pl
 | Serving Chat 7B | about 8 min |
 | Lab level 4 | about 14 min |
 | Serving Chat 13B | about 18 min |
-| Lab level 5 | about 20 min |
-| Lab level 6 | about 28 min |
-| Lab level 8 | about 73 min |
+| Lab level 5 | about 21 min |
+| Lab level 6 | about 30 min |
+| Lab level 8 | about 77 min |
 
 The AGI Megacluster ($200M) takes 8 h to start and 12 h, 24 h, 36 h and 48 h for its stages, plus money and Frontier 1T token deliveries.
 

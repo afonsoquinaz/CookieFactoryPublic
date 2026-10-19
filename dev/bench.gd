@@ -25,13 +25,12 @@ func _ready() -> void:
 			var tier := t
 			var mi: MeshInstance3D
 			if lv.size() == 5:
-				# --levels=2,4,12,30,50: that level's look plus its props
+				# --levels=2,4,12,30,50: that level's look plus its Growth gear
 				var l := int(lv[t])
 				tier = Bal.tier(parts[0], l)
-				var an := LevelArt.anchors_for(parts[0])
 				var pk := MeshKit.new()
-				pk.add_mesh(Previews.mesh(parts[0], "", tier))
-				pk.add_mesh(LevelArt.props(an, LevelArt.count(an.size(), l, Bal.max_level(parts[0])), tier))
+				pk.add_mesh(Previews.mesh(parts[0], "", tier, l))
+				pk.add_mesh(Growth.mesh(parts[0], l, tier))
 				mi = Mats.inst(pk.commit(), self)
 			else:
 				mi = Mats.inst(Previews.mesh(parts[0], parts[1] if parts.size() > 1 else "", t), self)

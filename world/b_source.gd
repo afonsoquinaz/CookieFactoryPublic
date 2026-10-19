@@ -5,7 +5,8 @@ extends Building
 ## (one comes with the source, hired Technicians add more), and a crate at the
 ## gate where the output piles up. Sources on their favourite biome and near a
 ## Substation work faster. Higher levels make more and the lot visibly grows:
-## a chain-link fence, a control box, a utility shed, a wind turbine.
+## a station every other level, gear in the yard (Growth), and with each
+## tier a better fence, a control box, a utility shed, a wind turbine.
 
 const PLOT := Rect2(-2.8, -2.8, 5.6, 3.8)
 const CRATE_Z := 1.65
@@ -55,6 +56,11 @@ func solid_rects() -> Array[Rect2]:
 
 
 func _on_level() -> void:
+	if spots.size() != SourceArt.station_count(ing, level):
+		# a new station: lay the lot out again
+		rebuild_visual()
+		if is_inside_tree():
+			Fx.puff(get_tree().current_scene, to_world(0, PLOT.get_center().y, 0.6), Pal.CREAM, 10)
 	crate.capacity = Bal.src_crate_cap(level)
 	sync_techs()
 	_update_label()
@@ -181,19 +187,11 @@ func _visual(root: Node3D, t: int) -> void:
 	Mats.inst(MeshKit.cached("srcbed_%s_%d" % [ing, t], func(): return SourceArt.bed(ing, w, d, t)), root, MeshKit.at(0, 0, cz))
 	Mats.inst(MeshKit.cached("srcwall_%d" % t, func(): return SourceArt.wall(w + 0.3, d + 0.3, t)), root, MeshKit.at(0, 0, cz))
 	Mats.inst(MeshKit.cached("srcextra_%s_%d" % [ing, t], func(): return SourceArt.extras(ing, w + 0.3, d + 0.3, t)), root, MeshKit.at(0, 0, cz))
-	# stations, each with what it's making on it
-	var lay := SourceArt.layout(ing, t)
-	var count: int = lay[0]
-	var cols: int = lay[1]
-	var rows := int(ceil(float(count) / cols))
-	var area := Vector2(w - 1.0, d - 1.1)
+	# stations, each with what it's making on it (more of them as it levels)
 	var pp := Stations.product_at(ing)
 	var ps := Stations.product_scale(ing)
 	var sp := Stations.spinner_at(ing)
-	for i in count:
-		var cx: int = i % cols
-		var cz2: int = i / cols
-		var p := Vector3(-area.x * 0.5 + area.x * (cx + 0.5) / cols, 0.07, cz - area.y * 0.5 + area.y * (cz2 + 0.5) / rows - 0.15)
+	for p in SourceArt.station_spots(ing, level, w, d, cz):
 		var node := Node3D.new()
 		node.position = p
 		node.scale = Vector3.ONE * 1.22
@@ -267,6 +265,8 @@ func upgrade_info() -> Array:
 		["Work time", "%.2fs" % Bal.src_work_time(level), "%.2fs" % Bal.src_work_time(n)],
 		["Crate", str(Bal.src_crate_cap(level)), str(Bal.src_crate_cap(n))],
 	]
+	if SourceArt.station_count(ing, n) > SourceArt.station_count(ing, level):
+		out.append(["Stations", str(SourceArt.station_count(ing, level)), str(SourceArt.station_count(ing, n))])
 	if Bal.src_yield(n) > Bal.src_yield(level):
 		out.append(["Harvest", "x%d" % Bal.src_yield(level), "x%d" % Bal.src_yield(n)])
 	return out
