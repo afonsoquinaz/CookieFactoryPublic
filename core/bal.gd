@@ -88,6 +88,14 @@ static func _tiers(kind: String) -> Array[int]:
 	match Defs.BUILDINGS[kind]["cat"]:
 		"source": return Defs.SOURCE_TIERS
 		"server": return Defs.SERVER_TIERS
+	# buildings that top out early reach every look anyway (same spacing, squeezed)
+	var mx := int(Defs.BUILDINGS[kind]["max"])
+	var last: int = Defs.MACHINE_TIERS[Defs.MACHINE_TIERS.size() - 1]
+	if mx > 1 and mx < last:
+		var out: Array[int] = []
+		for t in Defs.MACHINE_TIERS:
+			out.append(1 + roundi(float(t - 1) * float(mx - 1) / float(last - 1)))
+		return out
 	return Defs.MACHINE_TIERS
 
 
