@@ -19,7 +19,7 @@ func _ready() -> void:
 		Game.level = int(a["level"])
 		Game.stats["earned"] = float(Defs.EMPIRE[Game.level - 1]["xp"])
 	if a.has("showcase"):
-		_showcase(int(a.get("tier", "-1")))
+		_showcase(int(a.get("tier", "-1")), a.has("top"))
 	if a.has("era"):
 		# preview an era: the Lab level it starts at, paved straight away
 		Game.level = int(Defs.ERAS[clampi(int(a["era"]), 0, Defs.ERAS.size() - 1)]["level"])
@@ -152,8 +152,9 @@ func _demo_state() -> void:
 	Game.obstacles["2,13"] = {"kind": "rock", "gems": 1}
 
 
-## Every building kind laid out in rows (--showcase[=tier]) for art reviews.
-func _showcase(tier: int) -> void:
+## Every building kind laid out in rows (--showcase[=tier]) for art reviews;
+## --top puts each at its top level (all its Growth gear).
+func _showcase(tier: int, top := false) -> void:
 	Game.reset_state()
 	Game.no_save = true
 	Game.buildings.clear()
@@ -180,6 +181,8 @@ func _showcase(tier: int) -> void:
 			cy = Roads.STREET_Y + 3
 		var t := tier if tier >= 0 else i % 5
 		var l: int = mini(lv[t] if Defs.BUILDINGS[kind]["cat"] != "source" else [1, 5, 10, 20, 35][t], Bal.max_level(kind))
+		if top:
+			l = Bal.max_level(kind)
 		var extra := {"lvl": l}
 		if kind == "mega":
 			extra["stage"] = 4

@@ -11,18 +11,34 @@ class_name SourceArt
 const GATE := 1.3
 
 
-## How many stations and in how many columns.
-static func layout(res: String, t: int) -> Array:
+## How many stations a source has at level l: three to start, one more
+## every other level until the lot is full (the papers lot has big ones).
+static func station_count(res: String, l: int) -> int:
 	match res:
-		"power":
-			return [[4, 6, 6, 8, 8][t], [2, 3, 3, 4, 4][t]]
-		"code", "labels", "experts", "feedback":
-			return [[3, 4, 4, 6, 6][t], [3, 4, 4, 3, 3][t]]
-		"papers":
-			return [[2, 3, 3, 4, 4][t], [2, 3, 3, 4, 4][t]]
-		"silicon", "coolant", "fiber":
-			return [[3, 4, 5, 6, 6][t], [3, 4, 5, 3, 3][t]]
-	return [[3, 4, 5, 6, 6][t], [3, 4, 5, 3, 3][t]]
+		"power": return clampi(3 + (l - 1) / 2, 3, 8)
+		"papers": return clampi(2 + (l - 1) / 3, 2, 4)
+	return clampi(3 + (l - 1) / 2, 3, 6)
+
+
+## Where the stations stand (local to the lot's frame, like SourceB): one
+## row of up to three, then two rows.
+static func station_spots(res: String, l: int, w: float, d: float, cz: float) -> Array[Vector3]:
+	var count := station_count(res, l)
+	var cols := count if count <= 3 else (count + 1) / 2
+	var rows := int(ceil(float(count) / cols))
+	var area := Vector2(w - 1.0, d - 1.1)
+	var out: Array[Vector3] = []
+	for i in count:
+		var cx: int = i % cols
+		var r: int = i / cols
+		var in_row := cols if r < rows - 1 else count - cols * (rows - 1)
+		var x := -area.x * 0.5 + area.x * (cx + 0.5) / cols
+		if in_row < cols:
+			# a shorter last row sits centred
+			x = -area.x * 0.5 + area.x * (cx + 0.5 + (cols - in_row) * 0.5) / cols
+		var z := cz - area.y * 0.5 + area.y * (r + 0.5) / rows - 0.15
+		out.append(Vector3(x, 0.07, z))
+	return out
 
 
 ## The ground of the lot.

@@ -2,11 +2,18 @@ class_name Previews
 ## The tier-0 look of any building as one mesh, for the placement ghost and
 ## the build menu. Local frame = building centre, front facing +Z.
 
-static func mesh(kind: String, ing := "", t := 0) -> Mesh:
-	return MeshKit.cached("preview_%s_%s_%d" % [kind, ing, t], func(): return _build(kind, ing, t))
+## lvl: the level to show (sources lay out more stations as they level);
+## -1 = the first level of tier t.
+static func mesh(kind: String, ing := "", t := 0, lvl := -1) -> Mesh:
+	if lvl < 0:
+		lvl = Bal._tiers(kind)[clampi(t, 0, 4)]
+	var key := "preview_%s_%s_%d" % [kind, ing, t]
+	if Defs.BUILDINGS[kind]["cat"] == "source":
+		key += "_%d" % SourceArt.station_count(Defs.BUILDINGS[kind]["res"], lvl)
+	return MeshKit.cached(key, func(): return _build(kind, ing, t, lvl))
 
 
-static func _build(kind: String, ing: String, t := 0) -> Mesh:
+static func _build(kind: String, ing: String, t := 0, lvl := 1) -> Mesh:
 	var k := MeshKit.new()
 	var d: Dictionary = Defs.BUILDINGS[kind]
 	match d["cat"]:
@@ -19,8 +26,8 @@ static func _build(kind: String, ing: String, t := 0) -> Mesh:
 			k.add_mesh(SourceArt.wall(w + 0.3, dd + 0.3, t), MeshKit.at(0, 0, cz))
 			k.add_mesh(SourceArt.extras(res, w + 0.3, dd + 0.3, t), MeshKit.at(0, 0, cz))
 			var cm := MeshKit.cached("station_" + res, func(): return Stations.station(res))
-			for i in 6:
-				k.add_mesh(cm, MeshKit.xf(Vector3(-1.8 + (i % 3) * 1.8, 0.07, cz - 0.8 + (i / 3) * 1.4), Vector3.ZERO, Vector3.ONE * 1.22))
+			for p in SourceArt.station_spots(res, lvl, w, dd, cz):
+				k.add_mesh(cm, MeshKit.xf(p, Vector3.ZERO, Vector3.ONE * 1.22))
 			k.add_mesh(MeshKit.cached("crate", SourceB.crate_mesh), MeshKit.at(0, 0, SourceB.CRATE_Z))
 		"server":
 			var bz := ServerB.BUS_Z - ServerArt.TZ

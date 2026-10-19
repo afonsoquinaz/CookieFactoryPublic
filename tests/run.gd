@@ -16,6 +16,7 @@ func _ready() -> void:
 	Game.reset_state()
 	_test_tables()
 	_test_balance()
+	_test_growth()
 	_test_game_state()
 	_test_save_roundtrip()
 	_test_grid()
@@ -119,6 +120,56 @@ func _test_balance() -> void:
 			ok(float(a["v"]) > 0.0 and float(a["v"]) <= 0.25 and int(a["r"]) >= 2, "%s: a sensible compute aura" % k)
 	ok(compute >= 5, "datacenter gear for every stage of the game (%d)" % compute)
 	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
+
+
+# ---------------------------------------------------------------- growth
+
+func _test_growth() -> void:
+	var parts: Array = GrowthParts.FLOOR + GrowthParts.TOP + GrowthParts.WALL
+	for kind in Defs.BUILD_ORDER:
+		var mx := Bal.max_level(kind)
+		var ss := Growth.slots(kind, 0)
+		if mx <= 1:
+			continue
+		ok(ss.size() >= 4, "%s: grows as it levels (%d slots)" % [kind, ss.size()])
+		var sz: Vector2i = Defs.BUILDINGS[kind]["size"]
+		var half := Vector2(sz) * Grid.CELL * 0.5
+		for t in 5:
+			var st := Growth.slots(kind, t)
+			ok(st.size() == ss.size(), "%s: same slots on tier %d" % [kind, t])
+			for sl in st:
+				var p: Vector3 = sl["p"]
+				ok(absf(p.x) <= half.x - 0.1 and absf(p.z) <= half.y - 0.1, "%s: slot %s inside the lot" % [kind, p])
+				ok(parts.has(sl["part"]), "%s: knows part %s" % [kind, sl["part"]])
+				if sl.get("top", false):
+					var e: Array = GrowthTops.TOPS.get(Growth._top_key(kind, t, p.x, p.z), [])
+					ok(e.size() == 2, "%s: roof height for %s on tier %d (run dev/tops.tscn --write)" % [kind, p, t])
+					if e.size() == 2:
+						ok(float(e[0]) > 0.4 and float(e[1]) < 0.35, "%s: a flat roof under %s on tier %d (%.2f, uneven %.2f)" % [kind, p, t, e[0], e[1]])
+		var plan := Growth.plan(kind)
+		ok(plan.size() == ss.size() * Growth.GRADES, "%s: every slot grows through every grade" % kind)
+		var prev := 2
+		for at in plan:
+			ok(at >= prev and at <= mx, "%s: steps in order, by the top level" % kind)
+			prev = at
+		var early := mini(mx, Growth.EARLY + 1)
+		var steady := true
+		for l in range(2, early + 1):
+			if Growth.count(kind, l) <= Growth.count(kind, l - 1):
+				steady = false
+		ok(steady, "%s: each of the first %d upgrades adds something you can see" % [kind, early - 1])
+		ok(Growth.count(kind, mx) == plan.size(), "%s: everything there at the top level" % kind)
+		ok(Growth.count(kind, 1) == 0, "%s: starts bare" % kind)
+		var m := Growth.build(kind, plan.size(), 4)
+		ok(m.get_surface_count() == 1, "%s: the full gear builds" % kind)
+	for res in ["power", "data", "papers"]:
+		var prev_n := 0
+		for l in range(1, 61):
+			var n := SourceArt.station_count(res, l)
+			ok(n >= prev_n, "%s source: stations never go away (L%d)" % [res, l])
+			prev_n = n
+		ok(SourceArt.station_spots(res, 60, 5.6, 3.8, -0.9).size() == SourceArt.station_count(res, 60), "%s: a spot per station" % res)
+	ok(SourceArt.station_count("data", 1) == 3 and SourceArt.station_count("data", 3) == 4 and SourceArt.station_count("power", 60) == 8, "stations: three to start, one every other level")
 
 
 # ---------------------------------------------------------------- game state

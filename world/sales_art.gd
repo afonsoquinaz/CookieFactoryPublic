@@ -142,14 +142,6 @@ static func turntable(t: int) -> Mesh:
 	return k.commit()
 
 
-## Spots around the depot for the things it gains as it levels up.
-const DOCK_PROPS := [
-	[Vector3(-1.65, 0, 2.75), 0.0], [Vector3(1.6, 0, 2.75), 0.0], [Vector3(1.85, 0, -1.3), 0.0],
-	[Vector3(-0.75, 0.5, -1.38), 0.0], [Vector3(-1.85, 0, 2.05), 0.0], [Vector3(-1.85, 0, -0.85), 0.0],
-	[Vector3(1.8, 0, 2.0), 90.0], [Vector3(0.75, 0.5, -1.38), 0.0],
-]
-
-
 ## The API van. Front = +x. Load bay at -x (open on top so the load shows).
 static func van(t: int) -> Mesh:
 	var k := MeshKit.new()
