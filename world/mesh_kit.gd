@@ -182,6 +182,12 @@ func rbox(size: Vector3, r: float, col: Color, t := Transform3D.IDENTITY, steps 
 	return self
 
 
+## Sharp-edged box: 12 triangles. Use it for small details (window frames,
+## rails, vents, slats, panels) so buildings can have lots of them.
+func box(size: Vector3, col: Color, t := Transform3D.IDENTITY) -> MeshKit:
+	return rbox(size, 0.0, col, t, 0)
+
+
 ## Surface of revolution around +Y. profile: (radius, height) from bottom to
 ## top; repeat a point to make a hard edge there. cols: one colour per profile
 ## point (or a single colour).
