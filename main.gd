@@ -20,6 +20,10 @@ func _ready() -> void:
 		Game.stats["earned"] = float(Defs.EMPIRE[Game.level - 1]["xp"])
 	if a.has("showcase"):
 		_showcase(int(a.get("tier", "-1")))
+	if a.has("era"):
+		# preview an era: the Lab level it starts at, paved straight away
+		Game.level = int(Defs.ERAS[clampi(int(a["era"]), 0, Defs.ERAS.size() - 1)]["level"])
+		Game.stats["tokens"] = maxf(float(Game.stats["tokens"]), float(Defs.EMPIRE[Game.level - 1]["xp"]))
 	world = World.new()
 	add_child(world)
 	var layer := CanvasLayer.new()
@@ -126,6 +130,8 @@ func _demo_state() -> void:
 	Game.place("van", Vector2i(13, 2), 2, {"lvl": 4}, false)
 	Game.place("desk", Vector2i(-7, 2), 2, {}, false)
 	Game.place("substation", Vector2i(-15, 3), 0, {}, false)
+	Game.place("rack_row", Vector2i(-1, -7), 0, {}, false)
+	Game.place("net_cab", Vector2i(-3, -3), 0, {}, false)
 	Game.place("planter", Vector2i(8, 5), 0, {}, false)
 	Game.place("lamp", Vector2i(12, 1), 0, {}, false)
 	Game.place("lamp", Vector2i(-2, 1), 0, {}, false)

@@ -474,7 +474,7 @@ func batch() -> int:
 
 
 func staff_mult() -> float:
-	return Bal.engineer_boost(Game.workers_with("engineer", uid))
+	return Bal.engineer_boost(Game.workers_with("engineer", uid)) * compute_mult()
 
 
 func _finish() -> void:
@@ -577,7 +577,9 @@ func info() -> Array:
 	out.append(["bay", "%d module bay%s" % [slots(), "s" if slots() > 1 else ""]])
 	var engs := Game.workers_with("engineer", uid)
 	if engs > 0:
-		out.append(["engineer", "%d engineer%s: x%.1f speed" % [engs, "s" if engs > 1 else "", staff_mult()]])
+		out.append(["engineer", "%d engineer%s: x%.1f speed" % [engs, "s" if engs > 1 else "", Bal.engineer_boost(engs)]])
+	if compute_mult() > 1.0:
+		out.append(["rack_row", "Datacenter gear nearby: +%d%% speed" % roundi((compute_mult() - 1.0) * 100)])
 	return out
 
 

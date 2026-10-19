@@ -97,6 +97,7 @@ func _ready() -> void:
 		_gem_label.text = str(g)
 		Kit.bounce(_gem_chip, 0.15))
 	Game.level_up.connect(_on_level_up)
+	world.terrain.era_changed.connect(_on_era)
 	Game.toast.connect(toast)
 	Game.rush_changed.connect(_on_rush)
 	Game.building_built.connect(_on_built)
@@ -838,6 +839,13 @@ func _on_level_up(level: int, gems: int) -> void:
 	Kit.bounce(_lvl_box, 0.2)
 	_popup("Lab level %d!" % level, Defs.level_title(level), "+%d sparks" % gems if gems > 0 else "", "star", "Awesome!")
 	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
+
+
+## A new era: the town starts turning into a datacenter (the terrain fires
+## this just before the level-up card, so it waits underneath it).
+func _on_era(era: int) -> void:
+	var e: Dictionary = Defs.ERAS[era]
+	_popup("A new era!", e["name"], e["desc"], e["icon"], "Look around")
 
 
 func _offline_popup(amount: float) -> void:
