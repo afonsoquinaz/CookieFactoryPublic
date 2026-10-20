@@ -279,6 +279,8 @@ Export presets:
 - **iOS**: exports an Xcode project.
 - **Web**: Compatibility renderer, PWA.
 
+**Privacy:** no tracking, no data collected (see [PRIVACY.md](PRIVACY.md)). The iOS export writes a privacy manifest with tracking off; in App Store Connect, answer App Privacy with "Data Not Collected" and don't declare tracking, or App Review will look for an App Tracking Transparency prompt the app (rightly) never shows.
+
 Older phones fall back to the OpenGL renderer and step quality down automatically.
 
 ## Performance notes
