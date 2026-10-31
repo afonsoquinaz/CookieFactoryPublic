@@ -598,6 +598,18 @@ func _test_save_roundtrip() -> void:
 	Game.settings.erase("intro_done")
 	Game.stats["tokens"] = 5.0
 	ok(not Intro.needed(), "an old save never sees it")
+	# a selected building shows at most four buttons, the rest behind More
+	var hud_s: Object = load("res://ui/hud.gd").new()
+	var many := [["info", "", "", Color.WHITE], ["upgrade", "", "", Color.WHITE], ["recipe", "", "", Color.WHITE], ["tune", "", "", Color.WHITE], ["market", "", "", Color.WHITE], ["staff", "", "", Color.WHITE], ["move", "", "", Color.WHITE]]
+	var shown: Array = hud_s.call("_tidy", many)
+	ok(shown.size() == 4 and shown[0][0] == "upgrade" and shown[1][0] == "recipe" and shown[2][0] == "info" and shown[3][0] == "more", "a server: Upgrade, Model, Info, More")
+	hud_s.set("_more", true)
+	shown = hud_s.call("_tidy", many)
+	ok(shown.size() == 5 and shown[0][0] == "tune" and shown[4][0] == "back", "More: Tune, Market, Staff, Move, Back")
+	hud_s.set("_more", false)
+	shown = hud_s.call("_tidy", [["info", "", "", Color.WHITE], ["upgrade", "", "", Color.WHITE], ["staff", "", "", Color.WHITE], ["move", "", "", Color.WHITE]])
+	ok(shown.size() == 4 and shown[0][0] == "upgrade" and shown[1][0] == "info", "four or fewer: all shown, the main action first")
+	hud_s.free()
 	Market.paused = false
 	Game.reset_state()
 
