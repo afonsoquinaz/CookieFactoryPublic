@@ -1,7 +1,8 @@
 class_name Goals
 extends Control
-## Guides the player, lightly. A few first hints (tap the server to tune it,
-## upgrade it, finish a short job free, look at the Market, open Build);
+## Guides the player, lightly. A few first hints after the opening story
+## (tap the server, upgrade it, finish a short job free, look at the Market,
+## build the first API Gateway);
 ## after that it stays out of the way and only speaks up when something
 ## holds the empire back (a building without a road, a server without power,
 ## demand far beyond capacity, full gateways). What to build and upgrade is
@@ -117,42 +118,47 @@ func _look(n: Building) -> void:
 
 
 func _evaluate() -> void:
-	if hud.placement != null:
+	if hud.placement != null or not hud.playing:
 		_goal("", "")
 		return
 	var server := _first("server") as ServerB
 	match Game.tutorial_step:
 		0:
-			if server == null or server.tune >= 0.25 or server.level >= 2:
+			if server == null or hud.selected is ServerB or server.tune >= 0.25 or server.level >= 2:
 				_advance()
 				return
 			_look(server)
-			_goal("Customers call your API and your garage server answers with Pico 1B. Tap it to tune it!", "server", _top(server))
+			_goal("Your first server is online, running Pico 1B. Every request it answers earns money. Tap it!", "server", _top(server))
 		1:
 			if server == null or server.level >= 2 or not Game.job_of(server.uid).is_empty():
 				_advance()
 				return
 			if not hud.selected is ServerB:
-				_goal("Every token answered is paid. Tap the server again...", "server", _top(server))
+				_goal("Tap the server again to see what it can do.", "server", _top(server))
 			elif Game.money < Bal.upgrade_cost("server", 1):
-				_goal("Saving up: upgrades add GPU slots and faster kernels.", "coin")
+				_goal("Let it earn for a moment: the next upgrade makes it faster.", "coin")
 			else:
-				_goal("Upgrade it: room for a GPU, and it serves faster.", "hammer", null, hud.actions.find("upgrade"))
+				_goal("Upgrade it: a faster server answers more requests.", "hammer", null, hud.actions.find("upgrade"))
 		2:
 			if server == null or server.level >= 2 or Game.job_of(server.uid).is_empty():
 				_advance()
 				return
 			_goal("Jobs with 30 s or less left finish free. Tap the timer!", "builder", _top(server))
 		3:
-			if hud.get("_sheet") is MarketPanel or Game.buildings.size() > 9:
+			if hud.get("_sheet") is MarketPanel or Game.count_of("gateway") > 0:
 				_advance()
 				return
-			_goal("Tap your tokens up top: the Market shows what customers want and what you can serve.", "gateway", null, hud.get("_token_chip"))
+			_goal("Tap your tokens up top to see who calls your API and how much you can answer.", "gateway", null, hud.get("_token_chip"))
 		4:
-			if hud.get("_sheet") is BuildPanel or Game.buildings.size() > 9:
+			if Game.count_of("gateway") > 0 or Game.level >= 3:
 				_advance()
 				return
-			_goal("Grow it your way: a Chip Fab for GPUs, more servers, gateways for customers... Open Build!", "hammer", null, hud.btn_build)
+			if hud.get("_sheet") is BuildPanel:
+				_goal("Pick the API Gateway: more customers, faster lines.", "gateway")
+			elif Game.money < Bal.build_cost("gateway", 0):
+				_goal("Your home line only reaches a few customers. Save up for an API Gateway.", "coin")
+			else:
+				_goal("Your home line only reaches a few customers. Open Build: an API Gateway brings many more.", "gateway", null, hud.btn_build)
 		_:
 			_free_goal()
 
@@ -184,8 +190,14 @@ func _free_goal() -> void:
 		return
 	var cap := Market.total(Market.cap)
 	var dem := Market.total(Market.demand)
-	if cap > 0.0 and dem > cap * 2.0 and Game.count_of("fab") == 0 and Game.level >= 2:
+	if cap > 0.0 and dem > cap * 2.0 and Game.count_of("fab") == 0 and Game.is_open("fab"):
 		_goal("Customers want twice what you can answer. A Chip Fab makes GPUs: couriers slot them into servers.", "gpu")
+		return
+	if Market.bandwidth > 0.0 and Market.used_bw >= Market.bandwidth * 0.98 and Game.count_of("gateway") == 0:
+		_goal("Your home internet line is full: build an API Gateway.", "gateway", null, hud.btn_build)
+		return
+	if cap > 0.0 and dem > cap * 1.5 and not Game.is_open("fab") and Game.count_of("server") < 2 and Game.money >= Bal.build_cost("server", 1):
+		_goal("Customers want more than your server can answer: build a second server.", "server", null, hud.btn_build)
 		return
 	if Market.bandwidth > 0.0 and Market.used_bw >= Market.bandwidth * 0.98 and Game.level >= 3 and Game.count_of("gateway") < 2:
 		_goal("Your API Gateway is full: build another, or rack fiber spools on it.", "gateway", _top(_first("gateway")))

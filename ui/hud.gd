@@ -147,6 +147,9 @@ func show_title() -> void:
 
 
 func _start_playing() -> void:
+	if Intro.needed():
+		play_intro()
+		return
 	playing = true
 	_set_hud_visible(true)
 	for c in [_money_pill, _lvl_box, _gear, _builders_chip]:
@@ -158,6 +161,20 @@ func skip_title() -> void:
 	playing = true
 	_set_hud_visible(true)
 	_welcome_back.call_deferred()
+
+
+func play_intro() -> void:
+	playing = false
+	_set_hud_visible(false)
+	var intro := Intro.new()
+	intro.world = world
+	intro.finished.connect(func():
+		playing = true
+		_set_hud_visible(true)
+		for c in [_money_pill, _lvl_box, _gear, _builders_chip]:
+			Kit.pop_in(c, 0.2)
+		_welcome_back.call_deferred())
+	add_child(intro)
 
 
 func _welcome_back() -> void:
@@ -179,10 +196,39 @@ func _flush_cards() -> void:
 
 
 func _set_hud_visible(on: bool) -> void:
-	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _gem_chip, _token_chip, _trend_chip, _builders_chip, timers, _streak_chip, _btn_today, _btn_league, _btn_pass, _event_chip]:
+	for c in [_money_pill, _lvl_box, _gear, _bar, goals, pan, _token_chip, _builders_chip, timers]:
 		c.visible = on
+	for c2 in [_gem_chip, _trend_chip, _streak_chip, _btn_today, _btn_league, _btn_pass, _event_chip]:
+		c2.visible = false
 	if on:
-		_trend_chip.visible = Game.trending != ""
+		_apply_reveal()
+
+
+## The HUD grows with you: a new lab starts with money, tokens, Build and
+## the builders; the rest joins as it starts to matter.
+static func reveal(what: String) -> bool:
+	var lv := Game.level
+	match what:
+		"staff":
+			return lv >= 2 or Game.workers.size() > 0
+		"research":
+			return lv >= 2 or Game.tutorial_step >= 5
+		"rush", "gems", "streak", "today", "pass", "trend":
+			return lv >= 2
+		"league":
+			return lv >= 3
+		"events":
+			return lv >= 3
+	return true
+
+
+func _apply_reveal() -> void:
+	_trend_chip.visible = Game.trending != "" and reveal("trend")
+	_gem_chip.visible = reveal("gems")
+	_streak_chip.visible = reveal("streak")
+	_btn_today.visible = reveal("today")
+	_btn_league.visible = reveal("league")
+	_btn_pass.visible = reveal("pass")
 
 
 # ---------------------------------------------------------------- top
@@ -376,10 +422,15 @@ func _update_live() -> void:
 	li.modulate = (LiveDefs.LEAGUES[int(Live.league["tier"])]["color"] as Color).lightened(0.15)
 	ll.text = ("#%d" % Live.my_rank()) if Live.league["joined"] else Live.league_name()
 	(_btn_pass.get_meta("label") as Label).text = "Tier %d" % Live.pass_tier()
-	# League and Pass join the corner once the first steps are done
-	_btn_league.visible = Game.level >= 2 or Live.league["joined"] and int(Game.stats["tokens"]) > 20
-	_btn_pass.visible = Game.level >= 2
-	var act := Live.active_events()
+	# the streak, Today, League and Pass join the corner once the first
+	# steps are done
+	for pair in [[_streak_chip, "streak"], [_btn_today, "today"], [_btn_league, "league"], [_btn_pass, "pass"]]:
+		var c: Control = pair[0]
+		var on := reveal(pair[1])
+		if on and not c.visible:
+			Kit.pop_in.call_deferred(c)
+		c.visible = on
+	var act := Live.active_events() if reveal("events") else []
 	_event_chip.visible = playing and not act.is_empty()
 	if not act.is_empty():
 		var id: String = act[0]
@@ -483,8 +534,8 @@ func _on_money(_value: float, delta: float) -> void:
 
 
 func _on_trend(rid: String) -> void:
-	_trend_chip.visible = rid != "" and playing
-	if rid == "":
+	_trend_chip.visible = rid != "" and playing and reveal("trend")
+	if rid == "" or not reveal("trend"):
 		return
 	_trend_icon.texture = Icons.tex("tk_" + rid)
 	_trend_label.text = "Trending: %s  x%.1f" % [Defs.recipe(rid)["name"], 1.5 + 0.1 * Game.research("market")]
@@ -574,10 +625,12 @@ func _update_buttons(dt: float) -> void:
 	_bar.visible = not sel and placement == null
 	actions.visible = sel and placement == null and _sheet == null
 	_show_button(btn_build, true)
-	_show_button(btn_staff, true)
-	_show_button(btn_research, float(Game.stats["tokens"]) > 0.0)
-	_show_button(_btn_rush, Game.level >= 2)
-	_gem_chip.visible = true
+	_show_button(btn_staff, reveal("staff"))
+	_show_button(btn_research, reveal("research"))
+	_show_button(_btn_rush, reveal("rush"))
+	if reveal("gems") and not _gem_chip.visible:
+		_gem_chip.visible = true
+		Kit.pop_in.call_deferred(_gem_chip)
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
 	_builders_chip.set_colors(Kit.SAGE if Game.free_builders() > 0 else Kit.CHARCOAL, Kit.SAGE_EDGE)
 	_dot_cd -= dt
@@ -1119,7 +1172,15 @@ func _on_level_up(level: int, gems: int) -> void:
 	_update_level()
 	Sfx.play("levelup", -2.0)
 	Kit.bounce(_lvl_box, 0.2)
-	_popup("Lab level %d!" % level, Defs.level_title(level), "+%d sparks" % gems if gems > 0 else "", "star", "Awesome!")
+	# what this level opens, by name
+	var names := []
+	for k in Defs.unlocked_at(level):
+		if Defs.BUILDINGS[k]["cat"] != "decor":
+			names.append(Defs.BUILDINGS[k]["name"])
+	var sub := "+%d sparks" % gems if gems > 0 else ""
+	if not names.is_empty():
+		sub = ("Now you can build: %s" % ", ".join(names)) + ("\n" + sub if sub != "" else "")
+	_popup("Lab level %d!" % level, Defs.level_title(level), sub, "star", "Awesome!")
 	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
 
 

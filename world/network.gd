@@ -3,7 +3,8 @@ extends Node3D
 ## The campus as a network you can watch working. Tokens aren't carried
 ## anywhere: they're a service, so what you see is traffic.
 ##   uplink   every API Gateway beams up to the sky (the internet): requests
-##            stream down it (cyan), tokens stream back up (gold)
+##            stream down it (cyan), tokens stream back up (gold); before
+##            the first gateway, each server has a thin home-internet beam
 ##   fiber    an aerial fiber cable runs from the gateway's mast to every
 ##            server's router: request pulses ride in, token pulses ride out,
 ##            as many as the server is actually serving
@@ -148,6 +149,14 @@ func _rebuild() -> void:
 	for g in world.buildings_of("gateway"):
 		if not g is SiteB:
 			gws.append(g)
+	if gws.is_empty():
+		# no gateway yet: the garage's home internet line, straight up
+		for s0 in world.buildings_of("server"):
+			if s0 is SiteB:
+				continue
+			var ha := _attach(s0, FIBER_H, "fiber")
+			_mast(k, ha, Color(0.82, 0.84, 0.86), masts, "%d:f" % s0.uid, true)
+			beams.append({"gw": s0, "base": ha[1], "len": SKY - FIBER_H, "edge": true, "server": s0})
 	for g in gws:
 		var a := _attach(g, FIBER_H, "fiber")
 		beams.append({"gw": g, "base": a[1], "len": SKY - FIBER_H, "edge": false})
@@ -350,6 +359,9 @@ func _spawn(dt: float) -> void:
 				_emit(kd[0], i, -1, kd[1])
 	for bi in beams.size():
 		var flow2 := _client_flow("edge") if beams[bi]["edge"] else float(beam_rate.get(bi, 0.0))
+		if beams[bi].has("server"):
+			var hs = beams[bi]["server"]
+			flow2 = (hs as ServerB).load_now * (hs as ServerB).last_cap if is_instance_valid(hs) else 0.0
 		var r := pulse_rate(flow2) * (1.0 if beams[bi]["edge"] else 1.4)
 		if r <= 0.0:
 			continue
@@ -388,6 +400,10 @@ func _advance(dt: float) -> void:
 					var dst = links[int(p["link"])]["dst"]
 					if dst is ServerB and is_instance_valid(dst):
 						(dst as ServerB).network_request()
+				elif kind == "req" and int(p["beam"]) >= 0 and int(p["beam"]) < beams.size() and beams[int(p["beam"])].has("server"):
+					var hs = beams[int(p["beam"])]["server"]
+					if is_instance_valid(hs):
+						(hs as ServerB).network_request()
 				arr.remove_at(i)
 			i -= 1
 

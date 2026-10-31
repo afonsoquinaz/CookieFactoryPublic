@@ -40,6 +40,8 @@ func _ready() -> void:
 		menu = true
 	if menu:
 		ui.call("show_title")
+	elif a.has("intro"):
+		ui.call("play_intro")
 	else:
 		ui.call("skip_title")
 	if a.has("cam"):

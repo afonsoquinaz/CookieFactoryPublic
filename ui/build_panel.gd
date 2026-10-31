@@ -1,7 +1,8 @@
 class_name BuildPanel
 extends Sheet
-## The build menu: everything you can place, by tab. Everything is
-## available from the start; each card shows the price, how long a builder
+## The build menu: what you can place, by tab. Buildings open as your Lab
+## grows (Defs.UNLOCKS): the menu lists what's open plus a peek at what the
+## next Lab level brings. Each card shows the price, how long a builder
 ## needs, how many you have, and what a lab needs to be useful.
 
 signal chosen(kind: String)
@@ -17,10 +18,26 @@ func _init() -> void:
 	height_frac = 0.72
 
 
+## Shown in the menu: open now, or opening at the next Lab level (a peek).
+static func listed(kind: String) -> bool:
+	return Game.is_open(kind) or Defs.unlock_level(kind) == Game.level + 1
+
+
+static func tab_listed(tab: String) -> bool:
+	for k in Defs.BUILD_ORDER:
+		if Defs.BUILDINGS[k]["tab"] == tab and listed(k):
+			return true
+	return false
+
+
 func _header(v: VBoxContainer) -> void:
 	var h := Kit.hbox(4)
 	v.add_child(h)
+	if not tab_listed(last_tab):
+		last_tab = Defs.TABS[0][0]
 	for c in Defs.TABS:
+		if not tab_listed(c[0]):
+			continue
 		var b := Kit.juicy("", Kit.PAPER_DARK, Kit.LINE, 14, Vector2(0, 74))
 		b.sound = "click"
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -64,7 +81,7 @@ func _select(tab: String) -> void:
 		c.queue_free()
 	_queue.clear()
 	for kind in Defs.BUILD_ORDER:
-		if Defs.BUILDINGS[kind]["tab"] == tab:
+		if Defs.BUILDINGS[kind]["tab"] == tab and listed(kind):
 			later(_grid, _card.bind(kind))
 	flush(4.0)
 	scroll.scroll_vertical = 0
@@ -109,6 +126,8 @@ func _card(kind: String) -> Control:
 		ml.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ml.custom_minimum_size.x = 150
 		tv.add_child(ml)
+	if not Game.is_open(kind):
+		tv.add_child(Kit.label("Opens at Lab level %d" % Defs.unlock_level(kind), 14, Kit.SAGE_EDGE, 0, false))
 	if not Live.is_unlocked(kind):
 		var lk := Kit.label("Locked  ·  " + LiveDefs.EXCLUSIVE[kind], 14, Kit.TERRACOTTA_EDGE, 0, false)
 		lk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -128,8 +147,11 @@ func _card(kind: String) -> Control:
 		b.set_text_value("All built" if mx > 1 else "Built")
 		b.set_colors(Kit.PAPER_DARK, Kit.LINE)
 	else:
-		b.set_icon("lock" if not Live.is_unlocked(kind) else ("gem" if gp > 0 else "coin"), 26)
-		b.set_text_value(str(gp) if gp > 0 else ("Free" if price <= 0.0 else Fmt.num(price)))
+		b.set_icon("lock" if not Live.is_unlocked(kind) or not Game.is_open(kind) else ("gem" if gp > 0 else "coin"), 26)
+		if not Game.is_open(kind):
+			b.set_text_value("Lab level %d" % Defs.unlock_level(kind))
+		else:
+			b.set_text_value(str(gp) if gp > 0 else ("Free" if price <= 0.0 else Fmt.num(price)))
 		var ok := Game.build_block(kind) == ""
 		b.set_colors(Kit.SAGE if ok else Kit.GREY, Kit.SAGE_EDGE if ok else Kit.GREY_EDGE)
 	b.pressed.connect(func():

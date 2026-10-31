@@ -38,6 +38,8 @@ How the game works since the 2.0 rework. In Token Empire you build compute and y
    Models also go stale as rivals ship better ones. A refresh run on the cluster raises a model's quality, and quality drives its demand.
 9. **Space.** Late in the game, a Launch Complex assembles orbital server modules (24 GPUs, 8 HBM stacks, 40 silicon for solar wings each) and launches them on rockets. In orbit they get free solar power and radiative cooling, so they need no power or coolant, but each adds 80 ms of latency. A Ground Station downlinks their bandwidth. The orbital datacenter grows in the sky above your campus.
 
+10. **Onboarding (2.2).** A new game is one solar panel and one server running Pico 1B, introduced by a skippable 20-second story (delivery, unboxing, plugging in, deploying the model, the first request and the first token). With no API Gateway yet, the server's home internet line is its uplink: a thin beam straight up, enough for a few organic customers. Buildings open by Lab level (`Defs.UNLOCKS`, 3 at level 1, a handful per level after that), and the HUD reveals Staff, Research, Boost, sparks and the daily layer from level 2, the League and events from level 3. The first goal is the first API Gateway.
+
 ## Numbers
 
 All token amounts below are in thousands of tokens (K). The HUD shows real token counts.

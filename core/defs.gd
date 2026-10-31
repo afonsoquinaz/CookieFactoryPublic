@@ -118,8 +118,8 @@ const SERVER_TIERS: Array[int] = [1, 5, 12, 22, 32]
 
 const BUILDINGS := {
 	# ---- campus
-	"hut": {"name": "Builder's Hut", "cat": "staff", "tab": "town", "icon": "builder", "size": Vector2i(2, 2), "limit": 5, "cost": 0, "growth": 1.0, "up": 0, "max": 1, "time": 0,
-		"gems": [0, 0, 60, 150, 300], "desc": "Each hut houses a builder. More builders, more things built at once."},
+	"hut": {"name": "Builder's Hut", "cat": "staff", "tab": "town", "icon": "builder", "size": Vector2i(2, 2), "limit": 3, "cost": 0, "growth": 1.0, "up": 0, "max": 1, "time": 0,
+		"gems": [60, 150, 300], "desc": "One more builder (you start with two): more things built and upgraded at once."},
 	"dorm": {"name": "Staff Housing", "cat": "staff", "tab": "town", "icon": "dorm", "size": Vector2i(2, 2), "cost": 150, "growth": 2.5, "up": 90, "max": 20, "time": 30,
 		"desc": "Houses more staff: couriers, technicians and engineers."},
 
@@ -258,6 +258,41 @@ const BUILD_ORDER: Array[String] = [
 	"planter", "tree", "hedge", "lamp", "substation", "bench", "bikes", "flag", "robot", "battery", "foodtruck", "coffee", "turbine", "net_cab", "rack_row", "chiller", "generator", "transformer", "gpu_statue",
 	"neon_sign", "holo_bot", "server_fountain", "trophy", "streak_flame", "quantum_core",
 ]
+
+## What opens at which Lab level: the story of a lab growing up. You start
+## with a solar panel, a server and a home internet line; customers come
+## through an API Gateway; then a café, staff and builders; then your own
+## GPUs (silicon, copper, a Chip Fab) and cooling; then training your own
+## models; then the whole supply chain, the edge, agents, space, and the
+## Megacluster. (Anything not listed is there from the start.)
+const UNLOCKS := {
+	"gateway": 1,
+	"planter": 2, "tree": 2, "hedge": 2, "lamp": 2, "bench": 2,
+	"cafe": 2, "hut": 2, "dorm": 2, "src_data": 2, "substation": 2, "bikes": 2, "flag": 2,
+	"src_silicon": 3, "src_copper": 3, "fab": 3, "src_coolant": 3, "depot": 3, "robot": 3, "coffee": 3,
+	"refinery": 4, "trainer": 4, "desk": 4, "src_fiber": 4, "battery": 4, "net_cab": 4,
+	"src_code": 5, "src_labels": 5, "tune_lab": 5, "foodtruck": 5, "rack_row": 5,
+	"edge": 6, "src_rare": 6, "hbm_works": 6, "chiller": 6, "turbine": 6,
+	"src_feedback": 7, "rlhf_gym": 7, "src_papers": 7, "generator": 7,
+	"agent_hub": 8, "transformer": 8,
+	"src_experts": 9, "synth_lab": 9, "gpu_statue": 9,
+	"groundstation": 11, "launchpad": 11,
+	"mega": 12,
+}
+
+
+static func unlock_level(kind: String) -> int:
+	return int(UNLOCKS.get(kind, 1))
+
+
+## The buildings that open exactly at Lab level l.
+static func unlocked_at(l: int) -> Array[String]:
+	var out: Array[String] = []
+	for k in BUILD_ORDER:
+		if unlock_level(k) == l:
+			out.append(k)
+	return out
+
 
 ## Lab levels: lifetime tokens served needed, and the sparks each level brings.
 const EMPIRE := [

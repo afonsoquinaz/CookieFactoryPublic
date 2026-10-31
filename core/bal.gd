@@ -190,6 +190,8 @@ const Q_DECAY := 0.02 / 3600.0      # quality lost per second (toward the floor)
 
 # staff housed without any cabin
 const BASE_STAFF := 1
+## You and a friend can build: two builders before any Builder's Hut.
+const BASE_BUILDERS := 2
 
 # labs
 static func craft_time(kind: String, l: int) -> float: return maxf(0.5, float(Defs.BUILDINGS[kind]["craft"]) * pow(0.95, l - 1))
