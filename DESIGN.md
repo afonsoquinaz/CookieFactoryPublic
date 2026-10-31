@@ -1,6 +1,6 @@
 # Token Empire 2: the inference economy
 
-How the game works since the 2.0 rework. In Token Empire you build compute and you sell tokens through an API. The first version followed its cookie-factory ancestor too closely: models were "baked" from web data, physical tokens rolled out of the server and couriers carried them to a van. Version 2 keeps the hardware supply chain physical (power, coolant, chips, data) and makes inference work the way it does in real life. Customers call your API, your servers answer as fast as their GPUs allow, and every token served is paid for on the spot.
+How the game works since the 2.0 rework. In Token Empire you build compute and you sell tokens through an API. The first version leaned too much on the classic factory-idle formula: models were "baked" from web data, physical tokens rolled out of the server and couriers carried them to a van. Version 2 keeps the hardware supply chain physical (power, coolant, chips, data) and makes inference work the way it does in real life. Customers call your API, your servers answer as fast as their GPUs allow, and every token served is paid for on the spot.
 
 ## The loop
 
