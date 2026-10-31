@@ -598,6 +598,7 @@ func _test_save_roundtrip() -> void:
 	Game.settings.erase("intro_done")
 	Game.stats["tokens"] = 5.0
 	ok(not Intro.needed(), "an old save never sees it")
+	Market.paused = false
 	Game.reset_state()
 
 

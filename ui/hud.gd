@@ -144,12 +144,15 @@ func show_title() -> void:
 	title.play.connect(_start_playing)
 	add_child(title)
 	_set_hud_visible(false)
+	# a brand-new lab waits for its opening story: nothing serves yet
+	Market.paused = Intro.needed()
 
 
 func _start_playing() -> void:
 	if Intro.needed():
 		play_intro()
 		return
+	Market.paused = false
 	playing = true
 	_set_hud_visible(true)
 	for c in [_money_pill, _lvl_box, _gear, _builders_chip]:
