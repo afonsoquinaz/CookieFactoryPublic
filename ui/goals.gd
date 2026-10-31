@@ -167,6 +167,9 @@ func _evaluate() -> void:
 ## coolant, the market's biggest bottleneck, and the Megacluster while it's
 ## being built.
 func _free_goal() -> void:
+	if world.bubbles.count() > 0 and int(Game.settings.get("bubbles", 0)) < 2:
+		_goal("A coin bubble! Tips from happy customers: tap it to collect.", "coin", world.bubbles.first_pos())
+		return
 	for n in world.bnodes.values():
 		if n.has_entrance() and not n is SiteB and not n.on_road():
 			_goal("%s has no road: clear the space in front of its entrance." % n.def["name"], "lock", _top(n))

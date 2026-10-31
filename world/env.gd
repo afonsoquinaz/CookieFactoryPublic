@@ -18,14 +18,14 @@ static func build(parent: Node3D) -> DirectionalLight3D:
 	e.glow_bloom = 0.02
 	e.glow_hdr_threshold = 1.1
 	e.adjustment_enabled = true
-	e.adjustment_saturation = 0.96
-	e.adjustment_contrast = 1.06
+	e.adjustment_saturation = 1.14
+	e.adjustment_contrast = 1.1
 	we.environment = e
 	parent.add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -38, 0)
-	sun.light_color = Color(1.0, 0.93, 0.8)
-	sun.light_energy = 1.0
+	sun.light_color = Color(1.0, 0.9, 0.74)
+	sun.light_energy = 1.08
 	sun.shadow_enabled = true
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2

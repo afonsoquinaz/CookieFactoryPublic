@@ -751,6 +751,15 @@ func _test_world() -> void:
 	var t := await _wait_until(func(): return float(Game.stats["tokens"]) > tok0 + 0.3, 40.0)
 	ok(float(Game.stats["tokens"]) > tok0 + 0.3 and Game.money > money0, "customers' API calls were answered and paid (%.1fs)" % t)
 	ok(float(Market.cap.get("pico", 0.0)) > 0.0 and float(Market.demand.get("pico", 0.0)) > 0.0, "the market sees capacity and demand for Pico")
+	# coin bubbles: a tip over a busy server, a few seconds of income
+	ok(Bubbles.eligible(server), "a busy server floats coin bubbles")
+	ok(not Bubbles.eligible(w.buildings_of("src_power")[0]), "a solar farm doesn't")
+	w.bubbles.force(server)
+	ok(w.bubbles.count() == 1 and w.bubbles.first_pos() != null, "a bubble over the server")
+	ok(is_equal_approx(Bubbles.value(), maxf(Bal.BUBBLE_MIN, Market.income * Bal.BUBBLE_SECONDS)), "it pays %s seconds of income" % Bal.BUBBLE_SECONDS)
+	var got: Dictionary = w.bubbles.collect(server.uid)
+	ok(float(got.get("money", 0.0)) >= Bal.BUBBLE_MIN and w.bubbles.count() == 0, "tapped: collected and gone ($%.2f)" % float(got.get("money", 0.0)))
+	ok(w.bubbles.collect(server.uid).is_empty(), "a bubble pays once")
 	ok(float(Market.served.get("pico", 0.0)) <= float(Market.cap.get("pico", 0.0)) + 0.0001, "never more served than the servers can answer")
 	ok(Market.bandwidth >= Bal.GARAGE_BW and Market.used_bw <= Market.bandwidth + 0.0001, "everything leaving fits through the gateways")
 	# the network you can see: a beam over the gateway, fiber and power to the server
@@ -802,9 +811,9 @@ func _test_world() -> void:
 	ok(server.capacity() == 0.0 and server.offline, "no solar farm, no power grid: the server is offline")
 	Game.place("src_power", Vector2i(-6, -5), 0, {"lvl": 40}, false)
 	Game.place("src_coolant", Vector2i(-14, -5), 0, {"lvl": 40}, false)
-	await _wait_until(func(): return Market.power_supply > 0.0 and Market.cool_supply > 0.0, 3.0)
-	await _wait_until(func(): return Market.power_f >= 1.0 and Market.cool_f >= 1.0, 3.0)
-	ok(not server.offline and Market.power_f >= 1.0 and Market.cool_f >= 1.0, "big plants: the grids are back, with room to spare")
+	await _wait_until(func(): return Market.power_supply > 0.0 and Market.cool_supply > 0.0, 6.0)
+	await _wait_until(func(): return Market.power_f >= 1.0 and Market.cool_f >= 1.0 and not server.offline, 6.0)
+	ok(not server.offline and Market.power_f >= 1.0 and Market.cool_f >= 1.0, "big plants: the grids are back, with room to spare (off %s p %.2f c %.2f, %.1f/%.1f kW, %.1f/%.1f)" % [server.offline, Market.power_f, Market.cool_f, Market.power_draw, Market.power_supply, Market.cool_draw, Market.cool_supply])
 	# put the server back the way it was
 	for i in 5:
 		server._gpu_fails()

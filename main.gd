@@ -65,6 +65,27 @@ func _ready() -> void:
 				if a.has("info"):
 					ui.call("open_building", n)
 				break
+	if a.has("bubbles"):
+		# a coin bubble over every server and channel (screenshots)
+		for n in world.bnodes.values():
+			if n is ServerB or n is ChannelB or n is CafeB:
+				world.bubbles.force(n)
+	if a.has("collect"):
+		# pop the first bubble after a second (to catch the coins mid-flight)
+		get_tree().create_timer(float(a["collect"])).timeout.connect(func():
+			for n in world.bnodes.values():
+				if n is ServerB:
+					world.bubbles.force(n)
+					ui.call("collect_bubble", n.uid)
+					break)
+	if a.has("celebrate"):
+		get_tree().create_timer(1.0).timeout.connect(func():
+			for n in world.bnodes.values():
+				if n is ServerB:
+					n.celebrate()
+					break)
+	if a.has("levelup"):
+		get_tree().create_timer(0.5).timeout.connect(func(): ui.call("_on_level_up", maxi(2, Game.level), 5))
 	if a.has("recipes"):
 		for n in world.bnodes.values():
 			if n is ServerB:

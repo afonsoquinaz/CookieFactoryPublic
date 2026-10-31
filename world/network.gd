@@ -20,8 +20,8 @@ extends Node3D
 ## is rebuilt when buildings come, go, move or change look; the pulses are a
 ## few MultiMeshes moved every frame.
 
-const FIBER_H := 9.0          # mast tops (m)
-const POWER_H := 11.0
+const FIBER_H := 5.5          # mast tops (m): low enough not to cross the view
+const POWER_H := 6.5
 const COOL_Y := 0.18          # cooling pipes run along the ground
 const SKY := 90.0
 const MAX_PULSES := 420
@@ -70,8 +70,8 @@ func _ready() -> void:
 		# a streak of light pointing along its cable
 		var sm := CapsuleMesh.new()
 		var r: float = KINDS[k][1]
-		sm.radius = r * 0.55
-		sm.height = r * 5.0
+		sm.radius = r * 0.5
+		sm.height = r * 3.0
 		sm.radial_segments = 6
 		sm.rings = 1
 		mm.mesh = sm
@@ -84,7 +84,7 @@ func _ready() -> void:
 		m.albedo_color = KINDS[k][0]
 		m.emission_enabled = true
 		m.emission = KINDS[k][0]
-		m.emission_energy_multiplier = 2.0
+		m.emission_energy_multiplier = 1.2
 		mi.material_override = m
 		add_child(mi)
 		_mm[k] = mi
@@ -280,7 +280,7 @@ func _beam_geometry() -> Mesh:
 static func pulse_rate(x: float) -> float:
 	if x <= 0.0:
 		return 0.0
-	return clampf(0.7 + 2.2 * log(1.0 + x * 4.0) / log(10.0), 0.4, 9.0)
+	return clampf(0.6 + 1.2 * log(1.0 + x * 4.0) / log(10.0), 0.4, 4.0)
 
 
 func _process(dt: float) -> void:

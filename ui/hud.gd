@@ -59,6 +59,7 @@ var _sel_mark: MeshInstance3D
 var _route_mark: MeshInstance3D
 var _sel_t := 0.0
 var playing := false
+var fly: Fly
 
 
 func _ready() -> void:
@@ -131,10 +132,12 @@ func _ready() -> void:
 			Fx.burst(get_tree().current_scene, c + Vector3(randf_range(-3, 3), 3, randf_range(-3, 3)), Pal.GOLD, 40)
 		_popup("Token Empire!", "The AGI Megacluster is online. Your tokens power the whole world.",
 			"%s tokens served  ·  %s earned  ·  %s played" % [Fmt.tokens(float(Game.stats["tokens"])), "$" + Fmt.num(float(Game.stats["earned"])), Fmt.time(float(Game.stats["play_time"]))],
-			"mega", "Keep serving"))
+			"mega", "Keep serving", Callable(), false, true))
 	_update_level()
 	_on_trend(Game.trending)
 	_gem_label.text = str(Game.gems)
+	fly = Fly.new()
+	add_child(fly)
 
 
 ## Show the title menu first (skipped for screenshots / bots).
@@ -1026,6 +1029,11 @@ func _on_tap(pos: Vector2) -> void:
 	var d := cam.project_ray_normal(pos)
 	if d.y > -0.01:
 		return
+	# coin bubbles float above everything: they come first
+	var bu: int = world.bubbles.hit(pos, cam)
+	if bu >= 0:
+		collect_bubble(bu)
+		return
 	# a sale sign stands up; test a few heights along the ray
 	for y in [1.4, 0.8, 0.0]:
 		var p: Vector3 = o + d * ((y - o.y) / d.y)
@@ -1055,6 +1063,24 @@ func _on_tap(pos: Vector2) -> void:
 			select_obstacle(key)
 			return
 	deselect()
+
+
+## Pops a coin bubble: a burst where it was, the coins fly into your money
+## and are paid as they land.
+func collect_bubble(uid: int) -> void:
+	var r: Dictionary = world.bubbles.collect(uid)
+	if r.is_empty():
+		return
+	Sfx.play("cash", -3.0, 1.1)
+	Game.settings["bubbles"] = int(Game.settings.get("bubbles", 0)) + 1
+	var cam := get_viewport().get_camera_3d()
+	var money: float = r["money"]
+	var from := cam.unproject_position(r["pos"]) if cam else get_viewport_rect().size * 0.5
+	fly.fly(from, _money_icon_target(), "coin", clampi(6 + int(log(maxf(money, 1.0)) / log(10.0)) * 2, 6, 16), func(): Game.add_money(money))
+
+
+func _money_icon_target() -> Control:
+	return _money_pill
 
 
 func _land_popup(chunk: Vector2i) -> void:
@@ -1109,7 +1135,7 @@ func _layout() -> void:
 	actions.layout(vs)
 	_toast_box.size = Vector2(minf(vs.x - 40, 600), 0)
 	_toast_box.position = Vector2((vs.x - _toast_box.size.x) * 0.5, 330 + top)
-	goals.layout(vs, top + 110.0)
+	goals.layout(vs, top + 110.0 + (58.0 if _event_chip.visible else 0.0))
 
 
 func _process(dt: float) -> void:
@@ -1233,7 +1259,7 @@ func _on_job_done(j: Dictionary) -> void:
 
 func _on_discovered(rid: String) -> void:
 	var r := Defs.recipe(rid)
-	_popup("New model online!", r["name"], "%s  ·  %d GB VRAM  ·  $%s per 1K tokens" % [r["params"], int(r["vram"]), Fmt.num(Bal.token_price(rid))], "tk_" + rid, "Serve it!")
+	_popup("New model online!", r["name"], "%s  ·  %d GB VRAM  ·  $%s per 1K tokens" % [r["params"], int(r["vram"]), Fmt.num(Bal.token_price(rid))], "tk_" + rid, "Serve it!", Callable(), false, true)
 
 
 func _on_level_up(level: int, gems: int) -> void:
@@ -1248,7 +1274,7 @@ func _on_level_up(level: int, gems: int) -> void:
 	var sub := "+%d sparks" % gems if gems > 0 else ""
 	if not names.is_empty():
 		sub = ("Now you can build: %s" % ", ".join(names)) + ("\n" + sub if sub != "" else "")
-	_popup("Lab level %d!" % level, Defs.level_title(level), sub, "star", "Awesome!")
+	_popup("Lab level %d!" % level, Defs.level_title(level), sub, "star", "Awesome!", Callable(), false, true)
 	Fx.burst(get_tree().current_scene, world.cam.global_position + Vector3(0, 4, 0), Pal.GOLD, 30)
 
 
@@ -1256,21 +1282,21 @@ func _on_level_up(level: int, gems: int) -> void:
 ## this just before the level-up card, so it waits underneath it).
 func _on_era(era: int) -> void:
 	var e: Dictionary = Defs.ERAS[era]
-	_popup("A new era!", e["name"], e["desc"], e["icon"], "Look around")
+	_popup("A new era!", e["name"], e["desc"], e["icon"], "Look around", Callable(), false, true)
 
 
 func _offline_popup(amount: float) -> void:
 	var away := Fmt.time(Game.offline_seconds)
 	var toks := ("  ·  %s tokens" % Fmt.tokens(Game.offline_tokens)) if Game.offline_tokens > 0.0 else ""
 	_popup("Welcome back!", "You were away %s. Your servers kept serving and your builders kept building." % away, "+$%s%s" % [Fmt.num(amount), toks], "cash", "Collect", func():
-		Game.add_money(amount)
 		Game.add_tokens(Game.offline_tokens)
 		Game.offline_reward = 0
 		Game.offline_tokens = 0.0
-		Sfx.play("cash"))
+		Sfx.play("cash")
+		fly.fly(get_viewport_rect().size * 0.5, _money_pill, "coin", 16, func(): Game.add_money(amount)))
 
 
-func _popup(head: String, sub: String, text: String, icon: String, btn_text: String, on_ok := Callable(), cancel := false) -> void:
+func _popup(head: String, sub: String, text: String, icon: String, btn_text: String, on_ok := Callable(), cancel := false, fancy := false) -> void:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -1279,6 +1305,12 @@ func _popup(head: String, sub: String, text: String, icon: String, btn_text: Str
 	dim.color = Color(0.08, 0.05, 0.03, 0.55)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(dim)
+	var rays: Rays = null
+	if fancy:
+		rays = Rays.new()
+		rays.size = Vector2(900, 900)
+		root.add_child(rays)
+		Rays.confetti(root)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", Kit.skin("panel", 60, Vector4(36, 40, 36, 40)))
 	card.custom_minimum_size = Vector2(minf(540, get_viewport_rect().size.x - 40), 0)
@@ -1323,6 +1355,8 @@ func _popup(head: String, sub: String, text: String, icon: String, btn_text: Str
 		card.size = card.get_combined_minimum_size()
 		card.position = (get_viewport_rect().size - card.size) * 0.5
 		card.pivot_offset = card.size * 0.5
+		if rays:
+			rays.position = card.position + Vector2(card.size.x * 0.5, 100) - rays.size * 0.5
 	center.call_deferred()
 	card.minimum_size_changed.connect(center)
 	Kit.pop_in.call_deferred(card)
