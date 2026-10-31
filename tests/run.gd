@@ -136,7 +136,7 @@ func _test_balance() -> void:
 			compute += 1
 			ok(float(a["v"]) > 0.0 and float(a["v"]) <= 0.3 and int(a["r"]) >= 2, "%s: a sensible compute aura" % k)
 	ok(compute >= 5, "datacenter gear for every stage of the game (%d)" % compute)
-	ok(Defs.limit_of("hut") == 5 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
+	ok(Defs.limit_of("hut") == 3 and Defs.limit_of("desk") == 1 and Defs.limit_of("mega") == 1, "huts, the board and the palace are limited")
 
 
 # ---------------------------------------------------------------- growth
@@ -420,26 +420,44 @@ func _test_live() -> void:
 func _test_game_state() -> void:
 	Game.reset_state()
 	ok(Game.level == 1, "a new lab is level 1")
-	for k in ["server", "src_power", "gateway", "depot", "dorm"]:
-		ok(Game.count_ready(k) == 1, "a new empire has a ready " + k)
+	# a new lab is a solar panel and one server, nothing else
+	ok(Game.count_ready("server") == 1 and Game.count_ready("src_power") == 1, "a new empire has a server and a solar panel")
+	ok(Game.buildings.size() == 2, "and nothing else: %d buildings" % Game.buildings.size())
+	ok(Game.known_recipes.has("pico"), "Pico 1B is deployed")
 	ok(Game.builders() == 2 and Game.free_builders() == 2, "two builders to start")
-	ok(Game.workers_with("courier") == 3, "three couriers to start")
+	ok(Game.workers.is_empty(), "no staff to start")
 	ok(Game.obstacles.size() >= 5, "obstacles to clear on the starting land")
-	ok(Game.build_block("src_silicon") == "Not enough money", "only money stands between you and silicon works")
+	ok(Game.build_block("src_silicon") == "Opens at Lab level 3", "silicon works open at Lab level 3")
+	ok(Game.build_block("server") in ["", "Not enough money"] and Game.build_block("src_power") in ["", "Not enough money"] and Game.build_block("gateway") in ["", "Not enough money"], "servers, solar panels and the API Gateway from the start")
+	var open1 := []
+	for k in Defs.BUILD_ORDER:
+		if Defs.BUILDINGS[k]["cat"] != "decor" and Game.is_open(k):
+			open1.append(k)
+	ok(open1.size() == 3, "only three things to build at first: %s" % [open1])
+	for k in Defs.BUILD_ORDER:
+		ok(Defs.unlock_level(k) >= 1 and Defs.unlock_level(k) <= Defs.EMPIRE.size(), "%s opens at a real Lab level" % k)
+		ok(not Defs.unlocked_at(Defs.unlock_level(k)).is_empty() and Defs.unlocked_at(Defs.unlock_level(k)).has(k), "%s is listed at its level" % k)
+	ok(BuildPanel.listed("cafe") and not BuildPanel.listed("fab"), "the build menu teases the next level only")
+	Game.level = Defs.EMPIRE.size()
+	ok(BuildPanel.listed("fab"), "everything listed at the top")
 	for k in Defs.BUILD_ORDER:
 		var by := Game.build_block(k)
 		if LiveDefs.EXCLUSIVE.has(k):
 			ok(by.begins_with("Locked"), "%s is earned, not bought (%s)" % [k, by])
 			continue
-		ok(by == "" or by == "Not enough money" or by.begins_with("Needs") and by.contains("sparks"), "%s is open from the start (%s)" % [k, by])
+		ok(by == "" or by == "Not enough money" or by.begins_with("Needs") and by.contains("sparks"), "%s is open at the top level (%s)" % [k, by])
+	Game.level = 1
 	for b0 in Game.buildings:
 		var ent := Building.entrance_of(b0["kind"], Game.cell_of(b0), int(b0["rot"]))
 		ok(ent.is_empty() or World._street_dist(ent[0]) <= 1, "%s starts by the High Street" % b0["kind"])
 		for c in Grid.cells(Game.cell_of(b0), Defs.size_of(b0["kind"]), int(b0["rot"])):
 			ok(not Roads.is_street(c), "%s is off the High Street" % b0["kind"])
 	Game.money = 1000.0
-	ok(Game.build_block("src_data") == "", "a web crawler can be built")
+	ok(Game.build_block("src_data").begins_with("Opens"), "a web crawler opens later")
+	Game.level = 2
+	ok(Game.build_block("src_data") == "", "a web crawler can be built at Lab level 2")
 	var b := Game.place("src_data", Vector2i(-7, 3), 0)
+	Game.level = 1
 	ok(not b.is_empty() and int(b["lvl"]) == 0, "a new building starts under construction")
 	ok(Game.jobs.size() == 1 and Game.free_builders() == 1, "a builder is busy on it")
 	ok(Game.count_ready("src_data") == 0 and not Game.can_make("data"), "not working while being built")
@@ -506,7 +524,12 @@ func _test_game_state() -> void:
 	ok(Game.buy_chunk(Vector2i(1, 0)), "buy a plot next to yours")
 	ok(Game.obstacles.size() > n0, "new land comes with obstacles")
 	ok(not Game.can_buy_chunk(Vector2i(5, 5)), "plots far away can't be bought")
-	# staff
+	# staff: a dorm houses them
+	Game._add("dorm", Vector2i(6, 4), 0)
+	Game.money = 1e9
+	for i in 3:
+		Game.hire()
+	ok(Game.workers_with("courier") == 3, "three couriers hired")
 	ok(Game.assign_courier("tech", 7), "a courier becomes a technician")
 	ok(Game.workers_with("tech", 7) == 1 and Game.workers_with("courier") == 2, "one technician, two couriers")
 	Game.assign_courier("engineer", 8)
@@ -533,6 +556,7 @@ func _test_game_state() -> void:
 func _test_save_roundtrip() -> void:
 	Game.reset_state()
 	Game.money = 5000.0
+	Game.level = 2
 	Game.place("src_data", Vector2i(-7, 3), 0)
 	Game.buy_chunk(Vector2i(1, 0))
 	var d := Game.to_dict()
@@ -563,6 +587,17 @@ func _test_save_roundtrip() -> void:
 	var v1 := {"v": 1, "buildings": [{"uid": 1, "kind": "van", "cell": [0, 0], "rot": 0, "lvl": 3, "data": {"cargo": ["t:pico"]}}, {"uid": 2, "kind": "cache", "cell": [4, 0], "rot": 0, "lvl": 2, "data": {}}], "money": 10.0, "stats": {"tokens": 50}}
 	var v2 := Game.migrate_v1(v1)
 	ok(v2["buildings"].size() == 1 and v2["buildings"][0]["kind"] == "gateway" and not v2["buildings"][0]["data"].has("cargo") and float(v2["money"]) > 10.0, "old saves: vans become gateways, token caches are refunded")
+	# version 2 saves: two builders are free now, so the two starting huts go
+	var o2 := {"v": 2, "buildings": [{"uid": 1, "kind": "hut", "cell": [0, 0], "rot": 0, "lvl": 1, "data": {}}, {"uid": 2, "kind": "hut", "cell": [2, 0], "rot": 0, "lvl": 1, "data": {}}, {"uid": 3, "kind": "hut", "cell": [4, 0], "rot": 0, "lvl": 1, "data": {}}, {"uid": 4, "kind": "server", "cell": [8, 0], "rot": 0, "lvl": 2, "data": {}}]}
+	var n2 := Game.migrate_v2(o2)
+	ok(int(n2["v"]) == 3 and n2["buildings"].size() == 2 and n2["buildings"][0]["kind"] == "hut" and n2["buildings"][1]["kind"] == "server", "old saves: the two starting huts become the two free builders")
+	Game.reset_state()
+	ok(Intro.needed(), "a brand-new game opens with the story")
+	Game.settings["intro_done"] = true
+	ok(not Intro.needed(), "and only once")
+	Game.settings.erase("intro_done")
+	Game.stats["tokens"] = 5.0
+	ok(not Intro.needed(), "an old save never sees it")
 	Game.reset_state()
 
 
@@ -716,8 +751,18 @@ func _test_world() -> void:
 		var kinds := {}
 		for l in net.links:
 			kinds[l["kind"]] = true
-		ok(net.beams.size() >= 1 and kinds.has("fiber") and kinds.has("power"), "an uplink beam, fiber to the server, power lines from the farm")
+		ok(net.beams.size() == 1 and net.beams[0].has("server") and kinds.has("power"), "no gateway yet: the server's home line beams up, power lines from the panel")
 		ok(net._count() > 0, "requests and tokens are flowing (%d pulses)" % net._count())
+		Game.place("gateway", Vector2i(-1, 2), 2, {"lvl": 1}, false)
+		await _wait_until(func():
+			for l in net.links:
+				if l["kind"] == "fiber":
+					return true
+			return false, 5.0)
+		kinds.clear()
+		for l in net.links:
+			kinds[l["kind"]] = true
+		ok(kinds.has("fiber") and not net.beams.is_empty() and not net.beams[0].has("server"), "an API Gateway: fiber to the server, the uplink moves to the gateway")
 		ok(NetworkView.pulse_rate(0.0) == 0.0 and NetworkView.pulse_rate(100.0) > NetworkView.pulse_rate(1.0), "busier links stream more pulses")
 	# the grids: the solar farm feeds power, nothing has to be carried
 	var farm: SourceB = w.buildings_of("src_power")[0]
@@ -781,7 +826,8 @@ func _test_world() -> void:
 	server.gpu_in.add("gpu", false)
 	server._install_gpu("gpu")
 	ok(server.gpus() == 1 and server.dead() == 0, "a courier's GPU replaces the dead board")
-	# a web crawler is built by a builder
+	# a web crawler is built by a builder (everything open from here on)
+	Game.level = Defs.EMPIRE.size()
 	var sb := Game.place("src_data", Vector2i(-7, 3), 2)
 	await get_tree().process_frame
 	var site := w.building(int(sb["uid"]))

@@ -28,6 +28,8 @@ signal ticked
 const TICK := 0.25
 const CHANNELS := ["api", "cafe", "contract", "agent"]
 
+var paused := false              # held during the opening story
+
 var world                                  # World (it registers itself)
 var price := {}                            # model -> your price multiplier
 var quality := {}                          # model -> 0.7..1.5
@@ -80,7 +82,7 @@ func reset_state() -> void:
 
 
 func _process(dt: float) -> void:
-	if world == null or not is_instance_valid(world) or get_tree().paused:
+	if world == null or not is_instance_valid(world) or get_tree().paused or paused:
 		return
 	_t += dt
 	var n := 0

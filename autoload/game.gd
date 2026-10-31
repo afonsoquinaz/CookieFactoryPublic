@@ -32,7 +32,7 @@ signal victory
 signal tracked(metric: String, n: float, arg: String)   # for Live: quests, goals, badges
 
 const SAVE_PATH := "user://token_empire_v1.json"
-const VERSION := 2                     # 2 = the inference economy (1 migrates)
+const VERSION := 3                     # 2 = the inference economy, 3 = builders built in (older migrate)
 
 var money := 0.0
 var gems := 0
@@ -128,17 +128,11 @@ func _starting_empire() -> void:
 	for x in [-1, 0]:
 		for y in [-1, 0]:
 			land["%d,%d" % [x, y]] = true
+	# what came in the delivery van: a second-hand solar panel and a garage
+	# server with a gaming GPU, on a home internet line (see Intro)
 	_add("src_power", Vector2i(-6, -5), 0)
 	_add("server", Vector2i(-2, -5), 0)
-	_add("depot", Vector2i(4, -4), 0)
-	_add("gateway", Vector2i(-1, 2), 2)
-	_add("hut", Vector2i(3, 2), 2)
-	_add("hut", Vector2i(5, 2), 2)
-	_add("dorm", Vector2i(-4, 2), 2)
 	known_recipes["pico"] = true
-	for i in 3:
-		workers.append({"id": next_worker_id, "role": "courier", "target": 0})
-		next_worker_id += 1
 	for ob in [["bush", Vector2i(-6, 3), 1], ["ewaste", Vector2i(-3, 5), 0], ["rock", Vector2i(6, 6), 2], ["oak", Vector2i(-7, 5), 3],
 			["bush", Vector2i(6, -8), 0], ["pine", Vector2i(1, -8), 1], ["container", Vector2i(-8, -8), 2], ["bush", Vector2i(2, 5), 1]]:
 		obstacles[cell_key(ob[1])] = {"kind": ob[0], "gems": ob[2]}
@@ -344,7 +338,14 @@ func build_time_of(kind: String) -> float:
 
 
 ## Why a new building can't be placed now ("" when it can).
+## Whether the Lab is grown up enough for a building.
+func is_open(kind: String) -> bool:
+	return level >= Defs.unlock_level(kind)
+
+
 func build_block(kind: String) -> String:
+	if not is_open(kind):
+		return "Opens at Lab level %d" % Defs.unlock_level(kind)
 	if not Live.is_unlocked(kind):
 		return "Locked: " + LiveDefs.EXCLUSIVE[kind]
 	var mx := Defs.limit_of(kind)
@@ -483,7 +484,7 @@ func can_make(ing: String) -> bool:
 # ---------------------------------------------------------------- builders + jobs
 
 func builders() -> int:
-	return count_ready("hut")
+	return Bal.BASE_BUILDERS + count_ready("hut")
 
 
 func free_builders() -> int:
@@ -954,6 +955,8 @@ func from_dict(d: Dictionary) -> void:
 	reset_state()
 	if int(d.get("v", 0)) == 1:
 		d = migrate_v1(d)
+	if int(d.get("v", 0)) == 2:
+		d = migrate_v2(d)
 	if int(d.get("v", 0)) != VERSION:
 		return
 	money = float(d.get("money", 0.0))
@@ -1023,6 +1026,21 @@ func from_dict(d: Dictionary) -> void:
 ## economy: vans become API Gateways, hyperloops Edge PoPs, drone ports
 ## Agent Hubs; token caches, batchers and agent studios are sold back at
 ## full price; token stock, contracts and the server's bays are dropped.
+## Version 2 saves: the first two Builder's Huts were free and are now the
+## two builders everyone has; they go (the bought ones stay).
+static func migrate_v2(d: Dictionary) -> Dictionary:
+	var keep := []
+	var free := 2
+	for b in d.get("buildings", []):
+		if str(b["kind"]) == "hut" and free > 0:
+			free -= 1
+			continue
+		keep.append(b)
+	d["buildings"] = keep
+	d["v"] = 3
+	return d
+
+
 static func migrate_v1(d: Dictionary) -> Dictionary:
 	var rename := {"van": "gateway", "hyperloop": "edge", "droneport": "agent_hub"}
 	var gone := {"cache": true, "batcher": true, "agent_studio": true}

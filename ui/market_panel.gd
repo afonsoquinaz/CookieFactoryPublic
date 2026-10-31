@@ -92,11 +92,12 @@ func _summary() -> Control:
 		func():
 			var d := Market.total(Market.demand)
 			return Market.total(Market.served) / d if d > 0.0 else 1.0, true))
-	v.add_child(_stat("fiber", "Bandwidth", func(): return "%s of %s tok/s" % [Fmt.tokens(Market.used_bw), Fmt.tokens(Market.bandwidth)], func(): return Market.used_bw / maxf(0.0001, Market.bandwidth)))
+	v.add_child(_stat("fiber", "Home internet line" if Game.count_ready("gateway") == 0 else "Bandwidth", func(): return "%s of %s tok/s" % [Fmt.tokens(Market.used_bw), Fmt.tokens(Market.bandwidth)], func(): return Market.used_bw / maxf(0.0001, Market.bandwidth)))
 	v.add_child(_stat("power", "Power grid", func(): return "%s of %s kW" % [Fmt.num(roundf(Market.power_draw)), Fmt.num(roundf(Market.power_supply))],
 		func(): return Market.power_draw / maxf(0.0001, Market.power_supply)))
-	v.add_child(_stat("coolant", "Cooling loop", func(): return "%s of %s" % [Fmt.num(roundf(Market.cool_draw)), Fmt.num(roundf(Market.cool_supply))],
-		func(): return Market.cool_draw / maxf(0.0001, Market.cool_supply)))
+	if Market.cool_draw > 0.0 or Market.cool_supply > 0.0:
+		v.add_child(_stat("coolant", "Cooling loop", func(): return "%s of %s" % [Fmt.num(roundf(Market.cool_draw)), Fmt.num(roundf(Market.cool_supply))],
+			func(): return Market.cool_draw / maxf(0.0001, Market.cool_supply)))
 	v.add_child(_stat("star", "Reputation", func(): return "%d%%" % roundi(Market.rep * 100), func(): return Market.rep, true))
 	v.add_child(_lbl(func():
 		var ch := []
@@ -120,11 +121,18 @@ static func advice() -> String:
 		return "The power grid is short (%d%%): every server slows down. Upgrade or build Solar Farms." % roundi(Market.power_f * 100)
 	if Market.cool_f < 0.98:
 		return "The cooling loop is short (%d%%): GPUs are throttling. Upgrade or build Cooling Towers." % roundi(Market.cool_f * 100)
+	var no_gw := Game.count_ready("gateway") == 0
 	if Market.used_bw >= Market.bandwidth * 0.98 and Market.bandwidth > 0.0:
+		if no_gw:
+			return "Your home internet line is full: build an API Gateway for real bandwidth and many more customers."
 		return "Your gateways are full: build an API Gateway or rack fiber spools on one (Fiber Hub)."
 	if dem > cap * 1.1:
+		if not Game.is_open("fab"):
+			return "Customers want %s tok/s more than you can answer: upgrade your server, or build a second one." % Fmt.tokens(dem - cap)
 		return "Customers want %s tok/s more than you can answer: install GPUs (Chip Fab), add servers, or raise prices." % Fmt.tokens(dem - cap)
 	if cap > dem * 1.5:
+		if no_gw:
+			return "Idle capacity: your home line only reaches a few customers. An API Gateway brings many more."
 		return "Idle capacity: more customers would pay for it. API Gateways, a Chat Café, Edge PoPs, contracts, lower prices or a bigger model."
 	if Market.rep < 0.6:
 		return "Reputation is low because calls go unanswered. Serve what customers want and it climbs back."
