@@ -705,6 +705,20 @@ func _test_world() -> void:
 	ok(float(Market.cap.get("pico", 0.0)) > 0.0 and float(Market.demand.get("pico", 0.0)) > 0.0, "the market sees capacity and demand for Pico")
 	ok(float(Market.served.get("pico", 0.0)) <= float(Market.cap.get("pico", 0.0)) + 0.0001, "never more served than the servers can answer")
 	ok(Market.bandwidth >= Bal.GARAGE_BW and Market.used_bw <= Market.bandwidth + 0.0001, "everything leaving fits through the gateways")
+	# the network you can see: a beam over the gateway, fiber and power to the server
+	var net: NetworkView = null
+	for c in w.get_children():
+		if c is NetworkView:
+			net = c
+	ok(net != null, "the world draws its network")
+	if net:
+		await _wait_until(func(): return not net.links.is_empty() and net._count() > 0, 10.0)
+		var kinds := {}
+		for l in net.links:
+			kinds[l["kind"]] = true
+		ok(net.beams.size() >= 1 and kinds.has("fiber") and kinds.has("power"), "an uplink beam, fiber to the server, power lines from the farm")
+		ok(net._count() > 0, "requests and tokens are flowing (%d pulses)" % net._count())
+		ok(NetworkView.pulse_rate(0.0) == 0.0 and NetworkView.pulse_rate(100.0) > NetworkView.pulse_rate(1.0), "busier links stream more pulses")
 	# the grids: the solar farm feeds power, nothing has to be carried
 	var farm: SourceB = w.buildings_of("src_power")[0]
 	ok(farm.utility() and farm.supply() > 0.0 and farm.ports.is_empty(), "the solar farm feeds the grid: no crate, no couriers")

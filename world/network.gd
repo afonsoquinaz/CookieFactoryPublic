@@ -23,7 +23,7 @@ const FIBER_H := 9.0          # mast tops (m)
 const POWER_H := 11.0
 const COOL_Y := 0.18          # cooling pipes run along the ground
 const SKY := 90.0
-const MAX_PULSES := 700
+const MAX_PULSES := 420
 
 ## Pulse kinds: [colour, size, speed m/s]
 const KINDS := {
