@@ -219,7 +219,8 @@ func _token_pop() -> void:
 	add_child(box)
 	box.size = Vector2(420, 110)
 	var sp := cam.unproject_position(_server.to_world(ServerB.CORE_X, ServerB.BUS_Z, 3.0))
-	box.position = sp - Vector2(210, 110)
+	var vw := get_viewport_rect().size.x
+	box.position = Vector2(clampf(sp.x - 210.0, 10.0, vw - 430.0), sp.y - 110.0)
 	box.pivot_offset = Vector2(210, 55)
 	box.scale = Vector2(0.3, 0.3)
 	var tw := box.create_tween()
