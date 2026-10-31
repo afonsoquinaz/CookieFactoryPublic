@@ -64,6 +64,8 @@ func _ready() -> void:
 				ui.call("select", n)
 				if a.has("info"):
 					ui.call("open_building", n)
+				if a.has("upcard"):
+					ui.call("open_upgrade", n)
 				break
 	if a.has("bubbles"):
 		# a coin bubble over every server and channel (screenshots)

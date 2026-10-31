@@ -711,6 +711,16 @@ func open_staff() -> void:
 	open_sheet(StaffPanel.new())
 
 
+## The quick upgrade confirm (the full details stay in Info).
+func open_upgrade(n: Building) -> void:
+	if n == null or Bal.max_level(n.kind) <= n.level:
+		open_building(n, "upgrade")
+		return
+	var c := UpgradeCard.new().setup(self, n)
+	c.done.connect(func(_started): _refresh_actions.call_deferred())
+	add_child(c)
+
+
 func open_building(n: Building, focus := "") -> void:
 	var p := BuildingPanel.new().setup(world, n, focus)
 	p.move_requested.connect(func(uid): start_placement.call_deferred(n.kind, uid))
@@ -941,7 +951,7 @@ func _on_action(id: String) -> void:
 		"info":
 			open_building(n)
 		"upgrade":
-			open_building(n, "upgrade")
+			open_upgrade(n)
 		"recipe":
 			open_recipes(n as ServerB)
 		"tune":

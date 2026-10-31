@@ -6,6 +6,7 @@ extends Control
 
 var color := Color(1.0, 0.86, 0.4)
 var count := 14
+var alpha := 0.22
 var _t := 0.0
 
 
@@ -26,7 +27,7 @@ func _draw() -> void:
 		var a0 := _t * 0.35 + TAU * i / count
 		var a1 := a0 + TAU / count * 0.45
 		var pts := PackedVector2Array([c, c + Vector2(cos(a0), sin(a0)) * r * grow, c + Vector2(cos(a1), sin(a1)) * r * grow])
-		var col := Color(color.r, color.g, color.b, 0.22)
+		var col := Color(color.r, color.g, color.b, alpha)
 		draw_colored_polygon(pts, col)
 	# a soft glow in the middle
 	for k in 6:

@@ -610,6 +610,7 @@ func _test_save_roundtrip() -> void:
 	shown = hud_s.call("_tidy", [["info", "", "", Color.WHITE], ["upgrade", "", "", Color.WHITE], ["staff", "", "", Color.WHITE], ["move", "", "", Color.WHITE]])
 	ok(shown.size() == 4 and shown[0][0] == "upgrade" and shown[1][0] == "info", "four or fewer: all shown, the main action first")
 	hud_s.free()
+	ok(is_equal_approx(UpgradeCard._num("x1.08"), 1.08) and is_equal_approx(UpgradeCard._num("1,250 tok/s"), 1250.0) and is_nan(UpgradeCard._num("Pico")), "the upgrade card reads its stat numbers")
 	Market.paused = false
 	Game.reset_state()
 
