@@ -1,21 +1,21 @@
 class_name Intro
 extends Control
-## The opening story of a new game (about 20 seconds, skippable): a garage
-## and an idea; a delivery van brings two boxes; a second-hand solar panel
-## unfolds; a gaming PC with one serious GPU is set up; it's plugged into
-## the panel; a terminal deploys your first LLM; the home internet line
-## beams up to the sky, the first request comes down, the first token goes
-## back up, and you've earned your first cent. Then the HUD and the
-## tutorial take over.
+## The opening story of a new game (about 20 seconds, skippable): you on an
+## empty plot with a big idea; a delivery van pulls up; the courier carries
+## a second-hand solar panel to one side, you carry the server to the
+## other; they're unboxed and plugged in; you type at a terminal and your
+## first LLM (Pico 1B) comes online; the home internet line beams up to the
+## sky, the first request comes down, the first tokens go back up and are
+## paid. Then the HUD and the tutorial take over.
 
 signal finished
 
 const SCRIPT := [
 	# [time, caption]
-	[0.3, "Your garage. A spare socket. A big idea."],
+	[0.3, "A patch of land. One power socket. A big idea."],
 	[3.2, "Delivery for you!"],
-	[6.0, "A second-hand solar panel..."],
-	[8.6, "...and a server with one serious GPU."],
+	[6.9, "A second-hand solar panel..."],
+	[8.7, "...and a server with one serious GPU."],
 	[11.2, "Plug it in."],
 	[12.8, ""],
 	[17.4, "Somewhere out there, someone asks a question..."],
@@ -53,6 +53,9 @@ var _first_token := false
 var _tokens0 := 0.0
 var _money0 := 0.0
 var _mid := Vector3(-4, 0, -7)       # between the panel and the server
+var _you: Character                  # the founder
+var _courier: Character
+var _walks := {}                     # Character -> [[t0, t1, from, to], ...]
 
 
 ## A brand-new game opens with the story; a saved one never does.
@@ -117,12 +120,20 @@ func _ready() -> void:
 	_money0 = Game.money
 	if _farm and _server:
 		_mid = (_farm.global_position + _server.global_position) * 0.5
+	# you, on the empty plot, looking at the street
+	_you = _person("player", _mid + Vector3(1.0, 0, 3.4))
+	_you.rotation.y = 0.0
+	var van_back := Vector3(_mid.x + 0.9, 0, -0.4)
+	_walks[_you] = [
+		[5.0, 6.3, _you.position, van_back],
+		[6.55, 8.35, van_back, _front(_server) + Vector3(-1.2, 0, 0.9)],
+	]
 	# the camera starts down the street and settles over the garage plot
 	world.cam.free_focus = false
 	world.cam.global_position = Vector3(_mid.x - 6.0, 0, 1.0)
 	world.cam.zoom = 1.9
 	world.cam.snap()
-	world.cam.fly_to(Vector3(_mid.x, 0, _mid.z + 3.5), 1.6, 3.5)
+	world.cam.fly_to(Vector3(_mid.x, 0, _mid.z + 4.5), 1.3, 3.5)
 	Sfx.play("open", -8.0, 0.8)
 
 
@@ -139,13 +150,20 @@ func _process(dt: float) -> void:
 		_van = _make_van()
 	if _van:
 		var arrive := clampf((_t - 3.0) / 2.6, 0.0, 1.0)
-		var leave := clampf((_t - 10.5) / 2.5, 0.0, 1.0)
+		var leave := clampf((_t - 9.6) / 2.5, 0.0, 1.0)
 		var x := lerpf(_mid.x - 42.0, _mid.x, 1.0 - pow(1.0 - arrive, 3.0)) + leave * leave * 45.0
 		_van.global_position = Vector3(x, 0.06, 0.9)
 		_van.rotation.z = sin(_t * 18.0) * 0.006 * (1.0 if arrive < 1.0 or leave > 0.0 else 0.0)
-	if _t >= 5.6 and _boxes.is_empty():
-		_drop_boxes()
-	if _t >= 6.6 and not _farm_shown:
+	_move_people(dt)
+	if _t >= 5.6 and _courier == null:
+		_courier_out()
+	if _t >= 6.75 and _boxes.is_empty() and _courier:
+		_put_down(_courier, _front(_farm))
+	if _t >= 8.45 and _boxes.size() == 1:
+		_put_down(_you, _front(_server))
+	if _t >= 8.6 and _courier and _courier.visible:
+		_courier.visible = false
+	if _t >= 7.1 and not _farm_shown:
 		_farm_shown = true
 		_unbox(0, _farm)
 	if _t >= 9.2 and not _server_shown:
@@ -160,6 +178,8 @@ func _process(dt: float) -> void:
 			_sparks_along(_farm.global_position, _server.global_position + Vector3(-2.5, 0, 0))
 		Sfx.play("upgrade", -4.0, 1.2)
 	# the deploy terminal
+	if _you:
+		_you.work = "type" if _t >= 12.6 and _t < 17.2 else ("cheer" if _t >= 20.0 and _t < 21.8 or _t >= 3.4 and _t < 4.6 else "")
 	if _t >= 12.8 and _t < 17.4:
 		_term.visible = true
 		_type_terminal(_t - 12.8)
@@ -278,34 +298,86 @@ func _make_van() -> Node3D:
 	return n
 
 
-func _drop_boxes() -> void:
-	var targets := []
-	if _farm:
-		targets.append(_farm.global_position)
-	if _server:
-		targets.append(_server.global_position)
-	var from := Vector3(_mid.x - 0.6, 1.4, 0.9)
-	for i in targets.size():
-		var b := Node3D.new()
-		world.add_child(b)
-		var k := MeshKit.new()
-		var s: float = [1.2, 1.5][i]
-		k.box(Vector3(s, s * 0.8, s), Color(0.76, 0.6, 0.4), MeshKit.at(0, s * 0.4, 0))
-		k.box(Vector3(s * 1.02, 0.08, 0.16), Color(0.9, 0.85, 0.7), MeshKit.at(0, s * 0.8, 0))
-		k.box(Vector3(0.4, 0.2, 0.01), [Color(0.46, 0.82, 0.52), Color(0.3, 0.62, 0.42)][i], MeshKit.at(0, s * 0.45, s * 0.505))
-		Mats.inst(k.commit(), b)
-		b.global_position = from
-		_boxes.append(b)
-		var to: Vector3 = targets[i]
-		var tw := b.create_tween()
-		tw.tween_interval(i * 0.35)
-		tw.tween_method(func(f: float):
-			var p := from.lerp(to, f)
-			p.y = lerpf(from.y, 0.0, f) + sin(f * PI) * 3.0
-			b.global_position = p, 0.0, 1.0, 0.8).set_trans(Tween.TRANS_SINE)
-		tw.tween_callback(func():
-			Fx.puff(get_tree().current_scene, to, Pal.CREAM, 6)
-			Sfx.play("drop", -4.0))
+func _person(look: String, at: Vector3) -> Character:
+	var ch := Character.new()
+	world.add_child(ch)
+	ch.setup(look, 7)
+	ch.position = at
+	ch.scale = Vector3.ONE * 1.25
+	return ch
+
+
+## Where a box goes: in front of the building, on the street side.
+func _front(b: Building) -> Vector3:
+	if b == null:
+		return _mid
+	return b.global_position + Vector3(0, 0, maxf(b.size_m().y * 0.5 - 0.6, 1.0))
+
+
+func _box_mesh(s: float, tag: Color) -> ArrayMesh:
+	var k := MeshKit.new()
+	k.box(Vector3(s, s * 0.8, s), Color(0.76, 0.6, 0.4), MeshKit.at(0, s * 0.4, 0))
+	k.box(Vector3(s * 1.02, 0.06, s * 0.16), Color(0.9, 0.85, 0.7), MeshKit.at(0, s * 0.8, 0))
+	k.box(Vector3(s * 0.34, s * 0.18, 0.01), tag, MeshKit.at(0, s * 0.45, s * 0.505))
+	return k.commit()
+
+
+func _carry(ch: Character, tag: Color) -> void:
+	var holder := Node3D.new()
+	ch.carry_mount.add_child(holder)
+	Mats.inst(_box_mesh(0.62, tag), holder, MeshKit.at(0, 0.05, 0.1))
+	ch.carrying = true
+
+
+## The courier hops out of the van with the solar panel's box.
+func _courier_out() -> void:
+	var door := Vector3(_mid.x - 0.7, 0, -0.4)
+	_courier = _person("courier", door)
+	_carry(_courier, Color(0.46, 0.82, 0.52))
+	var spot := _front(_farm) + Vector3(0.9, 0, 0.9)
+	_walks[_courier] = [[5.65, 6.7, door, spot], [7.0, 8.5, spot, door]]
+	Sfx.play("pop", -4.0)
+
+
+func _put_down(ch: Character, at: Vector3) -> void:
+	for c in ch.carry_mount.get_children():
+		c.queue_free()
+	ch.carrying = false
+	var b := Node3D.new()
+	world.add_child(b)
+	var big := _boxes.size() == 1
+	Mats.inst(_box_mesh(1.5 if big else 1.2, Color(0.3, 0.62, 0.42) if big else Color(0.46, 0.82, 0.52)), b)
+	b.global_position = at
+	b.scale = Vector3(0.5, 0.5, 0.5)
+	b.create_tween().tween_property(b, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_boxes.append(b)
+	Fx.puff(get_tree().current_scene, at, Pal.CREAM, 6)
+	Sfx.play("drop", -4.0)
+	if ch == _you:
+		_you.carrying = false
+
+
+## People walk their scheduled legs (arms out while carrying).
+func _move_people(dt: float) -> void:
+	for ch in _walks:
+		if not is_instance_valid(ch):
+			continue
+		var moving := false
+		for leg in _walks[ch]:
+			if _t >= float(leg[0]) and _t < float(leg[1]):
+				var f := (_t - float(leg[0])) / (float(leg[1]) - float(leg[0]))
+				var from: Vector3 = leg[2]
+				var to: Vector3 = leg[3]
+				ch.position = from.lerp(to, smoothstep(0.0, 1.0, f) * 0.3 + f * 0.7)
+				ch.face(to - from, dt, 10.0)
+				moving = true
+		ch.move_speed = 0.75 if moving else 0.0
+		if not moving and ch == _you and _t >= 5.0:
+			# face the camera-ish (the street) while standing
+			ch.face(Vector3(0, 0, 1), dt, 4.0)
+	# you pick up the server's box at the van
+	if _you and _t >= 6.35 and _t < 6.5 and not _you.carrying and _boxes.size() <= 1:
+		_carry(_you, Color(0.3, 0.62, 0.42))
 
 
 func _unbox(i: int, b: Building) -> void:
@@ -343,6 +415,9 @@ func _finish() -> void:
 		_net.visible = true
 	if _van:
 		_van.queue_free()
+	for ch in [_you, _courier]:
+		if ch and is_instance_valid(ch):
+			ch.queue_free()
 	for bx in _boxes:
 		if is_instance_valid(bx):
 			bx.queue_free()
