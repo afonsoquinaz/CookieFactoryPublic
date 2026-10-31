@@ -56,11 +56,6 @@ const LEAF_DARK := Color(0.28, 0.4, 0.26)
 const LEAF_LIGHT := Color(0.56, 0.66, 0.4)
 const CYPRESS := Color(0.22, 0.34, 0.25)
 
-const CHOCO := Color(0.3, 0.19, 0.13)
-const CHOCO_DARK := Color(0.22, 0.13, 0.09)
-const COOKIE := Color(0.84, 0.63, 0.38)
-const COOKIE_DARK := Color(0.7, 0.48, 0.27)
-const DOUGH := Color(0.92, 0.83, 0.64)
 
 const SKIN := [Color(0.93, 0.78, 0.66), Color(0.84, 0.66, 0.52), Color(0.68, 0.5, 0.38), Color(0.5, 0.36, 0.27)]
 const HAIR := [Color(0.24, 0.17, 0.13), Color(0.13, 0.12, 0.12), Color(0.62, 0.48, 0.3), Color(0.45, 0.28, 0.2)]

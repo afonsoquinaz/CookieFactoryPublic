@@ -3,8 +3,8 @@
 
 Usage:
     python3 tools/gen_icons.py                 # generate everything missing
-    python3 tools/gen_icons.py cookie coin     # only these names (missing only)
-    python3 tools/gen_icons.py --force cookie  # regenerate these names
+    python3 tools/gen_icons.py token coin      # only these names (missing only)
+    python3 tools/gen_icons.py --force token   # regenerate these names
     python3 tools/gen_icons.py --post-only     # re-run post-processing on existing sources
     python3 tools/gen_icons.py --contact       # rebuild the contact sheet only
 

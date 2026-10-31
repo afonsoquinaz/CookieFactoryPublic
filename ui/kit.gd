@@ -32,10 +32,7 @@ const GREY := Color(0.74, 0.78, 0.82)
 const GREY_EDGE := Color(0.58, 0.62, 0.68)
 
 # legacy names (older call sites) mapped onto the new palette
-const CHOCO := INK
-const CHOCO_DARK := INK
 const CREAM := PAPER
-const CREAM_DARK := PAPER_DARK
 const YELLOW := BRASS
 const YELLOW_EDGE := BRASS_EDGE
 const GREEN := SAGE

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rough long-game pacing model for Cookie Empire (mirrors core/bal.gd).
+"""Rough long-game pacing model for Token Empire (mirrors core/bal.gd).
 
 A sensible player: buys whatever adds the most income per coin among
 line upgrades, new lines for better recipes, research, and keeps farms and
@@ -61,7 +61,7 @@ args = ap.parse_args()
 
 class Line:
     def __init__(s, r): s.r = r; s.lm = 1; s.lo = 1
-    def rate(s):  # cookies / s
+    def rate(s):  # tokens / s
         return batch(s.lo) * min(1 / mixer_interval(s.lm), 1.5 / bake_time(s.lo))   # ~1 chef
 
 money, level, xp, t = 0.0, 1, 0.0, 0.0

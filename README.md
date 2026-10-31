@@ -1,6 +1,6 @@
 # Token Empire
 
-A 3D idle base-builder about the AI supply chain, made in **Godot 4.7** (GDScript, Mobile renderer, portrait). It's a complete remake of Cookie Empire: tokens instead of cookies.
+A 3D idle base-builder about the AI supply chain, made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
 
 You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny local model with 15 ms latency, powered by a small Solar Farm. Tokens aren't things you make and carry: **customers call your API**, your servers answer as fast as their GPUs allow, and every token answered is paid on the spot. The more servers you run, and the bigger they are, the more you can sell. From there you grow the whole AI supply chain and infrastructure: crawl the web for data, chill coolant, pull silicon, mine copper and rare earths, and pay people for code, labels, feedback, research and expert data. Your labs turn those into **GPUs and HBM** (couriers slot them into your servers) and **training data** (your Training Cluster turns it into new models). You serve 17 models, from Pico 1B up to **Frontier 1T**, sell through API Gateways, a Chat Café, enterprise contracts, Edge PoPs and Agent Hubs, and finally **launch servers into orbit**. Nothing is locked; only money and builders decide where you invest. After about two weeks, crown your lab with the **AGI Megacluster**. The full design is in [DESIGN.md](DESIGN.md).
 
