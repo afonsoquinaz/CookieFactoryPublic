@@ -136,7 +136,7 @@ func _demo_state() -> void:
 				b["gpus"] = 4
 				b["hbm"] = 1
 				b["recipe"] = "chat13"
-				b["data"] = {"cells": ["power", "power", "power", "power", "power", "power", "power", "power", "power", "power", "power", "power"], "coolant": ["coolant", "coolant", "coolant", "coolant", "coolant", "coolant"], "tune": 0.6}
+				b["data"] = {"tune": 0.6}
 			"src_power": b["lvl"] = 12
 			"gateway":
 				b["lvl"] = 9

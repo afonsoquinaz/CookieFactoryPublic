@@ -1,6 +1,6 @@
 # Token Empire 2: the inference economy
 
-How the game works since the 2.0 rework. In Token Empire you build compute and you sell tokens through an API. The first version leaned too much on the classic factory-idle formula: models were "baked" from web data, physical tokens rolled out of the server and couriers carried them to a van. Version 2 keeps the hardware supply chain physical (power, coolant, chips, data) and makes inference work the way it does in real life. Customers call your API, your servers answer as fast as their GPUs allow, and every token served is paid for on the spot.
+How the game works since the 2.0 rework. In Token Empire you build compute and you sell tokens through an API. The first version leaned too much on the classic factory-idle formula: models were "baked" from web data, physical tokens rolled out of the server and couriers carried them to a van. Version 2 keeps the hardware supply chain physical (chips, memory, data) and makes inference work the way it does in real life; since 2.1, power and cooling are grids, not deliveries, and the network traffic is what you watch. Customers call your API, your servers answer as fast as their GPUs allow, and every token served is paid for on the spot.
 
 ## The loop
 
@@ -9,7 +9,7 @@ How the game works since the 2.0 rework. In Token Empire you build compute and y
  (power, silicon,  (Chip Fab,       │                    │
   copper, rare...)  HBM Works)      ▼                    ▼
                                SERVERS  ◄──── demand: gateways, Chat App,
- power + coolant ─────────────► (capacity)     enterprise contracts, edge,
+ power + cooling grids ───────► (capacity)     enterprise contracts, edge,
                                     │          agents, rivals, prices
  data, code, labels ──► TRAINING ───┘ new models (VRAM, speed, price)
  feedback, papers...    CLUSTER
@@ -19,7 +19,7 @@ How the game works since the 2.0 rework. In Token Empire you build compute and y
 
 1. **Capacity.** A server's throughput depends on its accelerators: a garage graphics card to start, then up to 20 data-centre GPUs that couriers bring from a Chip Fab and slot in. Its level (better kernels and batching) and how well it's tuned also count. The model it runs matters too: small models are fast, big ones slow.
 2. **Memory.** Each model needs a minimum amount of VRAM. The garage card has 12 GB, a GPU adds 80 GB and an HBM stack adds 40 GB. Bigger models need bigger servers.
-3. **Running costs.** Accelerators burn power cells and, once real GPUs are in, coolant. With no power the server stops; with no coolant it throttles to 60%.
+3. **Grids.** Solar Farms feed a power grid (kW) and Cooling Towers a cooling loop, through power lines and pipes; nothing is carried. Every accelerator draws 1 kW at full load, every GPU 0.8 cooling. Short of power, all serving slows by the shortfall; short of cooling, GPUs throttle (to 60% with none); with no grid at all, servers are offline. Supply: a Solar Farm gives 4 kW + 1.1 per level, a Cooling Tower 3 + 0.9 per level (x biome, substations, +15% per extra technician).
 4. **Wear.** GPUs fail now and then. The slot goes dark and couriers bring a replacement, which keeps the Chip Fab busy for the whole game.
 5. **Demand.** Each model you offer has its own market (thousands of tokens per second). How big it is depends on:
    - AI adoption, which grows with your Lab level;
@@ -36,7 +36,7 @@ How the game works since the 2.0 rework. In Token Empire you build compute and y
    - the cluster's GPUs grind through the compute;
    - the new model comes online.
    Models also go stale as rivals ship better ones. A refresh run on the cluster raises a model's quality, and quality drives its demand.
-9. **Space.** Late in the game, a Launch Complex assembles orbital server modules (24 GPUs, 8 HBM stacks, 60 power cells each) and launches them on rockets. In orbit they get free solar power and radiative cooling, so they need no power or coolant, but each adds 80 ms of latency. A Ground Station downlinks their bandwidth. The orbital datacenter grows in the sky above your campus.
+9. **Space.** Late in the game, a Launch Complex assembles orbital server modules (24 GPUs, 8 HBM stacks, 40 silicon for solar wings each) and launches them on rockets. In orbit they get free solar power and radiative cooling, so they need no power or coolant, but each adds 80 ms of latency. A Ground Station downlinks their bandwidth. The orbital datacenter grows in the sky above your campus.
 
 ## Numbers
 
@@ -84,7 +84,7 @@ Revenue per GPU (speed times price) rises from $3/s on Pico to $48/s on Frontier
   - a server level gives x(1 + 0.08 x (level-1));
   - full tune gives x1.5.
 - **Slots:** a server holds 2 + (level-1)/2 GPUs (up to 20) and (level-1)/3 HBM stacks (up to 12), so a top server holds 1,892 GB: Frontier fits.
-- **Power:** 1 power cell per accelerator every 15 s at full load. **Coolant:** 1 per GPU every 25 s.
+- **Power:** 1 kW per accelerator at full load. **Cooling:** 0.8 per GPU at full load.
 - **GPU failures:** about one per GPU every 3 hours of use.
 
 ## Gems (sparks)

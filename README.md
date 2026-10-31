@@ -2,7 +2,7 @@
 
 A 3D idle base-builder about the AI supply chain, made in **Godot 4.7** (GDScript, Mobile renderer, portrait).
 
-You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny local model with 15 ms latency, powered by a small Solar Farm. Tokens aren't things you make and carry: **customers call your API**, your servers answer as fast as their GPUs allow, and every token answered is paid on the spot. The more servers you run, and the bigger they are, the more you can sell. From there you grow the whole AI supply chain and infrastructure: crawl the web for data, chill coolant, pull silicon, mine copper and rare earths, and pay people for code, labels, feedback, research and expert data. Your labs turn those into **GPUs and HBM** (couriers slot them into your servers) and **training data** (your Training Cluster turns it into new models). You serve 17 models, from Pico 1B up to **Frontier 1T**, sell through API Gateways, a Chat Café, enterprise contracts, Edge PoPs and Agent Hubs, and finally **launch servers into orbit**. Nothing is locked; only money and builders decide where you invest. After about two weeks, crown your lab with the **AGI Megacluster**. The full design is in [DESIGN.md](DESIGN.md).
+You start in a garage. A gaming PC on a plywood desk runs **Pico 1B**, a tiny local model with 15 ms latency, powered by a small Solar Farm. Tokens aren't things you make and carry: they're a **service**. Customers call your API, the requests stream down from the sky into your API Gateway, along fiber cables into your servers, and the answers stream back out as tokens, paid on the spot. Your game is **throughput**: the more servers you run, and the bigger they are, the more you sell. You watch it happen: an uplink beam over every gateway, request pulses riding the fiber in, token pulses riding back out, power lines and cooling pipes humming as your servers work. From there you grow the whole AI supply chain and infrastructure: power and cooling grids, crawl the web for data, pull silicon, mine copper and rare earths, and pay people for code, labels, feedback, research and expert data. Your labs turn those into **GPUs and HBM** (couriers slot them into your servers) and **training data** (your Training Cluster turns it into new models). You serve 17 models, from Pico 1B up to **Frontier 1T**, sell through API Gateways, a Chat Café, enterprise contracts, Edge PoPs and Agent Hubs, and finally **launch servers into orbit**. Nothing is locked; only money and builders decide where you invest. After about two weeks, crown your lab with the **AGI Megacluster**. The full design is in [DESIGN.md](DESIGN.md).
 
 **Goal:** serve more tokens. Your **Lab level** (15 levels, from Garage Lab to AGI Pioneer) grows with every token you serve, and with it the whole market for AI. The HUD shows tokens served, tokens per second and how loaded your servers are; tap it for the Market.
 
@@ -40,9 +40,9 @@ All 3D art is procedural low-poly (`world/mesh_kit.gd` and the `*_art.gd` files)
 
 | Source | Makes | Best region |
 |---|---|---|
-| Solar Farm | Power Cells: every request burns power | Sun Desert |
+| Solar Farm | Power for the grid (kW): power lines run to every server | Sun Desert |
 | Web Crawler | Web Data (crawler bots scurry over the lot) | Tech Valley |
-| Cooling Tower | Coolant | Cold North |
+| Cooling Tower | Cooling for the loop: pipes run to every server with GPUs | Cold North |
 | Silicon Works | Silicon (crystal pullers) | Sun Desert |
 | Copper Mine | Copper | Mining Hills |
 | Code Commons | Code (dev desks) | Tech Valley |
@@ -69,7 +69,7 @@ One building holds a whole serving stack: a Request Router, a glass request bus,
 - **Requests come in, tokens go out.** Customers' API calls arrive as glowing packets at the router, run down the bus under the GPU trays into the core, and a stream of tokens leaves through the vent. The busier the server, the more packets.
 - **Accelerators.** It comes with a garage graphics card. Couriers bring **GPUs** from the Chip Fab and slot them into the trays: two slots to start, one more every two levels, up to 20. **HBM stacks** (HBM Works) go on the shelf: one slot every three levels, up to 12.
 - **Memory decides what it can run.** The card has 12 GB, each GPU adds 80 GB and each HBM stack 40 GB. A model needs its VRAM: Pico 1B 2 GB, Chat 7B 16 GB, a 70B model 150 GB, Frontier 1T 1,800 GB (20 GPUs and 5 HBM stacks).
-- **Power and cooling.** Every accelerator burns power cells while it serves: no power, no tokens. Real GPUs run hot and throttle to 60% without coolant.
+- **Power and cooling are grids, not deliveries.** Solar Farms feed the power grid and Cooling Towers the cooling loop; power lines and pipes run to every server. Each accelerator draws about 1 kW at full load and each GPU needs cooling. If the servers want more than the grid gives, everything slows by the shortfall (the HUD says "low power"); short of cooling, GPUs throttle, down to 60%. No grid at all, no tokens. The Market shows both grids.
 - **Wear.** Under load a GPU fails now and then (about once every three hours): its board goes dark until a courier brings a new one.
 - **Tuning.** Engineers walk the trays tapping them, and so can you: up to +50% throughput, fading slowly.
 - **Model** picks what it serves (it shows each model's VRAM, what this server would serve and what customers want). **Auto** picks the model that earns most with the demand still unserved.
@@ -90,8 +90,15 @@ Every model has its own demand (in tokens per second): the more AI catches on (y
 - **Latency** rises steeply as servers fill up, and slow answers lose customers. **Reputation** falls when you're swamped and climbs back when you keep up.
 - **Trending models**: one model is trending: twice the customers, and they pay more. It changes every 15 minutes.
 
+### The network you can see
+Tokens are a service, so the campus shows its traffic (`world/network.gd`):
+- **Uplink beams.** Every API Gateway beams up into the sky (the internet): requests stream down one side (cyan), tokens stream back up the other (gold). Edge PoPs have smaller beams of their own.
+- **Fiber.** An aerial fiber cable runs from the gateway's mast to every server's router. Request pulses ride in and go on down the server's glass request bus; token pulses ride back out. The Chat Café and the Agent Hub call the nearest server over their own fiber.
+- **Power lines** from the Solar Farms to every server and Training Cluster carry energy pulses as they draw (red when the grid is short); **cooling pipes** carry blue pulses to every server with GPUs.
+- Everything moves as fast as it really works: an idle server's cable is quiet, a busy one streams.
+
 ### Space
-- **Launch Complex**: couriers bring an orbital module's parts to its three assembly bays (24 GPUs, 8 HBM stacks, 60 power cells). Then the rocket rolls out, counts down and launches. The pad needs a while to turn around.
+- **Launch Complex**: couriers bring an orbital module's parts to its three assembly bays (24 GPUs, 8 HBM stacks, 40 silicon for its solar wings). Then the rocket rolls out, counts down and launches. The pad needs a while to turn around.
 - **In orbit** each module adds 48 accelerators serving the best model that fits (2,240 GB): free solar power, radiative cooling, no wear, but 80 ms further away. The station floats in the sky over the pad, one module more per launch.
 - **Ground Stations** downlink it: orbit serves only as much as they can carry (their beams pulse with the traffic).
 
@@ -192,6 +199,7 @@ world/
   b_server.gd  b_source.gd  b_machine.gd (labs)  b_storage.gd  b_trainer.gd  b_channel.gd (gateway, edge,
   agent hub, ground station)  b_launch.gd  b_cafe.gd  b_desk.gd  b_dorm.gd  b_hut.gd  b_site.gd  b_decor.gd  b_mega.gd
   orbit_view.gd      the orbital datacenter in the sky and its downlink beams
+  network.gd         the visible network: uplink beams, fiber, power lines, cooling pipes and their pulses
   arch_kit.gd        the five-era design language: palettes and building parts (windows, stairs, chillers...)
   server_art.gd  source_art.gd  stations.gd  lab_art.gd  infra_art.gd  town_art.gd  previews.gd   (the looks)
   growth.gd          the gear buildings gain level by level (slots, schedule, roof heights)

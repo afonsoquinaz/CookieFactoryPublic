@@ -1011,8 +1011,17 @@ func _process(dt: float) -> void:
 		_load_label.modulate = Color(1.0, 0.6, 0.55)
 	else:
 		var u := Market.utilisation()
-		var short := dem > cap * 1.1 or Market.used_bw >= Market.bandwidth * 0.98
-		_load_label.text = "load %d%%  ·  %s" % [roundi(u * 100), "unmet demand" if dem > cap * 1.1 else ("gateways full" if Market.used_bw >= Market.bandwidth * 0.98 else "Market")]
+		var why := "Market"
+		if Market.power_f < 0.98:
+			why = "low power"
+		elif Market.cool_f < 0.98:
+			why = "GPUs hot"
+		elif Market.used_bw >= Market.bandwidth * 0.98:
+			why = "gateways full"
+		elif dem > cap * 1.1:
+			why = "unmet demand"
+		var short := why != "Market"
+		_load_label.text = "load %d%%  ·  %s" % [roundi(u * 100), why]
 		_load_label.modulate = Color(1.0, 0.75, 0.45) if short else Color(0.7, 1.0, 0.75)
 	if playing and placement == null:
 		_update_buttons(dt)

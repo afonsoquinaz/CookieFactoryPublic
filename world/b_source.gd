@@ -5,6 +5,9 @@ extends Building
 ## (one comes with the source, hired Technicians add more), and a crate at the
 ## gate where the output piles up. Sources on their favourite biome and near a
 ## Substation work faster. Higher levels make more and the lot visibly grows:
+## (Solar Farms and Cooling Towers are utility plants: their technicians
+## keep the stations running and the output goes straight into the power
+## grid or the cooling loop, no crate, no couriers.)
 ## a station every other level, gear in the yard (Growth), and with each
 ## tier a better fence, a control box, a utility shed, a wind turbine.
 
@@ -30,6 +33,7 @@ func _build() -> void:
 	var cb := Node3D.new()
 	cb.position = Vector3(0, 0, CRATE_Z)
 	add_child(cb)
+	cb.visible = not utility()
 	Mats.inst(MeshKit.cached("crate", SourceB.crate_mesh), cb)
 	crate = Holder.new().setup(10, [ing], Holder.Layout.GRID)
 	crate.grid = Vector2i(3, 2)
@@ -37,7 +41,8 @@ func _build() -> void:
 	crate.max_visible = 18
 	crate.position = Vector3(0, 0.16, 0)
 	cb.add_child(crate)
-	add_port(crate, null, "out")
+	if not utility():
+		add_port(crate, null, "out")
 	var b := UI3D.badge(def["icon"], Pal.STEEL_DARK, 0.6)
 	b.position = Vector3(0, 1.3, CRATE_Z)
 	add_child(b)
@@ -61,7 +66,7 @@ func _on_level() -> void:
 		rebuild_visual()
 		if is_inside_tree():
 			Fx.puff(get_tree().current_scene, to_world(0, PLOT.get_center().y, 0.6), Pal.CREAM, 10)
-	crate.capacity = Bal.src_crate_cap(level)
+	crate.capacity = 0 if utility() else Bal.src_crate_cap(level)
 	sync_techs()
 	_update_label()
 
@@ -93,7 +98,25 @@ func speed() -> float:
 	return m * Game.speed_mult()
 
 
+## A utility plant (power, cooling): it feeds a grid instead of filling a crate.
+func utility() -> bool:
+	return Bal.UTILITIES.has(ing)
+
+
+## What it puts into its grid right now (kW of power, or cooling).
+func supply() -> float:
+	if not utility():
+		return 0.0
+	var base := Bal.power_supply(level) if ing == "power" else Bal.cool_supply(level)
+	return base * speed() * (1.0 + Bal.TECH_GRID_BONUS * maxi(0, techs.size() - 1))
+
+
 func _update_label() -> void:
+	if utility():
+		_count_label.text = ("%s kW" if ing == "power" else "%s cooling") % Fmt.num(roundf(supply()))
+		_count_label.position = Vector3(0, 1.85, CRATE_Z)
+		_full.visible = false
+		return
 	_count_label.text = "%d/%d" % [crate.count(), crate.capacity]
 	var full := crate.space() <= 0
 	_full.visible = full
@@ -122,6 +145,8 @@ func _process(dt: float) -> void:
 		a.call("animate", dt)
 	if _full.visible:
 		_full.position.y = 1.85 + sin(_t * 3.0) * 0.05
+	if utility() and int(_t) != int(_t - dt):
+		_update_label()
 
 
 func claim_spot() -> Dictionary:
@@ -251,6 +276,15 @@ func status() -> String:
 
 
 func info() -> Array:
+	if utility():
+		var g := "power grid" if ing == "power" else "cooling loop"
+		var used := Market.power_draw if ing == "power" else Market.cool_draw
+		var total := Market.power_supply if ing == "power" else Market.cool_supply
+		return [
+			[ing, "Feeds %s %s into the %s" % [Fmt.num(roundf(supply())), "kW" if ing == "power" else "cooling", g]],
+			["server", "Whole %s: %s of %s in use" % [g, Fmt.num(roundf(used)), Fmt.num(roundf(total))]],
+			["tech", "%d technician%s keeping it running (+%d%% each beyond the first)" % [techs.size(), "s" if techs.size() != 1 else "", roundi(Bal.TECH_GRID_BONUS * 100)]],
+		]
 	var per_min := 60.0 / (Bal.src_work_time(level) / speed() + 2.2) * Bal.src_yield(level) * techs.size()
 	return [
 		[ing, "About %s %s / min" % [Fmt.num(per_min), Defs.item_name(ing).to_lower()]],
@@ -261,6 +295,12 @@ func info() -> Array:
 
 func upgrade_info() -> Array:
 	var n := level + 1
+	if utility():
+		var f := Callable(Bal, "power_supply") if ing == "power" else Callable(Bal, "cool_supply")
+		var out2 := [["Output", Fmt.num(roundf(f.call(level))), Fmt.num(roundf(f.call(n)))]]
+		if SourceArt.station_count(ing, n) > SourceArt.station_count(ing, level):
+			out2.append(["Stations", str(SourceArt.station_count(ing, level)), str(SourceArt.station_count(ing, n))])
+		return out2
 	var out := [
 		["Work time", "%.2fs" % Bal.src_work_time(level), "%.2fs" % Bal.src_work_time(n)],
 		["Crate", str(Bal.src_crate_cap(level)), str(Bal.src_crate_cap(n))],

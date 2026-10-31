@@ -1,17 +1,17 @@
 class_name LaunchB
 extends Building
 ## The Launch Complex: your datacenter goes to space. Couriers bring an
-## orbital module's parts to the assembly bays (24 GPUs, 8 HBM stacks, 60
-## power cells); once they're all in, the rocket rolls out, counts down and
-## launches. In orbit each module adds 48 accelerators' worth of serving
-## for the best model that fits (free solar power and radiative cooling: no
-## power cells, no coolant, no wear), 80 ms further away, and only as much
-## as your Ground Stations can downlink. The pad needs a while to turn
-## around between launches (less with each level).
+## orbital module's parts to the assembly bays (24 GPUs, 8 HBM stacks and 40
+## silicon for its solar wings); once they're all in, the rocket rolls out,
+## counts down and launches. In orbit each module adds 48 accelerators' worth
+## of serving for the best model that fits (free solar power and radiative
+## cooling: it draws nothing from your grids, and nothing wears out), 80 ms
+## further away, and only as much as your Ground Stations can downlink. The
+## pad needs a while to turn around between launches (less with each level).
 
 enum S { ASSEMBLING, COUNTDOWN, FLIGHT, TURNAROUND }
 
-const PARTS := {"gpu": 24, "hbm": 8, "power": 60}
+const PARTS := {"gpu": 24, "hbm": 8, "silicon": 40}
 const PAD := Vector3(0.8, 0.52, -1.4)
 
 var bays := {}                 # item -> Holder

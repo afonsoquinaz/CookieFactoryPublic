@@ -174,8 +174,14 @@ func _free_goal() -> void:
 				return
 	for n3 in world.bnodes.values():
 		if n3 is ServerB and not n3 is SiteB and (n3 as ServerB).offline and (n3 as ServerB).level >= 2:
-			_goal("A server is out of power: more Solar Farms, or more couriers to carry the cells.", "power", _top(n3))
+			_goal("No power grid: build a Solar Farm. Its power lines reach every server.", "power", _top(n3))
 			return
+	if Market.power_f < 0.9 and Game.level >= 2:
+		_goal("The power grid is short: your servers slow down. Upgrade or build a Solar Farm.", "power", _top(_first("src_power")))
+		return
+	if Market.cool_f < 0.9 and Game.level >= 2:
+		_goal("The cooling loop is short: GPUs throttle. Build or upgrade a Cooling Tower.", "coolant", _top(_first("src_coolant")))
+		return
 	var cap := Market.total(Market.cap)
 	var dem := Market.total(Market.demand)
 	if cap > 0.0 and dem > cap * 2.0 and Game.count_of("fab") == 0 and Game.level >= 2:

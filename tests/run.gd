@@ -696,9 +696,8 @@ func _test_world() -> void:
 		ok(w.grid.at(c) == 0 and w.grid.obstacle_at(c) == "", "road cell %s is free land" % c)
 	var server: ServerB = w.buildings_of("server")[0]
 	ok(server.recipe == "pico", "the first server serves Pico 1B")
-	# serve for real: customers call the API and the garage card answers
-	for i in 3:
-		server.cells.add("power", false)
+	# serve for real: customers call the API and the garage card answers,
+	# powered by the solar farm's grid
 	var tok0 := float(Game.stats["tokens"])
 	var money0 := Game.money
 	var t := await _wait_until(func(): return float(Game.stats["tokens"]) > tok0 + 0.3, 40.0)
@@ -706,16 +705,41 @@ func _test_world() -> void:
 	ok(float(Market.cap.get("pico", 0.0)) > 0.0 and float(Market.demand.get("pico", 0.0)) > 0.0, "the market sees capacity and demand for Pico")
 	ok(float(Market.served.get("pico", 0.0)) <= float(Market.cap.get("pico", 0.0)) + 0.0001, "never more served than the servers can answer")
 	ok(Market.bandwidth >= Bal.GARAGE_BW and Market.used_bw <= Market.bandwidth + 0.0001, "everything leaving fits through the gateways")
-	# no power: offline
-	server.cells.clear_all()
-	server._pw = 0.0
-	ok(server.capacity() == 0.0 and server.offline, "without power the server is offline")
-	# couriers bring power from the solar farm
+	# the grids: the solar farm feeds power, nothing has to be carried
 	var farm: SourceB = w.buildings_of("src_power")[0]
-	for i in 6:
-		farm.crate.add("power", false)
-	t = await _wait_until(func(): return server.cells.count() > 0 or server._pw > 0.0, 60.0)
-	ok(server.cells.count() > 0 or server._pw > 0.0, "couriers brought power along the road (%.1fs)" % t)
+	ok(farm.utility() and farm.supply() > 0.0 and farm.ports.is_empty(), "the solar farm feeds the grid: no crate, no couriers")
+	ok(Market.power_supply >= farm.supply() - 0.001 and Market.power_draw > 0.0 and Market.power_f == 1.0, "the server draws from the grid (%.1f of %.1f kW)" % [Market.power_draw, Market.power_supply])
+	ok(server.need("power") == 0.0 and server.need("coolant") == 0.0, "nobody brings the server power or coolant any more")
+	# short of power: everything slows by the shortfall
+	var lv0 := Game.level
+	Game.level = 12                       # a big market keeps the server busy
+	farm.level = 1
+	server.level = 9
+	for i in 5:
+		server.gpu_in.add("gpu", false)
+		server._install_gpu("gpu")
+	await _wait_until(func(): return Market.power_draw > Market.power_supply + 0.1, 8.0)
+	ok(Market.power_f < 1.0, "more GPUs busy than the grid can power: the grid is short (%d%%)" % roundi(Market.power_f * 100))
+	ok(Market.total(Market.served) > 0.0 and Market.total(Market.served) < Market.total(Market.cap) * Market.power_f + 0.01, "serving goes on, slowed by the shortfall")
+	ok(server._blocker_icon() == "power", "the server says it's short of power")
+	# GPUs without enough cooling throttle
+	ok(Market.cool_supply == 0.0 and Market.cool_draw > 0.0 and Market.cool_f == 0.0, "no cooling tower: the GPUs run hot")
+	# no grid at all: offline
+	Game.remove(farm.uid, false)
+	await _wait_until(func(): return Market.power_supply <= 0.0, 3.0)
+	ok(server.capacity() == 0.0 and server.offline, "no solar farm, no power grid: the server is offline")
+	Game.place("src_power", Vector2i(-6, -5), 0, {"lvl": 40}, false)
+	Game.place("src_coolant", Vector2i(-14, -5), 0, {"lvl": 40}, false)
+	await _wait_until(func(): return Market.power_supply > 0.0 and Market.cool_supply > 0.0, 3.0)
+	await _wait_until(func(): return Market.power_f >= 1.0 and Market.cool_f >= 1.0, 3.0)
+	ok(not server.offline and Market.power_f >= 1.0 and Market.cool_f >= 1.0, "big plants: the grids are back, with room to spare")
+	# put the server back the way it was
+	for i in 5:
+		server._gpu_fails()
+	server.data["dead"] = 0
+	server.level = 1
+	server._build_bays()
+	Game.level = lv0
 	# a GPU: much faster, and room for bigger models
 	var c0 := server.capacity_for("pico")
 	server.gpu_in.add("gpu", false)
@@ -834,8 +858,7 @@ func _test_world() -> void:
 	ok(tr.job() == "chat13" and tr.inputs.has("dataset") and not tr.ready_to_train(), "a training job waits for its data")
 	for i in int(Defs.recipe("chat13")["train"]["dataset"]):
 		tr.inputs["dataset"].add("dataset", false)
-	tr.cells.add("power", false)
-	ok(tr.ready_to_train() and tr.rate() > 0.0, "with data and power it trains")
+	ok(tr.ready_to_train() and tr.training() and tr.rate() > 0.0, "with its data in (and the power grid) it trains")
 	tr.data["progress"] = tr.job_compute() - 0.01
 	await _wait_until(func(): return Game.known_recipes.has("chat13"), 5.0)
 	ok(Game.known_recipes.has("chat13") and tr.job() == "", "training done: you own Chat 13B")

@@ -10,9 +10,10 @@ extends Building
 ##                 it levels)
 ##   memory        a model needs VRAM: 12 GB on the card, 80 GB per GPU,
 ##                 40 GB per HBM stack (the shelf by the core)
-##   power         every accelerator burns power cells while it serves;
-##                 no power, no tokens
-##   coolant       real GPUs run hot: without coolant they throttle to 60%
+##   power         every accelerator draws power from the grid (Solar
+##                 Farms) while it serves; short of power, it serves less
+##   cooling       real GPUs run hot: short of cooling (Cooling Towers)
+##                 they throttle, down to 60%
 ##   tune          engineers walk the trays and tap them (so can you): up
 ##                 to +50%, fading over time
 ## GPUs wear out under load: a dead board goes dark until a courier brings
@@ -31,15 +32,12 @@ const BENCH_POS := Vector3(3.3, 0, 1.0)
 const BAY_GAP := 0.68
 const PER_TRAY := 3
 
-var cells: Holder              # power cells (dock)
-var coolant: Holder            # coolant (bench)
 var gpu_in: Holder             # GPUs on their way into a tray
 var hbm_in: Holder             # HBM on its way onto the shelf
 var recipe := "pico"
 var load_now := 0.0            # share of capacity in use (Market)
 var last_cap := 0.0            # K tokens/s it could serve last tick
 var tune := 0.0                # 0..1
-var throttled := false
 var offline := false
 var packets: Array[Dictionary] = []   # {s, node}
 var _spawn_cd := 0.0
@@ -56,36 +54,15 @@ var _vent := Vector3.ZERO
 var _recheck := 0.0
 var _want: Node3D
 var _want_icon := ""
-var _pw := 0.0                 # energy left from the last power cell
-var _cl := 0.0                 # cooling left from the last coolant
 var _wear := 0.0
 var _earn := 0.0
 var _earn_t := 0.0
 var _stream_t := 0.0
 var _shown := ""
+var _net_t := 99.0             # since the network last brought a request in
 
 
 func _build() -> void:
-	var dock := Node3D.new()
-	dock.position = DOCK_POS
-	add_child(dock)
-	cells = Holder.new().setup(12, ["power"], Holder.Layout.GRID)
-	cells.grid = Vector2i(3, 2)
-	cells.cell = Vector2(0.36, 0.34)
-	cells.max_visible = 12
-	cells.position = Vector3(0, 0.82, 0)
-	dock.add_child(cells)
-	add_port(cells, null, "in")
-	var tr := Node3D.new()
-	tr.position = BENCH_POS
-	add_child(tr)
-	coolant = Holder.new().setup(10, ["coolant"], Holder.Layout.GRID)
-	coolant.grid = Vector2i(3, 2)
-	coolant.cell = Vector2(0.4, 0.38)
-	coolant.max_visible = 12
-	coolant.position = Vector3(0, 0.78, 0)
-	tr.add_child(coolant)
-	add_port(coolant, null, "in")
 	gpu_in = Holder.new().setup(1, ["gpu"], Holder.Layout.NONE)
 	gpu_in.position = Vector3(-0.7, ServerArt.Y + 1.2, BUS_Z)
 	add_child(gpu_in)
@@ -122,8 +99,6 @@ func _build() -> void:
 	var cb := UI3D.badge("coolant", Pal.STEEL_DARK, 0.5)
 	cb.position = BENCH_POS + Vector3(0, 1.6, 0)
 	add_child(cb)
-	cells.changed.connect(_update_labels)
-	coolant.changed.connect(_update_labels)
 
 
 func solid_rects() -> Array[Rect2]:
@@ -166,8 +141,6 @@ func _visual(root: Node3D, t: int) -> void:
 
 
 func _on_level() -> void:
-	cells.capacity = Bal.power_cap(level)
-	coolant.capacity = Bal.coolant_cap(level)
 	_build_bays()
 	_pick_recipe(true)
 
@@ -303,10 +276,7 @@ func capacity_for(rid: String) -> float:
 	var r := Defs.recipe(rid)
 	if r.is_empty() or float(r["vram"]) > vram():
 		return 0.0
-	var c := accels() * float(r["tps"]) * Bal.server_eff(level) * (1.0 + Bal.TUNE_BONUS * tune) * compute_mult() * Game.speed_mult()
-	if throttled and gpus() > 0:
-		c *= Bal.THROTTLE
-	return c
+	return accels() * float(r["tps"]) * Bal.server_eff(level) * (1.0 + Bal.TUNE_BONUS * tune) * compute_mult() * Game.speed_mult()
 
 
 ## Auto: the model that earns most with the demand still unserved.
@@ -335,7 +305,7 @@ func _pick_recipe(force := false) -> void:
 
 ## What the Market can count on this tick (K/s); 0 when it's offline.
 func capacity() -> float:
-	offline = cells.count() == 0 and _pw <= 0.0
+	offline = Market.power_supply <= 0.0
 	last_cap = 0.0 if offline else capacity_for(recipe)
 	return last_cap
 
@@ -374,36 +344,22 @@ func _process(dt: float) -> void:
 	if _recheck <= 0.0:
 		_recheck = 3.0
 		_pick_recipe()
-	# power and coolant drain with load; GPUs wear
-	var work := load_now * dt
-	_pw -= accels() * work * Bal.POWER_PER_ACCEL
-	while _pw <= 0.0 and cells.has("power"):
-		cells.take("power")
-		_pw += 1.0
-	if _pw < 0.0:
-		_pw = 0.0
+	# GPUs wear as they work
 	if gpus() > 0:
-		_cl -= gpus() * work * Bal.COOLANT_PER_GPU
-		while _cl <= 0.0 and coolant.has("coolant"):
-			coolant.take("coolant")
-			_cl += 1.0
-		throttled = _cl <= 0.0
-		if _cl < 0.0:
-			_cl = 0.0
-		_wear += gpus() * work * Bal.GPU_FAIL
+		_wear += gpus() * load_now * dt * Bal.GPU_FAIL
 		if _wear >= 1.0:
 			_wear -= 1.0
 			_gpu_fails()
-	else:
-		throttled = false
 	tune = maxf(0.0, tune - Bal.TUNE_DECAY * dt)
 	# the router fan and the request packets: as busy as the server
 	var busy := load_now * last_cap
 	_spin = maxf(0.0, _spin - dt * 0.8)
 	if _fan:
 		_fan.rotation.y += dt * (2.0 + load_now * 12.0 + _spin * 10.0)
+	# requests ride in on the fiber (NetworkView); with no network yet, make our own
+	_net_t += dt
 	_spawn_cd -= dt
-	if busy > 0.0 and _spawn_cd <= 0.0 and packets.size() < 12:
+	if busy > 0.0 and _net_t > 2.5 and _spawn_cd <= 0.0 and packets.size() < 12:
 		_spawn_cd = clampf(1.2 / (0.4 + busy * 2.0), 0.18, 2.5)
 		_spawn_packet()
 	var spd := 2.2 + load_now * 2.0
@@ -450,6 +406,13 @@ func _gpu_fails() -> void:
 	Sfx.play("deny", -10.0, 0.8)
 
 
+## A request pulse has come in on the fiber: on down the request bus.
+func network_request() -> void:
+	_net_t = 0.0
+	if packets.size() < 12 and is_inside_tree():
+		_spawn_packet()
+
+
 func _spawn_packet() -> void:
 	var n := Node3D.new()
 	add_child(n)
@@ -482,9 +445,9 @@ func _stream() -> void:
 
 ## What's holding it back, for the bubble ("" = nothing).
 func _blocker_icon() -> String:
-	if offline:
+	if offline or (Market.power_f < 0.98 and load_now > 0.0):
 		return "power"
-	if throttled and gpus() > 0:
+	if Market.cool_f < 0.98 and gpus() > 0 and load_now > 0.0:
 		return "coolant"
 	if dead() > 0:
 		return "gpu"
@@ -514,23 +477,22 @@ func _update_labels() -> void:
 	_make_label.text = "%s  $%s/1K" % [r["name"], Fmt.num(Market.token_price(recipe))]
 	_make_icon.texture = Icons.tex("tk_" + recipe)
 	if offline:
-		_rate_label.text = "OFFLINE: no power"
+		_rate_label.text = "OFFLINE: no power grid"
 		_rate_label.modulate = Color(1.0, 0.6, 0.5)
 	else:
-		_rate_label.text = "%s tok/s  ·  %d%% busy%s" % [Fmt.tokens(last_cap * load_now), roundi(load_now * 100), "  ·  HOT" if throttled and gpus() > 0 else ""]
-		_rate_label.modulate = Color(1.0, 0.75, 0.5) if throttled and gpus() > 0 else Color(0.7, 0.96, 1.0)
+		var short := ""
+		if Market.power_f < 0.98:
+			short = "  ·  LOW POWER"
+		elif Market.cool_f < 0.98 and gpus() > 0:
+			short = "  ·  HOT"
+		_rate_label.text = "%s tok/s  ·  %d%% busy%s" % [Fmt.tokens(last_cap * load_now), roundi(load_now * 100), short]
+		_rate_label.modulate = Color(1.0, 0.75, 0.5) if short != "" else Color(0.7, 0.96, 1.0)
 	_tune_label.text = ("Tuned +%d%%" % roundi(Bal.TUNE_BONUS * tune * 100)) if tune > 0.02 else ""
 
 
-## Power and coolant: more the emptier; a free GPU or HBM slot: urgent.
+## A free GPU or HBM slot: urgent (power and cooling come by grid).
 func need(t: String) -> float:
 	match t:
-		"power":
-			return (1.0 - float(cells.count()) / maxf(1.0, cells.capacity)) * 1.2 if cells.can_accept(t) else 0.0
-		"coolant":
-			if gpus() + dead() == 0 or not coolant.can_accept(t):
-				return 0.0
-			return (1.0 - float(coolant.count()) / maxf(1.0, coolant.capacity)) * 1.0
 		"gpu":
 			return 1.5 if gpu_in.can_accept(t) and gpu_in.incoming == 0 else 0.0
 		"hbm":
@@ -547,18 +509,16 @@ func missing() -> Array[String]:
 
 
 func save_contents() -> Dictionary:
-	return {"cells": cells.items.duplicate(), "coolant": coolant.items.duplicate(), "tune": tune}
+	return {"tune": tune}
 
 
 func load_contents(d: Dictionary) -> void:
-	Building.fill(cells, d.get("cells", []))
-	Building.fill(coolant, d.get("coolant", []))
 	tune = float(d.get("tune", 0.0))
 
 
 func status() -> String:
 	if offline:
-		return "Offline: it needs power cells"
+		return "Offline: build a Solar Farm to power the grid"
 	var r := Defs.recipe(recipe)
 	return "Serves %s · %s tok/s max%s" % [r["name"], Fmt.tokens(capacity_for(recipe)), "  (Auto)" if chosen() == "" else ""]
 
@@ -568,10 +528,10 @@ func info() -> Array:
 		["tk_" + recipe, "%s: up to %s tokens/s, %d%% busy" % [Defs.recipe(recipe)["name"], Fmt.tokens(capacity_for(recipe)), roundi(load_now * 100)]],
 		["gpu", "GPUs %d / %d%s  ·  garage card x%.2f" % [gpus(), gpu_slots(), ("  (%d dead)" % dead()) if dead() > 0 else "", Bal.garage_accel(level)]],
 		["hbm", "VRAM %d GB  ·  HBM %d / %d" % [int(vram()), hbm(), hbm_slots()]],
-		["power", "Power %d / %d  ·  %.1f cells/min at full load" % [cells.count(), cells.capacity, accels() * Bal.POWER_PER_ACCEL * 60.0]],
+		["power", "Draws up to %s kW  ·  power grid %s%%" % [Fmt.num(accels() * Bal.KW_PER_ACCEL), "100" if Market.power_f >= 0.995 else str(roundi(Market.power_f * 100))]],
 	]
 	if gpus() + dead() > 0:
-		out.append(["coolant", "Coolant %d / %d%s" % [coolant.count(), coolant.capacity, "  ·  throttling!" if throttled else ""]])
+		out.append(["coolant", "Needs up to %s cooling  ·  cooling loop %s%%" % [Fmt.num(gpus() * Bal.COOL_PER_GPU), "100" if Market.cool_f >= 0.995 else str(roundi(Market.cool_f * 100))]])
 	out.append(["engineer", "Tuned +%d%%  ·  %d engineer%s tapping" % [roundi(Bal.TUNE_BONUS * tune * 100), Game.workers_with("engineer", uid), "" if Game.workers_with("engineer", uid) == 1 else "s"]])
 	if compute_mult() > 1.0:
 		out.append(["rack_row", "Datacenter gear nearby: +%d%% speed" % roundi((compute_mult() - 1.0) * 100)])
@@ -588,5 +548,4 @@ func upgrade_info() -> Array:
 	out.append(["Efficiency", "x%.2f" % Bal.server_eff(level), "x%.2f" % Bal.server_eff(n)])
 	if Bal.garage_accel(n) > Bal.garage_accel(level) + 0.001:
 		out.append(["Garage card", "x%.2f" % Bal.garage_accel(level), "x%.2f" % Bal.garage_accel(n)])
-	out.append(["Power store", str(Bal.power_cap(level)), str(Bal.power_cap(n))])
 	return out

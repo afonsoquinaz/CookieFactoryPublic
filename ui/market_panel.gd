@@ -1,9 +1,10 @@
 class_name MarketPanel
 extends Sheet
 ## The inference market at a glance (see Market): what customers want, what
-## your servers can answer, what gets through the gateways, your reputation
-## and what's holding you back. Every model you serve has its price here:
-## dearer earns more per token but loses customers (and the other way).
+## your servers can answer, what gets through the gateways, the power grid
+## and the cooling loop, your reputation and what's holding you back; then
+## your fleet, every server with its throughput; then every model you serve
+## with its price (dearer earns more per token but loses customers).
 
 var _live: Array = []           # [Label, Callable -> String]
 var _bars: Array = []           # [Panel fill, Panel track, Callable -> float]
@@ -19,6 +20,7 @@ func _init() -> void:
 func _build() -> void:
 	body.add_child(_summary())
 	body.add_child(_advice())
+	body.add_child(_fleet())
 	var any := false
 	for rid in Game.known_list():
 		later(body, _model_row.bind(rid))
@@ -91,6 +93,10 @@ func _summary() -> Control:
 			var d := Market.total(Market.demand)
 			return Market.total(Market.served) / d if d > 0.0 else 1.0, true))
 	v.add_child(_stat("fiber", "Bandwidth", func(): return "%s of %s tok/s" % [Fmt.tokens(Market.used_bw), Fmt.tokens(Market.bandwidth)], func(): return Market.used_bw / maxf(0.0001, Market.bandwidth)))
+	v.add_child(_stat("power", "Power grid", func(): return "%s of %s kW" % [Fmt.num(roundf(Market.power_draw)), Fmt.num(roundf(Market.power_supply))],
+		func(): return Market.power_draw / maxf(0.0001, Market.power_supply)))
+	v.add_child(_stat("coolant", "Cooling loop", func(): return "%s of %s" % [Fmt.num(roundf(Market.cool_draw)), Fmt.num(roundf(Market.cool_supply))],
+		func(): return Market.cool_draw / maxf(0.0001, Market.cool_supply)))
 	v.add_child(_stat("star", "Reputation", func(): return "%d%%" % roundi(Market.rep * 100), func(): return Market.rep, true))
 	v.add_child(_lbl(func():
 		var ch := []
@@ -106,8 +112,14 @@ func _summary() -> Control:
 static func advice() -> String:
 	var cap := Market.total(Market.cap)
 	var dem := Market.total(Market.demand)
+	if Market.power_supply <= 0.0:
+		return "No power grid: build a Solar Farm. Its power lines reach every server."
 	if cap <= 0.0:
-		return "No server is serving: bring it power cells (Solar Farm) and pick a model."
+		return "No server is serving: pick a model for it."
+	if Market.power_f < 0.98:
+		return "The power grid is short (%d%%): every server slows down. Upgrade or build Solar Farms." % roundi(Market.power_f * 100)
+	if Market.cool_f < 0.98:
+		return "The cooling loop is short (%d%%): GPUs are throttling. Upgrade or build Cooling Towers." % roundi(Market.cool_f * 100)
 	if Market.used_bw >= Market.bandwidth * 0.98 and Market.bandwidth > 0.0:
 		return "Your gateways are full: build an API Gateway or rack fiber spools on one (Fiber Hub)."
 	if dem > cap * 1.1:
@@ -128,6 +140,55 @@ func _advice() -> Control:
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
 	return box
+
+
+## Your fleet: every server, its throughput, load, GPUs and tune; tap one to go there.
+func _fleet() -> Control:
+	var box := Sheet.row_box()
+	var v := Kit.vbox(6)
+	box.add_child(v)
+	var servers: Array = []
+	var world = get_tree().current_scene.get("world")
+	if world:
+		for n in world.buildings_of("server"):
+			if n is ServerB and not n is SiteB:
+				servers.append(n)
+	var h := Kit.hbox(8)
+	v.add_child(h)
+	h.add_child(Kit.icon("server", 34))
+	h.add_child(Kit.game("Your fleet: %d server%s" % [servers.size(), "" if servers.size() == 1 else "s"], 20, Kit.INK, 0))
+	v.add_child(_lbl(func():
+		var g := 0
+		var c := 0.0
+		for s in servers:
+			if is_instance_valid(s):
+				g += (s as ServerB).gpus()
+				c += (s as ServerB).last_cap
+		return "%d GPUs  ·  up to %s tok/s together" % [g, Fmt.tokens(c)], 15))
+	for s in servers:
+		v.add_child(_server_row(s))
+	return box
+
+
+func _server_row(s: ServerB) -> Control:
+	var h := Kit.hbox(8)
+	var ic := Kit.icon("tk_" + s.recipe, 40)
+	h.add_child(ic)
+	var l := _lbl(func():
+		if not is_instance_valid(s):
+			return ""
+		return "Lv %d  ·  %s  ·  %s tok/s  ·  %d%% busy  ·  %d GPU%s%s" % [s.level, Defs.model_name(s.recipe), Fmt.tokens(s.last_cap * s.load_now), roundi(s.load_now * 100), s.gpus(), "" if s.gpus() == 1 else "s", ("  ·  tuned +%d%%" % roundi(Bal.TUNE_BONUS * s.tune * 100)) if s.tune > 0.05 else ""], 14, Kit.INK)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(l)
+	var go := Kit.juicy("Go", Kit.CHARCOAL, Kit.CHARCOAL_EDGE, 16, Vector2(64, 48))
+	go.pressed.connect(func():
+		var ui = get_tree().current_scene.get("ui")
+		if ui and is_instance_valid(s):
+			close()
+			ui.call("select", s)
+			ui.get("world").cam.fly_to(s.global_position + Vector3(0, 0, 2), 0.8))
+	h.add_child(go)
+	return h
 
 
 func _model_row(rid: String) -> Control:

@@ -9,12 +9,11 @@ extends Building
 ## done, the model is yours: servers with enough memory can load it.
 ## A refresh run (half the data, a third of the compute) makes a model you
 ## already have better again (quality drives its demand).
-## Like a server it burns power cells, and couriers can slot GPUs into its
-## racks to train faster.
+## Like a server it draws power from the grid, and couriers can slot GPUs
+## into its racks to train faster.
 
 const PAD := Vector3(-0.6, 0, 1.0)
 
-var cells: Holder
 var gpu_in: Holder
 var inputs := {}               # item -> Holder
 var _gpu_nodes: Array[MeshInstance3D] = []
@@ -22,20 +21,12 @@ var _curve: MeshInstance3D
 var _label: Label3D
 var _badge: Node3D
 var _labels := {}
-var _pw := 0.0
 var _curve_step := -1
 var _auto_t := 0.0
 var _gpu_shown := -1
 
 
 func _build() -> void:
-	cells = Holder.new().setup(Bal.power_cap(1), ["power"], Holder.Layout.GRID)
-	cells.grid = Vector2i(3, 2)
-	cells.cell = Vector2(0.36, 0.34)
-	cells.max_visible = 12
-	cells.position = Vector3(3.2, 1.6, 2.4)
-	add_child(cells)
-	add_port(cells, null, "in")
 	gpu_in = Holder.new().setup(1, ["gpu"], Holder.Layout.NONE)
 	gpu_in.position = Vector3(0, 2.4, -1.6)
 	add_child(gpu_in)
@@ -72,7 +63,6 @@ func _visual(root: Node3D, t: int) -> void:
 
 
 func _on_level() -> void:
-	cells.capacity = Bal.power_cap(level)
 	for k in inputs:
 		inputs[k].capacity = int(job_needs().get(k, 0))
 	_show_gpus()
@@ -133,7 +123,7 @@ func start(rid: String, refresh := false) -> void:
 		var h: Holder = inputs[k]
 		h.queue_free()
 	inputs.clear()
-	ports = ports.filter(func(p): return p["holder"] == cells or p["holder"] == gpu_in)
+	ports = ports.filter(func(p): return p["holder"] == gpu_in)
 	data["job"] = rid
 	data["refresh"] = refresh
 	data["progress"] = 0.0
@@ -214,10 +204,13 @@ func accels() -> float:
 
 
 ## GPU-seconds per second right now.
+## Training right now (a job with all its data in).
+func training() -> bool:
+	return job() != "" and ready_to_train()
+
+
 func rate() -> float:
-	if cells.count() == 0 and _pw <= 0.0:
-		return 0.0
-	return accels() * compute_mult() * Bal.engineer_boost(Game.workers_with("engineer", uid)) * Game.speed_mult()
+	return Market.power_f * accels() * compute_mult() * Bal.engineer_boost(Game.workers_with("engineer", uid)) * Game.speed_mult()
 
 
 func _install_gpu(t: String) -> void:
@@ -257,11 +250,6 @@ func _process(dt: float) -> void:
 		return
 	var r := rate()
 	if r > 0.0:
-		_pw -= accels() * dt * Bal.POWER_PER_ACCEL
-		while _pw <= 0.0 and cells.has("power"):
-			cells.take("power")
-			_pw += 1.0
-		_pw = maxf(0.0, _pw)
 		data["progress"] = progress() + r * dt
 		if progress() >= job_compute():
 			_finish()
@@ -333,8 +321,6 @@ func _draw_curve() -> void:
 
 func need(t: String) -> float:
 	match t:
-		"power":
-			return (1.0 - float(cells.count()) / maxf(1.0, cells.capacity)) * 1.0 if cells.can_accept(t) and job() != "" else 0.0
 		"gpu":
 			return 1.1 if gpu_in.can_accept(t) and gpu_in.incoming == 0 else 0.0
 	if inputs.has(t):
@@ -345,14 +331,13 @@ func need(t: String) -> float:
 
 
 func save_contents() -> Dictionary:
-	var d := {"cells": cells.items.duplicate()}
+	var d := {}
 	for k in inputs:
 		d["in_" + k] = inputs[k].items.duplicate()
 	return d
 
 
 func load_contents(d: Dictionary) -> void:
-	Building.fill(cells, d.get("cells", []))
 	var p := progress()
 	start(job(), refreshing())
 	data["progress"] = p
@@ -377,7 +362,7 @@ func info() -> Array:
 		var left := (job_compute() - progress()) / maxf(0.01, rate())
 		out.append(["clock", "About %s once the data is in" % Fmt.time(left) if not ready_to_train() else "About %s to go" % Fmt.time(left)])
 	out.append(["gpu", "Accelerators x%.1f  ·  GPUs %d / %d" % [accels(), gpus(), Bal.trainer_gpu_slots(level)]])
-	out.append(["power", "Power %d / %d" % [cells.count(), cells.capacity]])
+	out.append(["power", "Draws %s kW from the power grid while it trains" % Fmt.num(accels() * Bal.KW_PER_ACCEL)])
 	return out
 
 

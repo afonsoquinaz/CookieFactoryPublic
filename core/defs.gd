@@ -125,11 +125,11 @@ const BUILDINGS := {
 
 	# ---- sources (3x3): raw resources
 	"src_power": {"name": "Solar Farm", "cat": "source", "tab": "source", "icon": "src_power", "res": "power", "size": Vector2i(3, 3), "cost": 30, "growth": 2.2, "up": 12, "max": 60, "time": 5,
-		"desc": "Panels charge power cells. Every GPU burns power while it serves."},
+		"desc": "Feeds the power grid: power lines run to every server. Each accelerator draws power while it serves; short of power, everything slows."},
 	"src_data": {"name": "Web Crawler", "cat": "source", "tab": "source", "icon": "src_data", "res": "data", "size": Vector2i(3, 3), "cost": 40, "growth": 2.2, "up": 18, "max": 60, "time": 5,
 		"desc": "Crawls the web for text: the raw material of training."},
 	"src_coolant": {"name": "Cooling Tower", "cat": "source", "tab": "source", "icon": "src_coolant", "res": "coolant", "size": Vector2i(3, 3), "cost": 120, "growth": 2.2, "up": 30, "max": 60, "time": 10,
-		"desc": "Chills coolant. Servers with real GPUs run hot: without coolant they throttle."},
+		"desc": "Feeds the cooling loop: pipes run to every server with GPUs. Short of cooling, GPUs throttle."},
 	"src_silicon": {"name": "Silicon Works", "cat": "source", "tab": "source", "icon": "src_silicon", "res": "silicon", "size": Vector2i(3, 3), "cost": 250, "growth": 2.2, "up": 45, "max": 60, "time": 20,
 		"desc": "Melts sand and pulls pure silicon crystals, for chips and memory."},
 	"src_copper": {"name": "Copper Mine", "cat": "source", "tab": "source", "icon": "src_copper", "res": "copper", "size": Vector2i(3, 3), "cost": 400, "growth": 2.2, "up": 70, "max": 60, "time": 30,
@@ -150,8 +150,8 @@ const BUILDINGS := {
 		"desc": "Doctors, lawyers and professors write expert examples."},
 
 	# ---- compute: inference servers and the training cluster
-	"server": {"name": "Inference Server", "cat": "server", "tab": "server", "icon": "server", "size": Vector2i(5, 3), "cost": 400, "growth": 6.0, "up": 40, "max": 40, "time": 10,
-		"desc": "Answers API calls with the model you load. Couriers slot in GPUs and HBM (more speed, more memory) and keep it fed with power and coolant. Engineers tune it."},
+	"server": {"name": "Inference Server", "cat": "server", "tab": "server", "icon": "server", "size": Vector2i(5, 3), "cost": 400, "growth": 2.4, "up": 40, "max": 40, "time": 10,
+		"desc": "Answers API calls: requests come in on the fiber, tokens go back out, as fast as its GPUs allow. Couriers slot in GPUs and HBM (more speed, more memory); it draws power and cooling from the grids; engineers tune it. The more servers, the more you sell."},
 	"trainer": {"name": "Training Cluster", "cat": "train", "tab": "server", "icon": "trainer", "size": Vector2i(4, 4), "cost": 500, "growth": 3.0, "up": 80, "max": 40, "time": 60,
 		"desc": "Trains new models from data, and refreshes old ones. Couriers bring the data; its GPUs do the maths."},
 
