@@ -48,6 +48,9 @@ func _ready() -> void:
 	bubbles = Bubbles.new()
 	bubbles.world = self
 	add_child(bubbles)
+	var amb := Ambience.new()
+	amb.world = self
+	add_child(amb)
 	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)
