@@ -622,6 +622,23 @@ func _show_button(b: JuicyButton, on: bool) -> void:
 
 
 var _dot_cd := 0.0
+var _more := false
+var _focused := false
+
+## While something is selected the screen is about it: the goal card (except
+## in the first tutorial steps), the side buttons, banners and job timers
+## step aside until you deselect.
+func _declutter() -> void:
+	var sel := selected != null or selected_ob != ""
+	goals.visible = not sel or Game.tutorial_step < 5
+	timers.visible = not sel
+	if sel:
+		for c in [_btn_today, _btn_league, _btn_pass, _event_chip, _trend_chip]:
+			c.visible = false
+	elif _focused:
+		_apply_reveal()
+		_update_live()
+	_focused = sel
 
 func _update_buttons(dt: float) -> void:
 	var sel := selected != null or selected_ob != ""
@@ -730,16 +747,32 @@ func open_sheet(s: Sheet) -> void:
 # ---------------------------------------------------------------- selection
 
 func select(n: Building) -> void:
+	if selected != n:
+		_more = false
 	selected_ob = ""
 	selected = n
 	_sel_t = 0.0
 	n.flash()
 	Sfx.play("click")
 	_refresh_actions()
+	_frame_selected(n.global_position)
+
+
+## Glide the camera if the selection sits under the action bar or the top
+## bar, so you can see what you tapped.
+func _frame_selected(p: Vector3) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or placement != null:
+		return
+	var vs := get_viewport_rect().size
+	var sp := cam.unproject_position(p)
+	if cam.is_position_behind(p) or sp.y > vs.y * 0.62 or sp.y < vs.y * 0.18 or sp.x < vs.x * 0.12 or sp.x > vs.x * 0.88:
+		world.cam.fly_to(p + Vector3(0, 0, 2.0), -1.0, 0.45)
 
 
 func select_obstacle(key: String) -> void:
 	selected = null
+	_more = false
 	selected_ob = key
 	_sel_t = 0.0
 	Sfx.play("click")
@@ -753,6 +786,7 @@ func select_obstacle(key: String) -> void:
 
 func deselect() -> void:
 	selected = null
+	_more = false
 	selected_ob = ""
 	_sel_mark.visible = false
 	_route_mark.visible = false
@@ -814,9 +848,33 @@ func _refresh_actions() -> void:
 		b.append(["stage", "mega", "Next stage", Kit.BRASS, (n as MegaB).can_advance()])
 	if not n is SiteB:
 		b.append(["move", "move", "Move", Kit.CHARCOAL])
-	actions.set_buttons(b, "b%d" % n.uid)
+	actions.set_buttons(_tidy(b), "b%d" % n.uid + ("m" if _more else ""))
 	_mark_cells(Grid.cells(n.cell(), n.size(), n.rot()))
 	_mark_route(n)
+
+
+## At most four buttons: the main action, the building's own action, Info
+## and More (which swaps in the rest, with a Back button).
+const SECONDARY := ["warp", "tune", "market", "staff", "move"]
+
+func _tidy(b: Array) -> Array:
+	var main := []
+	var rest := []
+	var info: Array = []
+	for x in b:
+		if x[0] == "info":
+			info = x
+		elif SECONDARY.has(x[0]):
+			rest.append(x)
+		else:
+			main.append(x)
+	if not info.is_empty():
+		main.append(info)
+	if main.size() + rest.size() <= 4:
+		return main + rest
+	if _more:
+		return rest + [["back", "txt:‹", "Back", Kit.CHARCOAL]]
+	return main + [["more", "txt:•••", "More", Kit.CHARCOAL]]
 
 
 func _finish_label(j: Dictionary) -> String:
@@ -873,6 +931,10 @@ func _mark_cells(cells: Array) -> void:
 func _on_action(id: String) -> void:
 	var n := selected
 	match id:
+		"more":
+			_more = true
+		"back":
+			_more = false
 		"info":
 			open_building(n)
 		"upgrade":
@@ -1081,10 +1143,13 @@ func _process(dt: float) -> void:
 		_load_label.modulate = Color(1.0, 0.75, 0.45) if short else Color(0.7, 1.0, 0.75)
 	if playing and placement == null:
 		_update_buttons(dt)
+		_declutter()
 	_live_t -= dt
 	if _live_t <= 0.0 and playing:
 		_live_t = 0.5
 		_update_live()
+		if placement == null:
+			_declutter()
 	_builders_chip.set_text_value("%d/%d" % [Game.jobs.size(), Game.builders()])
 	if (selected != null or selected_ob != "") and placement == null:
 		_sel_t += dt

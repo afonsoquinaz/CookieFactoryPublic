@@ -1,9 +1,11 @@
 class_name ActionBar
 extends Control
 ## What you can do with the selected thing, base-builder style: its name and
-## level on a ribbon, and a row of big round buttons underneath (Info,
-## Upgrade with its price, Model for a server, Staff, Move, Finish now with
-## gems while a builder is busy on it, Clear for an obstacle...).
+## level on a ribbon, and a row of at most four big buttons underneath: the
+## main thing to do (Upgrade with its price, or Finish now while a builder
+## is busy on it, Clear for an obstacle), the building's own action (Model
+## for a server, Train...), Info, and More for the rest (Tune, Market,
+## Staff, Move...).
 
 signal action(id: String)
 
@@ -68,7 +70,7 @@ func set_buttons(buttons: Array, target := "") -> void:
 
 
 func _button(id: String, icon: String, label: String, face: Color, enabled: bool) -> Control:
-	var w := 112.0 if _row.get_child_count() < 6 else 96.0
+	var w := 112.0
 	var b := Kit.juicy("", face if enabled else Kit.GREY, Kit.SAGE_EDGE, 16, Vector2(w, 112))
 	b.row.queue_free()
 	var v := Kit.vbox(-4)
@@ -76,9 +78,17 @@ func _button(id: String, icon: String, label: String, face: Color, enabled: bool
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	v.offset_bottom = -10
 	b.add_child(v)
-	var ic := Kit.icon(icon, 54)
-	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	v.add_child(ic)
+	if icon.begins_with("txt:"):
+		# a glyph instead of an icon (More / Back)
+		var g := Kit.game(icon.substr(4), 40, Kit.WHITE, 6)
+		g.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		g.custom_minimum_size = Vector2(54, 54)
+		g.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		v.add_child(g)
+	else:
+		var ic := Kit.icon(icon, 54)
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(ic)
 	var l := Kit.game(label, 16, Kit.WHITE, 5)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
