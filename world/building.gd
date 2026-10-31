@@ -218,14 +218,29 @@ func _visual(_root: Node3D, _tier: int) -> void:
 	pass
 
 
+## Built or upgraded: the building crouches, hops, lands with a squash and
+## a shockwave on the ground, a pillar of light and confetti.
 func celebrate() -> void:
 	if not is_inside_tree():
 		return
-	Fx.burst(get_tree().current_scene, global_position + Vector3(0, 1.5, 0), Pal.GOLD, 24)
+	var scene := get_tree().current_scene
+	var r := maxf(size_m().x, size_m().y) * 0.75
+	Fx.burst(scene, global_position + Vector3(0, 1.5, 0), Pal.GOLD, 24)
+	Fx.pillar(scene, global_position, Color(1.0, 0.9, 0.55), clampf(r * 0.22, 0.5, 1.4))
 	if visual:
-		visual.scale = Vector3(1.08, 0.6, 1.08)
 		var tw := visual.create_tween()
-		tw.tween_property(visual, "scale", Vector3.ONE, 0.6).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(visual, "scale", Vector3(1.1, 0.8, 1.1), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(visual, "scale", Vector3(0.94, 1.12, 0.94), 0.14)
+		tw.parallel().tween_property(visual, "position:y", 0.9, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(visual, "position:y", 0.0, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_callback(func():
+			Fx.ring(scene, global_position, Color(1.0, 0.95, 0.75), r * 1.4)
+			Fx.puff(scene, global_position + Vector3(0, 0.2, 0), Pal.CREAM, 10)
+			var w = scene.get("world")
+			if w and w.get("cam"):
+				w.cam.shake = maxf(w.cam.shake, 0.25))
+		tw.tween_property(visual, "scale", Vector3(1.12, 0.86, 1.12), 0.08)
+		tw.tween_property(visual, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 ## Little squash when something happens here.
@@ -248,7 +263,7 @@ func appear() -> void:
 ## Briefly highlights the building (selected / tapped).
 func flash() -> void:
 	_flash = 1.0
-	bump(0.06)
+	bump(0.1)
 
 
 # ---------------------------------------------------------------- entrance

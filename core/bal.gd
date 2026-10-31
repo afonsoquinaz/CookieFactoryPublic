@@ -61,6 +61,13 @@ static func finish_gems(seconds: float) -> int:
 	return maxi(1, int(ceil(pow(seconds / 60.0, 0.78))))
 
 const FREE_FINISH := 30.0
+# coin bubbles (tips over busy servers and channels): each pays this many
+# seconds of total income, at least BUBBLE_MIN; a building floats one every
+# BUBBLE_EVERY seconds (the first after about BUBBLE_FIRST)
+const BUBBLE_SECONDS := 10.0
+const BUBBLE_MIN := 3.0
+const BUBBLE_FIRST := 20.0
+const BUBBLE_EVERY := Vector2(50.0, 120.0)
 
 
 static func max_level(kind: String) -> int:

@@ -99,6 +99,37 @@ static func coins(parent: Node, from: Vector3, n := 8) -> void:
 		tw.tween_callback(c.queue_free)
 
 
+## A column of soft light that shoots up and fades (built, upgraded).
+static func pillar(parent: Node, pos: Vector3, col := Color(1, 0.9, 0.6), r := 1.2) -> void:
+	if parent == null:
+		return
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 1.0
+	cm.bottom_radius = 1.0
+	cm.height = 1.0
+	cm.radial_segments = 20
+	cm.cap_top = false
+	cm.cap_bottom = false
+	mi.mesh = cm
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = Color(col.r, col.g, col.b, 0.32)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	mi.global_position = pos
+	mi.scale = Vector3(r, 0.1, r)
+	var tw := mi.create_tween().set_parallel(true)
+	tw.tween_property(mi, "scale", Vector3(r * 0.5, 16.0, r * 0.5), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mi, "position:y", pos.y + 8.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.5).set_delay(0.15)
+	tw.chain().tween_callback(mi.queue_free)
+
+
 ## A ring that expands on the floor (pad completed, worker assigned).
 static func ring(parent: Node, pos: Vector3, col := Color(1, 1, 1), r := 1.2) -> void:
 	if parent == null:

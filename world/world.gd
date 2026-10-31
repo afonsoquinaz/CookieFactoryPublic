@@ -18,6 +18,7 @@ var workers := {}                 # id -> Worker
 var builders := {}                # hut uid -> Builder
 var obst_nodes := {}              # obstacle key -> Node3D
 var cam: CameraRig
+var bubbles: Bubbles
 var sun: DirectionalLight3D
 var reserved := {}                # holder instance id -> {item: n} reserved by couriers
 var _decor: Array[Building] = []
@@ -44,6 +45,12 @@ func _ready() -> void:
 	var net := NetworkView.new()
 	net.world = self
 	add_child(net)
+	bubbles = Bubbles.new()
+	bubbles.world = self
+	add_child(bubbles)
+	var amb := Ambience.new()
+	amb.world = self
+	add_child(amb)
 	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)
@@ -52,7 +59,9 @@ func _ready() -> void:
 	cam = CameraRig.new()
 	add_child(cam)
 	cam.world = self
-	cam.global_position = Vector3(0, 0, 1)
+	cam.global_position = base_center()
+	# zoomed so the base fits a phone's width (about 14 m per zoom step)
+	cam.zoom = clampf((base_width() + 3.0) / 15.0, 1.15, 1.6)
 	cam.snap()
 	_sync_workers()
 	_sync_jobs()
@@ -100,6 +109,33 @@ func _spawn(b: Dictionary) -> Building:
 
 func building(uid: int) -> Building:
 	return bnodes.get(uid)
+
+
+## Where the camera opens: the middle of your buildings' footprints
+## (decor aside), and how wide they spread (m).
+func base_center() -> Vector3:
+	var r := _base_rect()
+	if r.size == Vector2.ZERO:
+		return Vector3(0, 0, 1)
+	var c := r.get_center()
+	return Vector3(c.x, 0, c.y + 1.0)
+
+
+func base_width() -> float:
+	return _base_rect().size.x
+
+
+func _base_rect() -> Rect2:
+	var r := Rect2()
+	var first := true
+	for b in bnodes.values():
+		if b is DecorB:
+			continue
+		var h: Vector2 = b.size_m() * 0.5
+		var br := Rect2(Vector2(b.global_position.x, b.global_position.z) - h, h * 2.0)
+		r = br if first else r.merge(br)
+		first = false
+	return r
 
 
 func buildings_of(kind: String) -> Array[Building]:
@@ -176,8 +212,7 @@ func _on_upgraded(uid: int, _lvl: int) -> void:
 	var n: Building = bnodes.get(uid)
 	if n:
 		n.refresh()
-		n.bump(0.08)
-		Fx.burst(get_tree().current_scene, n.global_position + Vector3(0, 2.0, 0), Pal.GOLD, 16, false)
+		n.celebrate()
 		UI3D.pop_text(get_tree().current_scene, n.global_position + Vector3(0, 3.2, 0), "Level %d!" % n.level if not n is MegaB else "New stage!", Color(1.0, 0.9, 0.5), 80)
 		Sfx.play("upgrade", -2.0)
 	_sync_jobs()
