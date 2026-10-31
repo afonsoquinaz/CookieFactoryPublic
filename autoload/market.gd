@@ -12,9 +12,12 @@ extends Node
 ##        contract  enterprise contracts at the Desk (x1.2, plus a bonus)
 ##        agent     long agent jobs from the Agent Hub on tool-capable
 ##                  models (x2)
-##   3. serving: each model serves min(demand, capacity), and everything that
-##      leaves the campus fits through the gateways' bandwidth; the rest of
-##      the demand is lost (and costs reputation)
+##   3. serving: each model serves min(demand, capacity); the servers draw
+##      that much from the power grid (Solar Farms) and their GPUs from the
+##      cooling loop (Cooling Towers): short of power everything slows by the
+##      shortfall, short of cooling GPUs throttle; and everything that leaves
+##      the campus fits through the gateways' bandwidth; the rest of the
+##      demand is lost (and costs reputation)
 ##   4. money and tokens through Game.serve, load handed back to each server
 ##      (it burns power and coolant, wears GPUs and draws the traffic), and
 ##      latency for the next tick.
@@ -39,6 +42,12 @@ var income := 0.0                          # $/s right now
 var bandwidth := 0.0                       # K/s the gateways can carry
 var used_bw := 0.0
 var unmet := 0.0                           # K/s lost this tick (outside the campus)
+var power_supply := 0.0                    # kW the Solar Farms feed into the grid
+var power_draw := 0.0                      # kW the servers and clusters want right now
+var power_f := 1.0                         # share of that the grid can give
+var cool_supply := 0.0
+var cool_draw := 0.0
+var cool_f := 1.0
 var orbit_modules := 0
 var orbit_model := ""
 var _t := 0.0
@@ -60,6 +69,12 @@ func reset_state() -> void:
 	want = {}
 	lat = {}
 	income = 0.0
+	power_supply = 0.0
+	power_draw = 0.0
+	power_f = 1.0
+	cool_supply = 0.0
+	cool_draw = 0.0
+	cool_f = 1.0
 	orbit_modules = 0
 	orbit_model = ""
 
@@ -199,6 +214,10 @@ func step(dt: float) -> void:
 				by_channel[ch][rid] = x
 				if ch != "cafe":
 					outbound += x
+	_grids(orbit_cap)
+	outbound = 0.0
+	for ch in ["api", "contract", "agent"]:
+		outbound += total(by_channel[ch])
 	bandwidth = total_bandwidth()
 	var bw_f := 1.0 if outbound <= bandwidth or outbound <= 0.0 else bandwidth / outbound
 	used_bw = minf(outbound, bandwidth)
@@ -251,6 +270,46 @@ func step(dt: float) -> void:
 		if q > Bal.Q_FLOOR:
 			quality[rid] = maxf(Bal.Q_FLOOR, q - Bal.Q_DECAY * dt)
 	ticked.emit()
+
+
+## The power grid and the cooling loop: what the plants give against what the
+## servers (at this tick's load) and the Training Clusters want; a shortfall
+## slows the serving on the ground (orbit has its own sun and sky).
+func _grids(orbit_cap: float) -> void:
+	power_supply = 0.0
+	cool_supply = 0.0
+	for n in world.buildings_of("src_power"):
+		if n is SourceB:
+			power_supply += (n as SourceB).supply()
+	for n in world.buildings_of("src_coolant"):
+		if n is SourceB:
+			cool_supply += (n as SourceB).supply()
+	power_draw = 0.0
+	cool_draw = 0.0
+	for rid in _servers:
+		var c := float(cap.get(rid, 0.0))
+		var u := float(served.get(rid, 0.0)) / c if c > 0.0 else 0.0
+		for s in _servers[rid]:
+			power_draw += (s as ServerB).accels() * u * Bal.KW_PER_ACCEL
+			cool_draw += (s as ServerB).gpus() * u * Bal.COOL_PER_GPU
+	for t in world.buildings_of("trainer"):
+		if t is TrainerB and (t as TrainerB).training():
+			power_draw += (t as TrainerB).accels() * Bal.KW_PER_ACCEL
+	power_f = 1.0 if power_draw <= power_supply or power_draw <= 0.0 else power_supply / power_draw
+	cool_f = 1.0 if cool_draw <= cool_supply or cool_draw <= 0.0 else cool_supply / cool_draw
+	if power_f >= 1.0 and cool_f >= 1.0:
+		return
+	var hot := Bal.THROTTLE + (1.0 - Bal.THROTTLE) * cool_f
+	for rid in served:
+		var c2 := float(cap.get(rid, 0.0))
+		if c2 <= 0.0:
+			continue
+		var ground := (c2 - (orbit_cap if rid == orbit_model else 0.0)) / c2
+		var k := ground * power_f * hot + (1.0 - ground)
+		served[rid] = float(served[rid]) * k
+		for ch in CHANNELS:
+			if by_channel[ch].has(rid):
+				by_channel[ch][rid] = float(by_channel[ch][rid]) * k
 
 
 func _contracts(dt: float) -> void:

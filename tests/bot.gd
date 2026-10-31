@@ -148,8 +148,11 @@ func _wants() -> Array[String]:
 	var dem := Market.total(Market.demand)
 	if Game.money > 400.0 or servers > 1:
 		_want_producer(want, "gpu")
-	if Game.count_of("fab") > 0 and Game.count_of("src_coolant") == 0:
-		want.append("src_coolant")
+	# the grids: keep a margin of power and cooling over what the servers draw
+	if Market.power_f < 1.0 or Market.power_supply < Market.power_draw * 1.25:
+		want.insert(0, "src_power")
+	if _any_gpu() and (Market.cool_f < 1.0 or Market.cool_supply < Market.cool_draw * 1.25):
+		want.insert(0, "src_coolant")
 	var nm := _next_model()
 	if not nm.is_empty() and Game.level >= 2:
 		if Game.count_of("trainer") == 0:
@@ -174,7 +177,7 @@ func _wants() -> Array[String]:
 		want.append("server")
 	if Market.used_bw >= Market.bandwidth * 0.9 or cap > dem * 1.4:
 		want.append("gateway")
-	var more := {"src_power": servers * 2, "cafe": 1 + servers / 3}
+	var more := {"cafe": 1 + servers / 3}
 	for k in more:
 		if Game.count_of(k) < int(more[k]):
 			want.append(k)
@@ -211,6 +214,8 @@ func _upgrade() -> bool:
 		var w := c
 		if n is ServerB:
 			w *= 0.15
+		elif n is SourceB and (n as SourceB).utility() and (Market.power_f < 1.0 or Market.cool_f < 1.0):
+			w *= 0.2
 		elif n.kind == "gateway" or n is TrainerB:
 			w *= 0.5
 		if w < bc and (c <= _spare() or c <= Game.money * 0.25):
@@ -385,6 +390,7 @@ func _print_status() -> void:
 				var h: Holder = p["holder"]
 				parts.append("%s %d/%d" % [p["dir"], h.count(), h.capacity])
 			print("        %s %s" % [n.name, parts])
+	print("        grid power %.0f/%.0f kW (%d%%)  cooling %.0f/%.0f (%d%%)" % [Market.power_draw, Market.power_supply, roundi(Market.power_f * 100), Market.cool_draw, Market.cool_supply, roundi(Market.cool_f * 100)])
 	print("[%6.0fs] $%s  +%s/min  lvl %d  sparks %d  tokens %s  cap %s dem %s bw %s/%s rep %.2f  servers %s  bld %d  land %d  staff %d  jobs %d/%d  spent=%s" % [
 		_t, Fmt.num(Game.money), Fmt.num(Game.recent_income() * 60.0), Game.level, Game.gems, Fmt.tokens(float(Game.stats["tokens"])),
 		Fmt.tokens(Market.total(Market.cap)), Fmt.tokens(Market.total(Market.demand)), Fmt.tokens(Market.used_bw), Fmt.tokens(Market.bandwidth), Market.rep,

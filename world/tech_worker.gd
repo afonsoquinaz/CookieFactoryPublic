@@ -72,6 +72,11 @@ func _process(dt: float) -> void:
 				ch.work = ""
 				source.harvest(_spot)
 				_spot = {}
+				if source.utility():
+					# into the grid, not into a crate
+					Fx.puff(source.get_tree().current_scene, global_position + Vector3(0, 0.6, -0.4), Defs.ITEMS[source.ing]["color"], 4)
+					state = S.SEEK
+					return
 				var y := Bal.src_yield(lvl)
 				for i in y:
 					carry.add(source.ing)

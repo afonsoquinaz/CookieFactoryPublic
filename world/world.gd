@@ -41,6 +41,9 @@ func _ready() -> void:
 	var orbit := OrbitView.new()
 	orbit.world = self
 	add_child(orbit)
+	var net := NetworkView.new()
+	net.world = self
+	add_child(net)
 	grid.rebuild(Game.owned_chunks())
 	for b in Game.buildings:
 		_spawn(b)
@@ -65,13 +68,6 @@ func _ready() -> void:
 	Game.jobs_changed.connect(_sync_jobs)
 	Game.researched.connect(_on_research)
 	Game.money_changed.connect(_on_money)
-	# a brand-new empire: a few power cells are already waiting at the solar farm
-	if int(Game.stats["tokens"]) == 0 and float(Game.stats["earned"]) == 0.0:
-		for n in bnodes.values():
-			if n is SourceB and (n as SourceB).crate.count() == 0:
-				for i in 4:
-					(n as SourceB).crate.add("power", false)
-				break
 
 
 func _on_quality(lv: int) -> void:
